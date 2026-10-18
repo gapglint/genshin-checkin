@@ -526,11 +526,11 @@
                         android:text="보상 내역" />
 
                     <TextView
+                        android:id="@+id/historySub"
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="출석·보충·리딤 코드로 받은 보상을 날짜별로 봐요" />
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
 
                 <ImageView

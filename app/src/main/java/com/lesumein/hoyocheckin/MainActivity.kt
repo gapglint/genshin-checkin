@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private val store: Store? get() = settings.current()
     private var busy: String? = null
     private var loadingNickname = false
+    private var countingRewards = false
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -160,8 +161,26 @@ class MainActivity : AppCompatActivity() {
                     "$at · $summary"
                 },
                 busy = busy,
+                historyUnseen = store?.historyUnseen ?: 0,
             )
         )
+        store?.let { countUnseenRewards(it) }
+    }
+
+    /** 새 보상 수를 조용히 센다. 첫 페이지 한 번만 받고, 같은 계정은 10분에 한 번까지. */
+    private fun countUnseenRewards(store: Store) {
+        if (ServerClock.now() - store.historyCountedAt < 10 * 60_000 || countingRewards) return
+        countingRewards = true
+        Thread {
+            try {
+                RewardHistory.countUnseen(store)
+            } catch (e: Exception) {
+            }
+            runOnUiThread {
+                countingRewards = false
+                if (settings.currentId == store.accountId) refresh()
+            }
+        }.start()
     }
 
     /** 고른 계정의 로그인이 아직 유효한지 호요랩에 물어보고 알려 준다. 풀렸으면 다시 로그인하게 한다. */

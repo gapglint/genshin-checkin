@@ -9,6 +9,8 @@
     <!-- 밝은 면 위의 금색 글자. 흰 바탕 대비를 맞추려 어둡게 잡았다. -->
     <color name="accent">#8A6420</color>
     <color name="warn">#B04A2A</color>
+    <!-- 아직 확인하지 않은 보상 줄의 배경 -->
+    <color name="unseen_bg">#FBF0D6</color>
     <color name="action">#1F2742</color>
     <color name="on_action">#F2EEE3</color>
 

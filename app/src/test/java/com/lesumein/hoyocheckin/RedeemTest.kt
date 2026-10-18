@@ -77,13 +77,30 @@ class RedeemTest {
 class RewardHistoryTest {
     @Test fun parsesAwardHistory() {
         val json = JSONObject("""{"retcode":0,"data":{"total":2,"list":[
-            {"id":"1","name":"원석","cnt":20,"created_at":"2026-10-18 01:02:03"},
-            {"id":"2","name":"모라","cnt":5000,"created_at":"1792249323"}]}}""")
-        val entries = RewardHistoryActivity.parseAwards(json)
-        assertEquals(RewardEntry("원석", 20, "2026-10-18"), entries[0])
+            {"id":"11","name":"원석","cnt":20,"created_at":"2026-10-18 01:02:03"},
+            {"id":"","name":"모라","cnt":5000,"created_at":"1792249323"}]}}""")
+        val entries = RewardHistory.parseAwards(json)
+        assertEquals(RewardEntry("11", "원석", 20, "2026-10-18"), entries[0])
         assertEquals("모라", entries[1].name)
+        assertEquals("1792249323|모라|5000", entries[1].key)
         assertEquals(10, entries[1].date.length)
-        assertEquals("2026년 10월", RewardHistoryActivity.monthLabel("2026-10"))
-        assertEquals("10월 8일", RewardHistoryActivity.dayLabel("2026-10-08"))
+        assertEquals("2026년 10월", RewardHistory.monthLabel("2026-10"))
+        assertEquals("10월 8일", RewardHistory.dayLabel("2026-10-08"))
+    }
+
+    private fun e(key: String) = RewardEntry(key, "원석", 20, "2026-10-18")
+
+    @Test fun unseenAreThoseAboveTheSeenMarker() {
+        val newestFirst = listOf(e("5"), e("4"), e("3"), e("2"))
+        assertEquals(2, RewardHistory.unseenAwards(newestFirst, seenKey = "3"))
+        assertEquals(0, RewardHistory.unseenAwards(newestFirst, seenKey = "5"))
+        // 확인 표시가 목록 밖이면(그 뒤로 많이 받음) 전부 새것, 기준이 없으면(처음) 0
+        assertEquals(4, RewardHistory.unseenAwards(newestFirst, seenKey = "1"))
+        assertEquals(4, RewardHistory.unseenAwards(newestFirst, seenKey = ""))
+        assertEquals(0, RewardHistory.unseenAwards(newestFirst, seenKey = null))
+    }
+
+    @Test fun unseenCodesAfterSeenTime() {
+        assertEquals(1, RewardHistory.unseenCodes(listOf("A" to 300L, "B" to 100L), seenAt = 200L))
     }
 }

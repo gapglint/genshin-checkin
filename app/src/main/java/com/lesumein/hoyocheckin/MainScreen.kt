@@ -40,6 +40,8 @@ data class MainUiState(
     val redeemSummary: String? = null,
     /** 출첵·보충이 진행 중이면 그 안내. */
     val busy: String? = null,
+    /** 아직 확인하지 않은 보상 수. */
+    val historyUnseen: Int = 0,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -71,6 +73,7 @@ class MainScreen(val root: View) {
     val rowMakeUpAlerts: View = root.findViewById(R.id.rowMakeUpAlerts)
     val rowOpenPage: View = root.findViewById(R.id.rowOpenPage)
     val rowHistory: View = root.findViewById(R.id.rowHistory)
+    private val historySub: TextView = root.findViewById(R.id.historySub)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
@@ -147,6 +150,12 @@ class MainScreen(val root: View) {
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowHistory.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+        historySub.text = if (s.historyUnseen > 0) {
+            "새 보상 ${if (s.historyUnseen >= RewardHistory.PAGE_SIZE) "${RewardHistory.PAGE_SIZE}개 이상" else "${s.historyUnseen}개"} · 눌러서 확인"
+        } else {
+            "출석·보충·리딤 코드로 받은 보상을 날짜별로 봐요"
+        }
+        historySub.setTextColor(ContextCompat.getColor(context, if (s.historyUnseen > 0) R.color.accent else R.color.ink_muted))
     }
 
     private fun renderAccounts(s: MainUiState) {

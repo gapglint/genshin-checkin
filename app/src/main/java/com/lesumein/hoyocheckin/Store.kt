@@ -107,6 +107,25 @@ class Store(private val context: Context, val accountId: String) {
             putString("redeem_log", JSONArray(value.map { JSONObject().put("code", it.first).put("at", it.second) }).toString())
         }
 
+    /** 보상 내역에서 '모두 확인'을 누를 때 가장 최근이던 출석·보충 보상의 키. 이보다 앞(최신)이면 새 보상. */
+    var historySeenAwardKey: String?
+        get() = prefs.getString("history_seen_award", null)
+        set(value) = prefs.edit { putString("history_seen_award", value) }
+
+    /** '모두 확인'을 누른 시각. 이후에 받은 리딤 코드가 새 보상. */
+    var historySeenRedeemAt: Long
+        get() = prefs.getLong("history_seen_redeem", 0)
+        set(value) = prefs.edit { putLong("history_seen_redeem", value) }
+
+    /** 메인 화면에 보일 새 보상 수(마지막으로 센 값)와 센 시각. */
+    var historyUnseen: Int
+        get() = prefs.getInt("history_unseen", 0)
+        set(value) = prefs.edit { putInt("history_unseen", value) }
+
+    var historyCountedAt: Long
+        get() = prefs.getLong("history_counted_at", 0)
+        set(value) = prefs.edit { putLong("history_counted_at", value) }
+
     var lastRedeemNotified: String?
         get() = prefs.getString("last_redeem_notified", null)
         set(value) = prefs.edit { putString("last_redeem_notified", value) }
