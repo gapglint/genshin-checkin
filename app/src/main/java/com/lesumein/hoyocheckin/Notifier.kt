@@ -22,7 +22,8 @@ object Notifier {
 
     /** 이미 출첵한 경우는 조용히 넘어가고, 나머지는 같은 날 같은 종류를 한 번만 알린다. */
     fun notify(context: Context, store: Store, outcome: Outcome) {
-        if (outcome is Outcome.AlreadySigned) return
+        // 이미 출첵했거나 잠깐의 속도 제한은 알릴 필요가 없다.
+        if (outcome is Outcome.AlreadySigned || outcome == Outcome.RateLimited) return
         val key = "${outcome::class.simpleName}:${Store.checkInDay()}"
         if (key == store.lastNotified) return
 

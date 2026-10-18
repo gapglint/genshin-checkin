@@ -7,6 +7,7 @@ import android.text.format.DateFormat
 import android.webkit.CookieManager
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -67,15 +68,14 @@ class MainActivity : AppCompatActivity() {
         checkInButton.isEnabled = false
         lastResult.text = "출첵하는 중..."
         Thread {
-            val error = try {
-                CheckIn.run(this)
-                null
+            val message = try {
+                CheckIn.run(this)?.let { CheckIn.describe(it) }
             } catch (e: IOException) {
                 "네트워크 오류: ${e.message}"
             }
             runOnUiThread {
                 refresh()
-                if (error != null) lastResult.text = error
+                if (message != null) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             }
         }.start()
     }

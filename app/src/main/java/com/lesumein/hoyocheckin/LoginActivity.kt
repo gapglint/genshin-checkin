@@ -32,8 +32,7 @@ class LoginActivity : AppCompatActivity() {
         override fun run() {
             if (saveCookieIfLoggedIn()) {
                 Toast.makeText(this@LoginActivity, "로그인 완료! 이제 자동으로 출첵해요.", Toast.LENGTH_LONG).show()
-                CheckIn.schedule(this@LoginActivity)
-                CheckIn.runSoon(this@LoginActivity)
+                CheckIn.schedule(this@LoginActivity, restart = true)
                 setResult(RESULT_OK)
                 finish()
             } else {

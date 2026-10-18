@@ -24,6 +24,15 @@ class Store(context: Context) {
         get() = prefs.getLong("last_run_at", 0)
         set(value) = prefs.edit { putLong("last_run_at", value) }
 
+    /** 서버에서 출첵을 확인한 날(UTC+8 기준)과 그때의 누적 일수. 그날은 더 묻지 않는다. */
+    var signedDay: String?
+        get() = prefs.getString("signed_day", null)
+        set(value) = prefs.edit { putString("signed_day", value) }
+
+    var signedTotal: Int
+        get() = prefs.getInt("signed_total", 0)
+        set(value) = prefs.edit { putInt("signed_total", value) }
+
     /** 같은 알림을 하루에 여러 번 보내지 않으려고 마지막으로 보낸 알림의 키를 기억한다. */
     var lastNotified: String?
         get() = prefs.getString("last_notified", null)

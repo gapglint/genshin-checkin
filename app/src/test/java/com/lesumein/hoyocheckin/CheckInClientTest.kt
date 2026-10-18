@@ -34,6 +34,11 @@ class CheckInClientTest {
         assertEquals(Outcome.LoginExpired, CheckInClient.infoError(JSONObject("""{"retcode":-100}""")))
     }
 
+    @Test fun tooFrequent() {
+        assertEquals(Outcome.RateLimited, sign("""{"retcode":-1004,"message":"Visits too frequently"}"""))
+        assertEquals(Outcome.RateLimited, CheckInClient.infoError(JSONObject("""{"retcode":-1004}""")))
+    }
+
     @Test fun unknownError() {
         assertTrue(sign("""{"retcode":-10002,"message":"no role"}""") is Outcome.Failed)
     }

@@ -13,6 +13,8 @@ sealed class Outcome {
     object LoginExpired : Outcome()
     /** 호요랩이 출첵 요청에 캡차를 걸었다. 출첵 페이지에서 직접 눌러야 한다. */
     object CaptchaRequired : Outcome()
+    /** 요청이 너무 잦다(-1004). 잠시 뒤 다시 시도한다. */
+    object RateLimited : Outcome()
     data class Failed(val message: String) : Outcome()
 }
 
@@ -29,6 +31,7 @@ class CheckInClient(private val cookie: String) {
             return Outcome.AlreadySigned(data.optInt("total_sign_day"))
         }
 
+        Thread.sleep(REQUEST_GAP_MS)
         val sign = request("POST", "$API/sign?lang=$LANG", JSONObject().put("act_id", ACT_ID).toString())
         val day = data.optInt("total_sign_day") + 1
         return interpretSign(sign, day) { rewardFor(day) }
@@ -36,6 +39,7 @@ class CheckInClient(private val cookie: String) {
 
     /** 누적 출첵 일수에 해당하는 보상 이름. 실패해도 출첵 결과에는 영향이 없다. */
     private fun rewardFor(day: Int): String? = try {
+        Thread.sleep(REQUEST_GAP_MS)
         val home = request("GET", "$API/home?lang=$LANG&act_id=$ACT_ID")
         rewardName(home, day)
     } catch (e: Exception) {
@@ -77,12 +81,16 @@ class CheckInClient(private val cookie: String) {
             "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
 
         private val NOT_LOGGED_IN = setOf(-100, -101)
+        private const val TOO_FREQUENT = -1004
+        /** 브라우저처럼 요청 사이에 잠깐 쉰다. */
+        private const val REQUEST_GAP_MS = 1000L
 
         /** info 응답이 정상이 아니면 그에 맞는 결과, 정상이면 null. */
         internal fun infoError(json: JSONObject): Outcome? {
             val code = json.optInt("retcode", Int.MIN_VALUE)
             return when {
                 code in NOT_LOGGED_IN -> Outcome.LoginExpired
+                code == TOO_FREQUENT -> Outcome.RateLimited
                 code != 0 || json.optJSONObject("data") == null -> Outcome.Failed(describe(json))
                 else -> null
             }
@@ -98,6 +106,7 @@ class CheckInClient(private val cookie: String) {
                 }
                 -5003 -> Outcome.AlreadySigned(day - 1)
                 in NOT_LOGGED_IN -> Outcome.LoginExpired
+                TOO_FREQUENT -> Outcome.RateLimited
                 else -> Outcome.Failed(describe(json).ifEmpty { "retcode $code" })
             }
         }
