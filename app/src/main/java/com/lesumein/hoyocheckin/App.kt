@@ -7,5 +7,6 @@ class App : Application() {
         super.onCreate()
         Notifier.createChannel(this)
         ServerClock.offsetMs = AppSettings(this).clockOffset
+        Jobs.removeLegacy(this)
     }
 }

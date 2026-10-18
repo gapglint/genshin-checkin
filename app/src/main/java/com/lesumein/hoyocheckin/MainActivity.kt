@@ -2,6 +2,7 @@ package com.lesumein.hoyocheckin
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -13,20 +14,16 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.view.View
+import android.view.Window
+import android.view.WindowInsets
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import android.app.Activity
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     private lateinit var settings: AppSettings
     private lateinit var screen: MainScreen
     /** 지금 화면에 보이는 계정. 없으면 로그인 전 화면. */
@@ -35,12 +32,9 @@ class MainActivity : AppCompatActivity() {
     private var loadingNickname = false
     private var countingRewards = false
 
-    private val notificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        drawBehindSystemBars(window)
         setContentView(R.layout.activity_main)
         settings = AppSettings(this)
         screen = MainScreen(findViewById(R.id.scroll))
@@ -76,7 +70,7 @@ class MainActivity : AppCompatActivity() {
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
 
         if (Build.VERSION.SDK_INT >= 33) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
         // 앱 업데이트 등으로 예약이 사라졌어도 다시 건다. 이미 있으면 그대로 둔다.
         if (settings.hasAccounts) CheckIn.schedule(this)
@@ -190,16 +184,16 @@ class MainActivity : AppCompatActivity() {
             val valid = CheckInClient(store.cookie ?: return@runInBackground null).isLoggedIn()
             runOnUiThread {
                 val who = store.accountRole?.let { "${it.nickname} (${it.serverName})\n" } ?: ""
-                MaterialAlertDialogBuilder(this)
+                AppDialog(this)
                     .setTitle(if (valid) "로그인돼 있어요" else "로그인이 풀렸어요")
                     .setMessage(
                         if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요."
                         else "${who}HoYoLAB UID ${store.accountId} 계정을 다시 로그인해 주세요."
                     )
-                    .setPositiveButton(if (valid) "확인" else "다시 로그인") { _, _ ->
+                    .setPositiveButton(if (valid) "확인" else "다시 로그인") {
                         if (!valid) startActivity(LoginActivity.loginIntent(this))
                     }
-                    .apply { if (valid) setNeutralButton("다시 로그인") { _, _ -> startActivity(LoginActivity.loginIntent(this@MainActivity)) } }
+                    .apply { if (valid) setNeutralButton("다시 로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) } }
                     .show()
             }
             null
@@ -249,15 +243,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun showRoleChoice(store: Store, roles: List<GameRole>) {
         if (roles.isEmpty()) {
-            MaterialAlertDialogBuilder(this)
+            AppDialog(this)
                 .setTitle("캐릭터가 없어요")
                 .setMessage("이 계정에 연결된 원신 캐릭터를 찾지 못했어요. 로그인이 풀렸다면 다시 로그인해 주세요.")
-                .setPositiveButton("확인", null)
+                .setPositiveButton("확인")
                 .show()
             return
         }
         val current = roles.indexOfFirst { it.uid == store.redeemRole?.uid }
-        MaterialAlertDialogBuilder(this)
+        AppDialog(this)
             .setTitle("보상 받을 캐릭터")
             .setSingleChoiceItems(roles.map { it.label() }.toTypedArray(), current) { dialog, which ->
                 store.redeemRole = roles[which]
@@ -265,7 +259,7 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss()
                 refresh()
             }
-            .setNegativeButton("취소", null)
+            .setNegativeButton("취소")
             .show()
     }
 
@@ -277,10 +271,10 @@ class MainActivity : AppCompatActivity() {
     private fun redeemFor(store: Store): String? {
         val report = Redeem.run(store)
         runOnUiThread {
-            MaterialAlertDialogBuilder(this)
+            AppDialog(this)
                 .setTitle(if (report.redeemed.isNotEmpty()) "리딤 코드 ${report.redeemed.size}개를 받았어요" else "리딤 코드")
                 .setMessage(Redeem.details(report))
-                .setPositiveButton("확인", null)
+                .setPositiveButton("확인")
                 .show()
         }
         return null
@@ -321,13 +315,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMakeUpResult(result: MakeUpResult) {
         val title = if (result is MakeUpResult.Done) "보충 출석 완료" else "보충 출석"
-        MaterialAlertDialogBuilder(this)
+        AppDialog(this)
             .setTitle(title)
             .setMessage(MakeUp.describe(result))
-            .setPositiveButton("확인", null)
+            .setPositiveButton("확인")
             .apply {
                 if (result == MakeUpResult.LoginExpired) {
-                    setNeutralButton("로그인") { _, _ -> startActivity(LoginActivity.loginIntent(this@MainActivity)) }
+                    setNeutralButton("로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
                 }
             }
             .show()
@@ -335,15 +329,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun confirmLogout() {
         val store = store ?: return
-        MaterialAlertDialogBuilder(this)
+        AppDialog(this)
             .setTitle("${store.displayName} 계정을 로그아웃할까요?")
             .setMessage("이 계정의 로그인과 기록을 지우고 이 계정은 자동 출석을 멈춰요. 다른 계정은 그대로예요.")
-            .setPositiveButton("로그아웃") { _, _ ->
+            .setPositiveButton("로그아웃") {
                 settings.remove(store.accountId)
                 if (!settings.hasAccounts) CheckIn.cancel(this)
                 refresh()
             }
-            .setNegativeButton("취소", null)
+            .setNegativeButton("취소")
             .show()
     }
 
@@ -359,15 +353,43 @@ class MainActivity : AppCompatActivity() {
         fun makeUpIntent(context: Context, accountId: String) = accountIntent(context, accountId)
             .putExtra(EXTRA_MAKE_UP, true)
 
-        /** 화면을 시스템 바 아래까지 그리고, 내용은 상태 바·내비게이션 바를 피하게 한다. */
+        /** 내용을 상태 바·내비게이션 바 아래까지 그린다. */
+        @Suppress("DEPRECATION")
+        fun drawBehindSystemBars(window: Window) {
+            if (Build.VERSION.SDK_INT >= 30) {
+                window.setDecorFitsSystemWindows(false)
+            } else {
+                window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            }
+        }
+
+        /** 화면 구멍(카메라 등)을 피해야 하는 여백. Android 9(API 28)부터 있다. */
+        @TargetApi(28)
+        private fun cutoutInsets(insets: WindowInsets): Rect {
+            val cutout = insets.displayCutout ?: return Rect()
+            return Rect(cutout.safeInsetLeft, cutout.safeInsetTop, cutout.safeInsetRight, cutout.safeInsetBottom)
+        }
+
+        /** 화면을 시스템 바 아래까지 그리고, 내용은 상태 바·내비게이션 바(와 화면 구멍)를 피하게 한다. */
+        @Suppress("DEPRECATION")
         fun applySystemBarInsets(view: View) {
             val start = Rect(view.paddingLeft, view.paddingTop, view.paddingRight, view.paddingBottom)
-            ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
-                val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-                v.updatePadding(
-                    left = start.left + bars.left, top = start.top + bars.top,
-                    right = start.right + bars.right, bottom = start.bottom + bars.bottom,
-                )
+            view.setOnApplyWindowInsetsListener { v, insets ->
+                val bars = if (Build.VERSION.SDK_INT >= 30) {
+                    val i = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                    Rect(i.left, i.top, i.right, i.bottom)
+                } else {
+                    val cutout = if (Build.VERSION.SDK_INT >= 28) cutoutInsets(insets) else Rect()
+                    Rect(
+                        maxOf(insets.systemWindowInsetLeft, cutout.left),
+                        maxOf(insets.systemWindowInsetTop, cutout.top),
+                        maxOf(insets.systemWindowInsetRight, cutout.right),
+                        maxOf(insets.systemWindowInsetBottom, cutout.bottom),
+                    )
+                }
+                v.setPadding(start.left + bars.left, start.top + bars.top, start.right + bars.right, start.bottom + bars.bottom)
                 insets
             }
         }

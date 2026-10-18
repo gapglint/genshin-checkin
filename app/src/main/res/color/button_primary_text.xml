@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 큰 버튼 글자: 평소 on_action, 진행 중(꺼짐)일 때 흐리게 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.38" android:color="@color/ink" android:state_enabled="false" />
+    <item android:color="@color/on_action" />
+</selector>

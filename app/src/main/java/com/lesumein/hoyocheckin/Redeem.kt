@@ -1,20 +1,12 @@
 package com.lesumein.hoyocheckin
 
 import android.content.Context
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.Worker
-import androidx.work.WorkerParameters
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.time.LocalDate
-import java.util.concurrent.TimeUnit
 
 /** 리딤 코드를 받을 게임 캐릭터. 출석과 달리 리딤 보상은 서버·UID 하나로만 간다. */
 data class GameRole(val uid: String, val region: String, val regionName: String, val nickname: String, val level: Int) {
@@ -336,29 +328,22 @@ object Redeem {
     }
 
     /** 출석이 끝난 뒤 따로 돌린다. 코드 사이 6초 대기 때문에 알람 처리 시간 안에 넣지 않는다. */
-    fun scheduleSoon(context: Context) {
-        val request = OneTimeWorkRequestBuilder<RedeemWorker>()
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .setInitialDelay(10, TimeUnit.SECONDS)
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork("redeem", ExistingWorkPolicy.KEEP, request)
-    }
-}
+    fun scheduleSoon(context: Context) = Jobs.scheduleOnce(context, Jobs.REDEEM, delayMs = 10_000, replace = false)
 
-class RedeemWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    override fun doWork(): Result {
-        val settings = AppSettings(applicationContext)
-        if (!settings.redeemEnabled) return Result.success()
+    /** 예약 실행: 리딤 자동 입력이 켜져 있으면 계정마다 하루 한 번 입력한다. 네트워크 오류가 있었으면 true(다시 시도). */
+    fun runScheduled(context: Context): Boolean {
+        val settings = AppSettings(context)
+        if (!settings.redeemEnabled) return false
         var retry = false
         for (store in settings.accounts()) {
             // 계정마다 하루 한 번이면 충분하다.
             if (store.lastRedeemAt > 0 && ServerClock.dayOf(store.lastRedeemAt) == ServerClock.today()) continue
             try {
-                Notifier.notifyRedeem(applicationContext, store, Redeem.run(store))
+                Notifier.notifyRedeem(context, store, run(store))
             } catch (e: IOException) {
                 retry = true
             }
         }
-        return if (retry) Result.retry() else Result.success()
+        return retry
     }
 }

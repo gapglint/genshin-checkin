@@ -1,0 +1,91 @@
+package com.lesumein.hoyocheckin
+
+import android.app.job.JobInfo
+import android.app.job.JobParameters
+import android.app.job.JobScheduler
+import android.app.job.JobService
+import android.content.ComponentName
+import android.content.Context
+import java.io.IOException
+
+/**
+ * 백그라운드 작업 예약. 안드로이드 기본 JobScheduler를 쓴다(별도 라이브러리 없이).
+ * 모두 네트워크가 연결됐을 때만 돌고, 재부팅 뒤에도 유지되며, 실패하면 간격을 늘려 다시 시도한다.
+ */
+object Jobs {
+    // 예전 버전(WorkManager)이 남긴 작업 번호와 겹치지 않게 큰 번호를 쓴다.
+    /** 6시간마다 출석 확인. 새벽 1시 알람이 밀리거나 실패했을 때의 안전장치. */
+    const val PERIODIC = 0x6C0001
+    /** 지금 바로 한 번 출석(로그인 직후, 알람 시각 실패 후). */
+    const val RETRY = 0x6C0002
+    /** 출석 뒤 리딤 코드 입력. */
+    const val REDEEM = 0x6C0003
+
+    private const val PERIOD_MS = 6 * 60 * 60_000L
+
+    private fun scheduler(context: Context) = context.getSystemService(JobScheduler::class.java)
+
+    private fun builder(context: Context, id: Int) =
+        JobInfo.Builder(id, ComponentName(context, CheckInJobService::class.java))
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+            .setPersisted(true)
+
+    /** 6시간 주기 작업을 건다. 이미 있으면 그대로 두고 false, 새로 걸었으면 true. */
+    fun schedulePeriodic(context: Context): Boolean {
+        if (scheduler(context).getPendingJob(PERIODIC) != null) return false
+        scheduler(context).schedule(
+            builder(context, PERIODIC)
+                .setPeriodic(PERIOD_MS)
+                .setBackoffCriteria(15 * 60_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+                .build()
+        )
+        return true
+    }
+
+    /** 한 번만 도는 작업. replace가 false면 이미 기다리는 같은 작업이 있을 때 그대로 둔다. */
+    fun scheduleOnce(context: Context, id: Int, delayMs: Long = 0, replace: Boolean = true) {
+        if (!replace && scheduler(context).getPendingJob(id) != null) return
+        scheduler(context).schedule(
+            builder(context, id)
+                .setMinimumLatency(delayMs)
+                .setBackoffCriteria(5 * 60_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+                .build()
+        )
+    }
+
+    fun cancel(context: Context, id: Int) = scheduler(context).cancel(id)
+
+    /** 예전 버전의 WorkManager가 걸어 둔 작업(이제 없는 서비스를 가리킴)을 지운다. */
+    fun removeLegacy(context: Context) {
+        val ours = CheckInJobService::class.java.name
+        for (job in scheduler(context).allPendingJobs) {
+            if (job.service.className != ours) scheduler(context).cancel(job.id)
+        }
+    }
+}
+
+/** 예약 작업을 실제로 실행한다. 메인 스레드에서 불리므로 별도 스레드에서 돌리고 끝나면 알린다. */
+class CheckInJobService : JobService() {
+    override fun onStartJob(params: JobParameters): Boolean {
+        val app = applicationContext
+        Thread {
+            val retry = try {
+                when (params.jobId) {
+                    Jobs.REDEEM -> Redeem.runScheduled(app)
+                    else -> {
+                        // 재부팅 등으로 알람이 사라졌을 수 있으니 출석 작업이 돌 때마다 다시 건다.
+                        if (AppSettings(app).hasAccounts) DailyAlarm.schedule(app)
+                        CheckIn.runAll(app).any { it is Outcome.RateLimited }
+                    }
+                }
+            } catch (e: IOException) {
+                true
+            }
+            jobFinished(params, retry)
+        }.start()
+        return true
+    }
+
+    /** 시스템이 중간에 멈추면 다시 시도하게 한다. */
+    override fun onStopJob(params: JobParameters): Boolean = true
+}

@@ -1,22 +1,9 @@
 package com.lesumein.hoyocheckin
 
 import android.content.Context
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.Worker
-import androidx.work.WorkerParameters
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 object CheckIn {
-    private const val PERIODIC = "checkin-periodic"
-    private const val RETRY = "checkin-retry"
 
     /** 계정을 하나씩 돌 때 사이에 쉬는 시간. 같은 기기에서 요청이 몰리지 않게 한다. */
     private const val ACCOUNT_GAP_MS = 3_000L
@@ -120,46 +107,23 @@ object CheckIn {
      * 자동 출석 예약. 두 겹으로 건다.
      * 1. 서버 기준으로 하루가 바뀐 직후의 알람(DailyAlarm). 주된 출석 시각이다.
      * 2. 6시간마다 확인하는 주기 작업. 알람이 절전 등으로 밀리거나 실패했을 때의 안전장치다.
-     *    이미 출석했으면 아무것도 안 한다. 등록하는 순간 한 번 바로 돌고,
-     *    restart면 기존 예약을 새로 걸어 지금 바로 돌린다(로그인 직후).
+     *    이미 출석했으면 아무것도 안 한다.
+     * 처음 예약할 때와 restart(로그인 직후)일 때는 지금 바로 한 번 돈다.
      */
     fun schedule(context: Context, restart: Boolean = false) {
         DailyAlarm.schedule(context)
-        val request = PeriodicWorkRequestBuilder<CheckInWorker>(6, TimeUnit.HOURS)
-            .setConstraints(networkConstraint())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
-            .build()
-        val policy = if (restart) ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE else ExistingPeriodicWorkPolicy.KEEP
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(PERIODIC, policy, request)
+        val firstTime = Jobs.schedulePeriodic(context)
+        // 처음 예약할 때와 로그인 직후에는 지금 바로 한 번 돌린다.
+        if (firstTime || restart) retrySoon(context)
     }
 
     fun cancel(context: Context) {
         DailyAlarm.cancel(context)
-        WorkManager.getInstance(context).cancelUniqueWork(PERIODIC)
-        WorkManager.getInstance(context).cancelUniqueWork(RETRY)
+        Jobs.cancel(context, Jobs.PERIODIC)
+        Jobs.cancel(context, Jobs.RETRY)
     }
 
-    /** 알람 시각의 출석이 네트워크 문제로 실패했을 때, 연결되면 다시 시도한다. */
-    fun retrySoon(context: Context) {
-        val request = OneTimeWorkRequestBuilder<CheckInWorker>()
-            .setConstraints(networkConstraint())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(RETRY, ExistingWorkPolicy.REPLACE, request)
-    }
+    /** 지금 바로(네트워크가 연결되면) 모든 계정을 한 번 출석한다. 알람 시각에 실패했을 때도 쓴다. */
+    fun retrySoon(context: Context) = Jobs.scheduleOnce(context, Jobs.RETRY)
 
-    private fun networkConstraint() =
-        Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-}
-
-class CheckInWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    override fun doWork(): Result {
-        // 재부팅 등으로 알람이 사라졌을 수 있으니 주기 작업이 돌 때마다 다시 건다.
-        if (AppSettings(applicationContext).hasAccounts) DailyAlarm.schedule(applicationContext)
-        return try {
-            if (CheckIn.runAll(applicationContext).any { it is Outcome.RateLimited }) Result.retry() else Result.success()
-        } catch (e: IOException) {
-            Result.retry()
-        }
-    }
 }

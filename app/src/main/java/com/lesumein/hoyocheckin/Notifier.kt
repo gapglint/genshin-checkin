@@ -9,9 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
+import android.app.Notification
 
 object Notifier {
     private const val CHANNEL = "checkin"
@@ -54,15 +52,15 @@ object Notifier {
             Outcome.NotConfirmed -> "출석이 반영되지 않았어요"
             else -> "원신 출첵 실패"
         }
-        val notification = NotificationCompat.Builder(context, CHANNEL)
+        val notification = Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
             .setContentText(CheckIn.describe(outcome))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(CheckIn.describe(outcome)))
+            .setStyle(Notification.BigTextStyle().bigText(CheckIn.describe(outcome)))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(id, notification)
+        context.getSystemService(NotificationManager::class.java).notify(id, notification)
         store.lastNotified = key
     }
 
@@ -76,14 +74,14 @@ object Notifier {
             context, id, MainActivity.makeUpIntent(context, store.accountId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_MAKE_UP)
+        val notification = Notification.Builder(context, CHANNEL_MAKE_UP)
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + "보충 출석을 할 수 있어요")
             .setContentText("이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.")
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(id, notification)
+        context.getSystemService(NotificationManager::class.java).notify(id, notification)
         store.lastMakeUpNotified = key
     }
 
@@ -103,15 +101,15 @@ object Notifier {
             context, id, MainActivity.accountIntent(context, store.accountId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_REDEEM)
+        val notification = Notification.Builder(context, CHANNEL_REDEEM)
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + title)
             .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(id, notification)
+        context.getSystemService(NotificationManager::class.java).notify(id, notification)
         store.lastRedeemNotified = key
     }
 
@@ -123,6 +121,6 @@ object Notifier {
     private fun idFor(kind: Int, store: Store) = kind * 10_000 + store.notificationSalt
 
     private fun canNotify(context: Context) = Build.VERSION.SDK_INT < 33 ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
         PackageManager.PERMISSION_GRANTED
 }

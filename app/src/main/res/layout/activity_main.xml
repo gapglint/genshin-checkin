@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 위에서 아래로: 오늘의 출석(남색 카드) → 할 일(버튼, 보충 안내) → 설정 목록 → 안내 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -38,14 +37,13 @@
             android:scrollbars="none"
             android:visibility="gone">
 
-            <com.google.android.material.chip.ChipGroup
+            <LinearLayout
                 android:id="@+id/accountChips"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:chipSpacingHorizontal="8dp"
-                app:selectionRequired="true"
-                app:singleLine="true"
-                app:singleSelection="true" />
+                android:divider="@drawable/chip_gap"
+                android:orientation="horizontal"
+                android:showDividers="middle" />
         </HorizontalScrollView>
 
         <!-- 오늘의 출석 -->
@@ -90,7 +88,6 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_chip_done"
-                        android:paddingHorizontal="12dp"
                         android:paddingVertical="5dp"
                         android:textColor="@color/on_gold"
                         android:textSize="12sp"
@@ -109,7 +106,7 @@
                         android:id="@+id/heroDay"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@font/marcellus"
+                        android:fontFamily="@font/hoyo_numerals"
                         android:includeFontPadding="false"
                         android:textColor="@color/gold"
                         android:textSize="72sp" />
@@ -224,13 +221,16 @@
             </LinearLayout>
         </FrameLayout>
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/primaryButton"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:textSize="16sp"
-            app:cornerRadius="16dp" />
+            android:fontFamily="sans-serif-medium"
+            android:stateListAnimator="@null"
+            android:textAllCaps="false"
+            android:textColor="@color/button_primary_text"
+            android:textSize="16sp" />
 
         <!-- 보충 출석 안내: 가능할 때만 보인다 -->
         <LinearLayout
@@ -268,12 +268,15 @@
                     android:layout_marginTop="2dp" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/makeUpButton"
-                style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
+                android:fontFamily="sans-serif-medium"
+                android:minWidth="0dp"
+                android:stateListAnimator="@null"
                 android:text="보충하기"
+                android:textAllCaps="false"
                 android:textColor="@color/accent"
                 android:textSize="15sp" />
         </LinearLayout>
@@ -419,7 +422,7 @@
                         android:text="호요랩 공식 목록과 커뮤니티 글에서 새 코드를 찾아 하루 한 번 입력해요" />
                 </LinearLayout>
 
-                <com.google.android.material.materialswitch.MaterialSwitch
+                <com.lesumein.hoyocheckin.StarSwitch
                     android:id="@+id/redeemSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -564,7 +567,7 @@
                         android:text="놓친 날을 채울 수 있으면 알려 드려요. 알림을 누르면 바로 보충해요." />
                 </LinearLayout>
 
-                <com.google.android.material.materialswitch.MaterialSwitch
+                <com.lesumein.hoyocheckin.StarSwitch
                     android:id="@+id/makeUpSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

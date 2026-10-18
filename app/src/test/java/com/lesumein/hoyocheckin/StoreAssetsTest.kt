@@ -9,7 +9,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.resources.Density
@@ -58,13 +57,13 @@ class StoreAssetsTest {
                 textSize = 46f
                 setLineSpacing(0f, 1.15f)
                 setTypeface(typeface, Typeface.BOLD)
-                setTextColor(ContextCompat.getColor(context, R.color.hero_ink))
+                setTextColor(context.getColor(R.color.hero_ink))
             })
             addView(TextView(context).apply {
                 text = "HoYoLAB 매일 출석 · 보충 출석 · 리딤 코드"
                 textSize = 22f
                 setPadding(0, 28, 0, 0)
-                setTextColor(ContextCompat.getColor(context, R.color.gold))
+                setTextColor(context.getColor(R.color.gold))
             })
         }
         val row = LinearLayout(context).apply {

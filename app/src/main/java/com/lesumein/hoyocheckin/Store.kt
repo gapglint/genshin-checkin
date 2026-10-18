@@ -2,10 +2,16 @@ package com.lesumein.hoyocheckin
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+
+/** SharedPreferences를 고치고 저장한다(androidx.core의 edit { }와 같은 모양, 라이브러리 없이). */
+internal inline fun SharedPreferences.edit(commit: Boolean = false, block: SharedPreferences.Editor.() -> Unit) {
+    val editor = edit()
+    editor.block()
+    if (commit) editor.commit() else editor.apply()
+}
 
 /**
  * 계정 하나의 저장소: 쿠키, 출석 기록, 보충·리딤 상태.

@@ -13,10 +13,8 @@ import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
-import com.google.android.material.button.MaterialButton
+import android.app.Activity
+import android.widget.Button
 import java.io.IOException
 import java.util.Date
 
@@ -25,10 +23,10 @@ import java.util.Date
  * 출석·보충 보상은 호요랩의 출석 보상 기록을 그대로 보여 주고(달별로 묶음, 20개씩 더 보기),
  * 리딤 코드는 호요랩에 조회 기능이 없어 이 앱이 받은 기록을 보여 준다.
  */
-class RewardHistoryActivity : AppCompatActivity() {
+class RewardHistoryActivity : Activity() {
     private lateinit var store: Store
     private lateinit var list: LinearLayout
-    private lateinit var more: MaterialButton
+    private lateinit var more: Button
     private lateinit var status: TextView
     private lateinit var seenBar: View
     private lateinit var seenText: TextView
@@ -39,7 +37,7 @@ class RewardHistoryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        MainActivity.drawBehindSystemBars(window)
         store = intent.getStringExtra(EXTRA_ACCOUNT)?.let { AppSettings(this).account(it) } ?: return finish()
 
         val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
@@ -51,17 +49,17 @@ class RewardHistoryActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), 0, dp(16), dp(24))
         }
-        more = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+        more = pillButton(filled = false).apply {
             text = "더 보기"
             visibility = View.GONE
             setOnClickListener { loadPage() }
         }
         seenText = TextView(this).apply {
-            setTextColor(ContextCompat.getColor(context, R.color.accent))
+            setTextColor(context.getColor(R.color.accent))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
-        val seenButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
+        val seenButton = pillButton(filled = true).apply {
             text = "모두 확인"
             setOnClickListener {
                 RewardHistory.markAllSeen(store, entries.firstOrNull())
@@ -164,7 +162,7 @@ class RewardHistoryActivity : AppCompatActivity() {
 
     private fun sectionLabel(text: String) = TextView(this).apply {
         this.text = text
-        setTextColor(ContextCompat.getColor(context, R.color.ink_muted))
+        setTextColor(context.getColor(R.color.ink_muted))
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(dp(4), dp(20), 0, dp(8))
@@ -173,7 +171,7 @@ class RewardHistoryActivity : AppCompatActivity() {
     private fun group(rows: List<View>) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundResource(R.drawable.bg_group)
-        dividerDrawable = ContextCompat.getDrawable(context, R.drawable.divider_inset)
+        dividerDrawable = context.getDrawable(R.drawable.divider_inset)
         showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
         clipToOutline = true
         rows.forEach { addView(it) }
@@ -188,21 +186,40 @@ class RewardHistoryActivity : AppCompatActivity() {
         if (unseen) addView(TextView(context).apply {
             text = "새로"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setTextColor(ContextCompat.getColor(context, R.color.accent))
+            setTextColor(context.getColor(R.color.accent))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             setPadding(0, 0, dp(10), 0)
         })
         addView(TextView(context).apply {
             text = title
             setTextSize(TypedValue.COMPLEX_UNIT_SP, if (muted) 14f else 16f)
-            setTextColor(ContextCompat.getColor(context, if (muted) R.color.ink_muted else R.color.ink))
+            setTextColor(context.getColor(if (muted) R.color.ink_muted else R.color.ink))
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         if (trailing != null) addView(TextView(context).apply {
             text = trailing
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            setTextColor(ContextCompat.getColor(context, R.color.ink_muted))
+            setTextColor(context.getColor(R.color.ink_muted))
             fontFeatureSettings = "tnum"
         })
+    }
+
+    /** Material 3 버튼 모양(보이는 높이 40dp, 누르는 영역 48dp, 둥근 끝). filled면 채운 버튼, 아니면 테두리 버튼. */
+    private fun pillButton(filled: Boolean) = Button(this).apply {
+        isAllCaps = false
+        stateListAnimator = null
+        minHeight = dp(48)
+        minimumHeight = dp(48)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        val c = context.getColor(if (filled) R.color.on_action else R.color.action)
+        setTextColor(c)
+        background = buttonBackground(
+            context,
+            fill = if (filled) context.getColor(R.color.action) else 0,
+            radiusDp = 20f,
+            stroke = if (filled) null else context.getColor(R.color.ink_muted),
+        )
+        setPadding(dp(24), 0, dp(24), 0) // 배경 뒤에 줘야 유지된다
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()

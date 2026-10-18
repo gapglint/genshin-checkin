@@ -16,9 +16,9 @@ import android.webkit.WebViewClient
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
+import android.app.Activity
+import android.os.Build
+import android.window.OnBackInvokedDispatcher
 import java.io.IOException
 
 /**
@@ -27,7 +27,7 @@ import java.io.IOException
  *   아이디·비밀번호 입력과 캡차는 사람이 하고, 유효한 로그인 쿠키가 생기면 그 계정으로 저장한 뒤 닫는다.
  * 페이지 모드: 캡차 등으로 자동 출첵이 막혔을 때, 고른 계정의 쿠키를 넣고 출첵 페이지를 띄워 직접 누르게 한다.
  */
-class LoginActivity : AppCompatActivity() {
+class LoginActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var status: TextView
     private val handler = Handler(Looper.getMainLooper())
@@ -60,14 +60,14 @@ class LoginActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        MainActivity.drawBehindSystemBars(window)
         val pageStore = pageAccountId?.let { AppSettings(this).account(it) }
         val screenTitle = if (loginMode) "호요랩 로그인" else "원신 출석체크 · ${pageStore?.displayName ?: ""}"
         title = screenTitle
 
         val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
         header.findViewById<TextView>(R.id.headerTitle).text = screenTitle
-        header.findViewById<View>(R.id.headerBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        header.findViewById<View>(R.id.headerBack).setOnClickListener { goBack() }
         status = header.findViewById(R.id.headerStatus)
         status.text = if (loginMode) {
             "아이디·비밀번호로 로그인하고 캡차를 풀어 주세요. 로그인되면 자동으로 닫혀요.\n로그인 창이 안 뜨면 페이지 왼쪽 위 「로그인」을 누르세요."
@@ -102,11 +102,10 @@ class LoginActivity : AppCompatActivity() {
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
+        // 뒤로 가기: 웹 페이지 안에서 먼저 뒤로 간다. Android 13+는 새 뒤로 가기 방식, 그 전은 onBackPressed.
+        if (Build.VERSION.SDK_INT >= 33) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { goBack() }
+        }
 
         // 다른 계정의 쿠키가 남아 있으면 그 계정으로 로그인된 것처럼 보이므로 항상 비우고 시작한다.
         cookies.removeAllCookies {
@@ -119,6 +118,15 @@ class LoginActivity : AppCompatActivity() {
                 webView.loadUrl(CheckInClient.CHECK_IN_PAGE)
             }
         }
+    }
+
+    /** Android 12 이하용. 13 이상은 위의 OnBackInvokedCallback이 처리한다(매니페스트에서 켜 둠). */
+    @SuppressLint("GestureBackNavigation")
+    @Deprecated("Android 13 미만용")
+    override fun onBackPressed() = goBack()
+
+    private fun goBack() {
+        if (webView.canGoBack()) webView.goBack() else finish()
     }
 
     override fun onPause() {

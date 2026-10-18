@@ -2,11 +2,8 @@ package com.lesumein.hoyocheckin
 
 import android.view.View
 import android.widget.TextView
-import androidx.core.content.ContextCompat
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.chip.Chip
-import com.google.android.material.chip.ChipGroup
-import com.google.android.material.materialswitch.MaterialSwitch
+import android.widget.Button
+import android.widget.LinearLayout
 
 /** 계정 칩 하나. */
 data class AccountChip(val id: String, val label: String, val signedToday: Boolean)
@@ -49,7 +46,7 @@ class MainScreen(val root: View) {
     private val context = root.context
     private val statusChip: TextView = root.findViewById(R.id.statusChip)
     private val accountBar: View = root.findViewById(R.id.accountBar)
-    private val accountChips: ChipGroup = root.findViewById(R.id.accountChips)
+    private val accountChips: LinearLayout = root.findViewById(R.id.accountChips)
     /** 계정 칩을 누르면 그 계정 ID, '계정 추가'를 누르면 null. 액티비티가 정한다. */
     var onAccountChip: (String?) -> Unit = {}
     private val heroEyebrow: TextView = root.findViewById(R.id.heroEyebrow)
@@ -65,11 +62,11 @@ class MainScreen(val root: View) {
     private val timingSection: View = root.findViewById(R.id.timingSection)
     val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
     val rowBattery: View = root.findViewById(R.id.rowBattery)
-    val primaryButton: MaterialButton = root.findViewById(R.id.primaryButton)
+    val primaryButton: Button = root.findViewById(R.id.primaryButton)
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
     private val makeUpText: TextView = root.findViewById(R.id.makeUpText)
-    val makeUpButton: MaterialButton = root.findViewById(R.id.makeUpButton)
-    val makeUpSwitch: MaterialSwitch = root.findViewById(R.id.makeUpSwitch)
+    val makeUpButton: Button = root.findViewById(R.id.makeUpButton)
+    val makeUpSwitch: StarSwitch = root.findViewById(R.id.makeUpSwitch)
     val rowMakeUpAlerts: View = root.findViewById(R.id.rowMakeUpAlerts)
     val rowOpenPage: View = root.findViewById(R.id.rowOpenPage)
     val rowHistory: View = root.findViewById(R.id.rowHistory)
@@ -80,7 +77,7 @@ class MainScreen(val root: View) {
     val rowLogout: View = root.findViewById(R.id.rowLogout)
     private val redeemSection: View = root.findViewById(R.id.redeemGroup)
     val rowRedeem: View = root.findViewById(R.id.rowRedeem)
-    val redeemSwitch: MaterialSwitch = root.findViewById(R.id.redeemSwitch)
+    val redeemSwitch: StarSwitch = root.findViewById(R.id.redeemSwitch)
     val rowRedeemRole: View = root.findViewById(R.id.rowRedeemRole)
     private val redeemRoleSub: TextView = root.findViewById(R.id.redeemRoleSub)
     val rowRedeemNow: View = root.findViewById(R.id.rowRedeemNow)
@@ -92,6 +89,12 @@ class MainScreen(val root: View) {
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
         root.findViewById<View>(R.id.timingGroup).clipToOutline = true
         redeemSection.clipToOutline = true
+        // Material 3 버튼 모양: 큰 버튼은 모서리 16dp로 채우고, 보충하기는 글자 버튼.
+        primaryButton.background = buttonBackground(context, context.getColor(R.color.action), 16f)
+        makeUpButton.background = buttonBackground(context, fill = 0, radiusDp = 20f)
+        // 배경을 넣으면 안쪽 여백이 바뀌므로 배경 뒤에 다시 준다.
+        val buttonPadding = (16 * context.resources.displayMetrics.density).toInt()
+        makeUpButton.setPadding(buttonPadding, 0, buttonPadding, 0)
     }
 
     fun render(s: MainUiState) {
@@ -104,7 +107,7 @@ class MainScreen(val root: View) {
         heroDay.text = s.totalDays.toString()
         heroMonth.text = if (s.loggedIn) "${s.month}월 누적 출석" else "로그인하면 매일\n대신 출석해요"
         heroMonth.textSize = if (s.loggedIn) 14f else 24f
-        heroMonth.setTextColor(ContextCompat.getColor(context, if (s.loggedIn) R.color.hero_muted else R.color.hero_ink))
+        heroMonth.setTextColor(context.getColor(if (s.loggedIn) R.color.hero_muted else R.color.hero_ink))
         heroReward.text = when {
             s.reward != null -> s.reward
             s.signedToday -> "출석 완료"
@@ -137,7 +140,7 @@ class MainScreen(val root: View) {
         makeUpSwitch.isChecked = s.makeUpAlerts
         redeemSwitch.isChecked = s.redeemEnabled
         redeemRoleSub.text = s.redeemRole ?: if (s.loggedIn) "눌러서 골라 주세요" else "로그인하면 고를 수 있어요"
-        redeemRoleSub.setTextColor(ContextCompat.getColor(context, if (s.redeemRole == null && s.loggedIn) R.color.accent else R.color.ink_muted))
+        redeemRoleSub.setTextColor(context.getColor(if (s.redeemRole == null && s.loggedIn) R.color.accent else R.color.ink_muted))
         redeemSummary.text = s.redeemSummary ?: "아직 확인하지 않았어요"
         rowRedeemRole.isEnabled = s.loggedIn && s.busy == null
         rowRedeemNow.isEnabled = s.loggedIn && s.busy == null
@@ -155,25 +158,20 @@ class MainScreen(val root: View) {
         } else {
             "출석·보충·리딤 코드로 받은 보상을 날짜별로 봐요"
         }
-        historySub.setTextColor(ContextCompat.getColor(context, if (s.historyUnseen > 0) R.color.accent else R.color.ink_muted))
+        historySub.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink_muted))
     }
 
     private fun renderAccounts(s: MainUiState) {
         accountBar.visibility = if (s.accounts.isEmpty()) View.GONE else View.VISIBLE
         accountChips.removeAllViews()
         for (account in s.accounts) {
-            accountChips.addView(Chip(context).apply {
-                // 오늘 출석을 마친 계정은 별 표시로 한눈에 보이게 한다.
-                text = if (account.signedToday) "★ ${account.label}" else account.label
-                isCheckable = true
-                isChecked = account.id == s.currentId
-                isCheckedIconVisible = false
+            // 오늘 출석을 마친 계정은 별 표시로 한눈에 보이게 한다.
+            val label = if (account.signedToday) "★ ${account.label}" else account.label
+            accountChips.addView(makeChip(context, label, checked = account.id == s.currentId, checkable = true).apply {
                 setOnClickListener { onAccountChip(account.id) }
             })
         }
-        accountChips.addView(Chip(context).apply {
-            text = "+ 계정 추가"
-            isCheckable = false
+        accountChips.addView(makeChip(context, "+ 계정 추가", checked = false, checkable = false).apply {
             setOnClickListener { onAccountChip(null) }
         })
     }
@@ -187,6 +185,9 @@ class MainScreen(val root: View) {
         }
         statusChip.text = text
         statusChip.setBackgroundResource(background)
-        statusChip.setTextColor(ContextCompat.getColor(context, textColor))
+        // 배경을 바꾸면 안쪽 여백이 사라지므로 레이아웃의 값(가로 12dp, 세로 5dp)을 다시 준다.
+        val density = context.resources.displayMetrics.density
+        statusChip.setPadding((12 * density).toInt(), (5 * density).toInt(), (12 * density).toInt(), (5 * density).toInt())
+        statusChip.setTextColor(context.getColor(textColor))
     }
 }

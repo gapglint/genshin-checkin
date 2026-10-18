@@ -53,7 +53,7 @@
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew test assembleDebug     # 디버그
 ./gradlew recordPaparazziDebug   # 화면 스냅숏 갱신 (app/src/test/snapshots)
-./gradlew assembleRelease        # 서명된 릴리스 APK (아래 서명 키 필요). R8로 줄여 약 1.6MB
+./gradlew assembleRelease        # 서명된 릴리스 APK (아래 서명 키 필요). 약 90KB
 ./gradlew bundleRelease          # 플레이 스토어용 AAB
 # app/build/outputs/apk/release/app-release.apk
 ```
@@ -87,6 +87,14 @@ GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab
 
 인증서 SHA-256: `f4b459c21d197b5d4d94d312dc7e8b5cff2e62c268175d38e8c6b88e41a63447`
 
+## 가볍게 만든 방법
+
+외부 라이브러리 없이 안드로이드 기본 API만 쓴다(Kotlin 표준 라이브러리만 포함). 릴리스 APK는 약 90KB.
+- 예약 작업: WorkManager 대신 JobScheduler(`Jobs.kt`). 네트워크 조건·재시도·재부팅 후 유지는 그대로.
+- 화면: Material/AppCompat 대신 기본 위젯. Material 3와 같은 모양의 스위치·칩·버튼·대화상자를 직접 그린다(`Widgets.kt`, `AppDialog.kt`). 바꾸기 전후 화면을 화소 단위로 비교해 같게 맞췄다.
+- 숫자 글꼴은 숫자 0~9만 남겼다(43KB → 3KB).
+- 릴리스는 R8로 코드·리소스를 줄이고, 한국어 외 리소스를 뺀다.
+
 ## 구조
 
 | 파일 | 역할 |
@@ -98,6 +106,8 @@ GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab
 | `Redeem.kt` | 리딤 코드: 캐릭터 목록, 코드 찾기(공식·커뮤니티), 입력 |
 | `RewardHistory.kt` | 보상 내역 읽기와 확인 상태(새 보상 계산, 모두 확인) |
 | `RewardHistoryActivity.kt` | 보상 내역 화면(출석·보충 보상 기록, 리딤 코드 기록) |
+| `Jobs.kt` | 예약 작업(6시간 확인, 재시도, 리딤) — JobScheduler |
+| `Widgets.kt`, `AppDialog.kt` | Material 3 모양의 스위치·칩·버튼·대화상자(라이브러리 없이) |
 | `MakeUp.kt` | 보충 출석: 가능 여부 확인, 임무로 보충권 받기, 보충 |
 | `LoginActivity.kt` | WebView 로그인·쿠키 추출, 직접 출첵 페이지 |
 | `MainActivity.kt` | 화면 동작(출첵, 보충, 설정, 로그아웃) |
@@ -115,4 +125,4 @@ GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab
 
 [Apache License 2.0](LICENSE)
 
-출석 카드의 숫자 글꼴 Marcellus는 SIL Open Font License 1.1을 따른다([licenses/Marcellus-OFL.txt](licenses/Marcellus-OFL.txt)).
+출석 카드의 숫자 글꼴(`res/font/hoyo_numerals.ttf`)은 Marcellus에서 숫자 0~9만 남긴 것으로, SIL Open Font License 1.1을 따른다([licenses/Marcellus-OFL.txt](licenses/Marcellus-OFL.txt)). OFL에 따라 수정본에는 예약된 글꼴 이름을 쓰지 않고 "Hoyo Numerals"로 바꿨다.
