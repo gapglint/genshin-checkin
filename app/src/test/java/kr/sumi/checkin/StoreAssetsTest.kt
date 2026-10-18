@@ -226,6 +226,52 @@ class StoreAssetsTest {
         }
     }
 
+    /** '안심하고 쓰세요' 장면: 앱 화면과 같은 카드 모양으로 보안·용량 약속을 보여 준다. */
+    private fun trustCard(context: android.content.Context): View {
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        val items = listOf(
+            "호요랩 공식 로그인 페이지" to "로그인은 앱 안에서 호요랩 페이지로 직접 해요",
+            "비밀번호 저장 안 함" to "로그인 정보는 폰 안에만, 호요랩에만 보내요",
+            "개발자 서버 없음" to "광고·분석 도구도 없어요",
+            "소스 코드 전부 공개" to "어디로 무엇을 보내는지 GitHub에서 확인할 수 있어요",
+            "앱 크기 1MB 미만" to "앱을 열지 않아도 돌고, 배터리·데이터 부담이 거의 없어요",
+        )
+        val group = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.bg_group)
+            dividerDrawable = context.getDrawable(R.drawable.divider_inset)
+            showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
+            clipToOutline = true
+        }
+        for ((title, sub) in items) group.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            addView(android.widget.ImageView(context).apply { setImageResource(R.drawable.ic_check_badge) },
+                LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(14) })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(context).apply { text = title; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(context.getColor(R.color.ink)) })
+                addView(TextView(context).apply { text = sub; textSize = 13f; setTextColor(context.getColor(R.color.ink_muted)); setPadding(0, dp(2), 0, 0) })
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        })
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.color.bg)
+            setPadding(dp(16), dp(24), dp(16), 0)
+            addView(TextView(context).apply {
+                text = "안심하고 쓰세요"; textSize = 22f; setTypeface(typeface, Typeface.BOLD)
+                setTextColor(context.getColor(R.color.ink)); setPadding(dp(4), 0, 0, dp(16))
+            })
+            addView(group)
+            addView(TextView(context).apply {
+                text = "HoYoverse와 관계없는 비공식 앱이에요."
+                textSize = 12f; setTextColor(context.getColor(R.color.ink_muted)); setPadding(dp(4), dp(14), 0, 0)
+            })
+        }
+    }
+
     /** 보상 내역 장면용 예시: 이번 달 출석 보상과 이 앱으로 받은 리딤 코드. */
     private val history: HistoryUiState get() {
         fun at(day: Int) = java.time.LocalDateTime.of(2026, 10, day, 21, 12).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
@@ -276,6 +322,11 @@ class StoreAssetsTest {
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 
+    @Test fun screenshot7Trust() = screenshot(
+        signed, night = false, custom = { trustCard(it) },
+        title = "계정은 안전하게,\n앱은 가볍게", sub = "비밀번호 저장 안 함 · 서버·광고 없음 · 1MB 미만",
+    )
+
     @Test fun tablet1Redeem() = screenshot(
         redeemed, night = false, scrollTo = R.id.redeemGroup, tablet = true,
         title = "방송 리딤코드,\n알아서 입력돼요", sub = "새 코드가 나오면 고른 캐릭터로 자동 입력",
@@ -304,5 +355,10 @@ class StoreAssetsTest {
     @Test fun tablet6Dark() = screenshot(
         signed, night = true, tablet = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
+    )
+
+    @Test fun tablet7Trust() = screenshot(
+        signed, night = false, custom = { trustCard(it) }, tablet = true,
+        title = "계정은 안전하게,\n앱은 가볍게", sub = "비밀번호 저장 안 함 · 서버·광고 없음 · 1MB 미만",
     )
 }
