@@ -37,7 +37,7 @@ object Notifier {
 
         val intent = when (outcome) {
             Outcome.LoginExpired -> LoginActivity.loginIntent(context)
-            Outcome.CaptchaRequired -> LoginActivity.checkInPageIntent(context)
+            Outcome.CaptchaRequired, Outcome.NotConfirmed -> LoginActivity.checkInPageIntent(context)
             else -> Intent(context, MainActivity::class.java)
         }
         val pending = PendingIntent.getActivity(
@@ -47,6 +47,7 @@ object Notifier {
             is Outcome.Signed -> "원신 출첵 완료"
             Outcome.LoginExpired -> "호요랩 로그인이 필요해요"
             Outcome.CaptchaRequired -> "출첵에 캡차가 필요해요"
+            Outcome.NotConfirmed -> "출석이 반영되지 않았어요"
             else -> "원신 출첵 실패"
         }
         val notification = NotificationCompat.Builder(context, CHANNEL)

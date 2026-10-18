@@ -1,11 +1,16 @@
 package com.lesumein.hoyocheckin
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Rect
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.text.format.DateFormat
 import android.view.View
 import android.webkit.CookieManager
@@ -18,6 +23,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.IOException
+import java.time.Instant
+import java.time.ZoneId
 import java.util.Date
 
 class MainActivity : AppCompatActivity() {
@@ -45,6 +52,8 @@ class MainActivity : AppCompatActivity() {
         screen.rowOpenPage.setOnClickListener { startActivity(LoginActivity.checkInPageIntent(this)) }
         screen.rowAccount.setOnClickListener { startActivity(LoginActivity.loginIntent(this)) }
         screen.rowLogout.setOnClickListener { confirmLogout() }
+        screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
+        screen.rowBattery.setOnClickListener { requestBatteryExemption() }
 
         if (Build.VERSION.SDK_INT >= 33) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -61,6 +70,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
+        if (store.cookie != null) DailyAlarm.schedule(this)
         refresh()
     }
 
@@ -88,12 +99,47 @@ class MainActivity : AppCompatActivity() {
                 reward = if (signedToday) store.lastReward else null,
                 lastChecked = store.lastRunAt.takeIf { it > 0 }
                     ?.let { DateFormat.format("M월 d일 HH:mm", Date(it)).toString() },
+                nextRun = store.nextRunAt.takeIf { cookie != null && it > 0 }?.let { describeNextRun(it) },
+                needsExactAlarm = !DailyAlarm.canRunExactly(this),
+                needsBatteryExemption = !getSystemService(PowerManager::class.java)
+                    .isIgnoringBatteryOptimizations(packageName),
                 note = if (!signedToday) store.lastResult else null,
                 makeUpMissed = store.makeUpMissed.takeIf { store.makeUpDay == today.toString() },
                 makeUpAlerts = store.makeUpAlerts,
                 busy = busy,
             )
         )
+    }
+
+    /**
+     * 다음 자동 출석 시각을 사람이 읽는 문장으로. 서버 기준 시각을 폰 시간대로 보여 준다.
+     * 폰 시계가 틀려도 실제 시각으로 보이도록 폰 시계 대신 서버 시각과의 차이로 '오늘/내일'을 정한다.
+     */
+    private fun describeNextRun(serverMs: Long): String {
+        val zone = ZoneId.systemDefault()
+        val at = Instant.ofEpochMilli(serverMs).atZone(zone)
+        val today = Instant.ofEpochMilli(ServerClock.now()).atZone(zone).toLocalDate()
+        val day = when (at.toLocalDate()) {
+            today -> "오늘"
+            today.plusDays(1) -> "내일"
+            else -> "${at.monthValue}월 ${at.dayOfMonth}일"
+        }
+        return "%s %02d:%02d".format(day, at.hour, at.minute)
+    }
+
+    private fun openExactAlarmSettings() {
+        if (Build.VERSION.SDK_INT < 31) return
+        startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
+    }
+
+    @SuppressLint("BatteryLife") // 정해진 시각에 출석하는 것이 이 앱의 핵심 기능이라 예외를 요청한다.
+    private fun requestBatteryExemption() {
+        val request = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+        try {
+            startActivity(request)
+        } catch (e: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
     }
 
     private fun checkInNow() = runInBackground("출석하는 중...") {

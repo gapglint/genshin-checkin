@@ -3,7 +3,6 @@ package com.lesumein.hoyocheckin
 import android.content.Context
 import androidx.core.content.edit
 import java.time.LocalDate
-import java.time.ZoneId
 
 /**
  * 쿠키와 마지막 실행 결과를 앱 전용 저장소에 둔다.
@@ -57,6 +56,16 @@ class Store(context: Context) {
         get() = prefs.getString("last_notified", null)
         set(value) = prefs.edit { putString("last_notified", value) }
 
+    /** 서버 시각 - 폰 시각(ms). 앱을 다시 켜도 서버 기준으로 계산하려고 남겨 둔다. */
+    var clockOffset: Long
+        get() = prefs.getLong("clock_offset", 0)
+        set(value) = prefs.edit { putLong("clock_offset", value) }
+
+    /** 다음 자동 출석 예정 시각(서버 기준 ms). 화면 표시용. */
+    var nextRunAt: Long
+        get() = prefs.getLong("next_run_at", 0)
+        set(value) = prefs.edit { putLong("next_run_at", value) }
+
     var lastMakeUpNotified: String?
         get() = prefs.getString("last_make_up_notified", null)
         set(value) = prefs.edit { putString("last_make_up_notified", value) }
@@ -69,7 +78,7 @@ class Store(context: Context) {
     }
 
     companion object {
-        /** 호요랩 출첵 하루는 UTC+8 자정(한국 시간 새벽 1시)에 바뀐다. */
-        fun checkInDay(): LocalDate = LocalDate.now(ZoneId.of("Asia/Shanghai"))
+        /** 서버 기준 출석 날짜. 호요랩 출첵 하루는 UTC+8 자정(한국 시간 새벽 1시)에 바뀐다. */
+        fun checkInDay(): LocalDate = ServerClock.today()
     }
 }

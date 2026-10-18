@@ -13,6 +13,8 @@ sealed class Outcome {
     object LoginExpired : Outcome()
     /** 호요랩이 출첵 요청에 캡차를 걸었다. 출첵 페이지에서 직접 눌러야 한다. */
     object CaptchaRequired : Outcome()
+    /** 출석 성공 응답을 받았는데 다시 확인해 보니 반영되지 않았다. 직접 확인해야 한다. */
+    object NotConfirmed : Outcome()
     /** 요청이 너무 잦다(-1004). 잠시 뒤 다시 시도한다. */
     object RateLimited : Outcome()
     data class Failed(val message: String) : Outcome()
@@ -21,21 +23,58 @@ sealed class Outcome {
 /** 원신 호요랩 출석체크 API. 네트워크 호출이므로 백그라운드 스레드에서 부른다. */
 class CheckInClient(private val cookie: String) {
 
-    /** 오늘 출첵이 안 돼 있으면 출첵한다. 네트워크 오류는 IOException으로 던진다. */
+    /** 서버가 알려 준 오늘 날짜(info 응답의 today). 응답에 없으면 null. */
+    var serverToday: String? = null
+        private set
+
+    /**
+     * 오늘 출첵이 안 돼 있으면 출첵한다. 네트워크 오류는 IOException으로 던진다.
+     * 캡차가 걸리면 응답의 challenge로 한 번 더 시도하고, 성공하면 다시 조회해 실제로 반영됐는지 확인한다.
+     */
     @Throws(IOException::class)
     fun run(): Outcome {
-        val info = request("GET", "$API/info?lang=$LANG&act_id=$ACT_ID")
+        val info = fetchInfo()
         infoError(info)?.let { return it }
         val data = info.getJSONObject("data")
         if (data.optBoolean("is_sign")) {
             return Outcome.AlreadySigned(data.optInt("total_sign_day"))
         }
 
-        Thread.sleep(REQUEST_GAP_MS)
-        val sign = request("POST", "$API/sign?lang=$LANG", JSONObject().put("act_id", ACT_ID).toString())
         val day = data.optInt("total_sign_day") + 1
-        return interpretSign(sign, day) { rewardFor(day) }
+        Thread.sleep(REQUEST_GAP_MS)
+        var sign = sign()
+        var outcome = interpretSign(sign, day) { null }
+        if (outcome == Outcome.CaptchaRequired) {
+            val challenge = challengeOf(sign) ?: return outcome
+            Thread.sleep(REQUEST_GAP_MS)
+            sign = sign(challenge)
+            outcome = interpretSign(sign, day) { null }
+        }
+        if (outcome !is Outcome.Signed) return outcome
+        return confirm(day)
     }
+
+    /** 출석 후 다시 조회해 반영됐는지 본다. 반영됐으면 보상 이름까지 붙여 돌려준다. */
+    private fun confirm(day: Int): Outcome {
+        Thread.sleep(REQUEST_GAP_MS)
+        val check = fetchInfo()
+        val data = check.optJSONObject("data")
+        if (infoError(check) != null || data == null) return Outcome.Signed(day, rewardFor(day))
+        if (!data.optBoolean("is_sign")) return Outcome.NotConfirmed
+        val total = data.optInt("total_sign_day", day)
+        return Outcome.Signed(total, rewardFor(total))
+    }
+
+    private fun fetchInfo(): JSONObject {
+        val info = request("GET", "$API/info?lang=$LANG&act_id=$ACT_ID")
+        info.optJSONObject("data")?.optString("today")?.takeIf { it.isNotEmpty() }?.let { serverToday = it }
+        return info
+    }
+
+    private fun sign(challenge: String? = null): JSONObject = request(
+        "POST", "$API/sign?lang=$LANG", JSONObject().put("act_id", ACT_ID).toString(),
+        challenge?.let { mapOf("x-rpc-challenge" to it) } ?: emptyMap(),
+    )
 
     /** 이 쿠키로 로그인된 상태인지. 만료됐을 때만 false. 네트워크 오류는 IOException으로 던진다. */
     @Throws(IOException::class)
@@ -73,7 +112,12 @@ class CheckInClient(private val cookie: String) {
         null
     }
 
-    private fun request(method: String, url: String, body: String? = null): JSONObject {
+    private fun request(
+        method: String,
+        url: String,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): JSONObject {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = method
@@ -85,11 +129,13 @@ class CheckInClient(private val cookie: String) {
             conn.setRequestProperty("Origin", "https://act.hoyolab.com")
             conn.setRequestProperty("Referer", "https://act.hoyolab.com/")
             conn.setRequestProperty("x-rpc-signgame", "hk4e")
+            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
             if (body != null) {
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8")
                 conn.outputStream.use { it.write(body.toByteArray()) }
             }
+            ServerClock.observe(conn.getHeaderFieldDate("Date", 0))
             val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
                 ?: throw IOException("HTTP ${conn.responseCode}")
             return JSONObject(stream.bufferedReader().use { it.readText() })
@@ -137,6 +183,10 @@ class CheckInClient(private val cookie: String) {
                 else -> Outcome.Failed(describe(json).ifEmpty { "retcode $code" })
             }
         }
+
+        /** 캡차 판정 응답의 challenge. 없으면 null. */
+        internal fun challengeOf(json: JSONObject): String? =
+            json.optJSONObject("data")?.optJSONObject("gt_result")?.optString("challenge")?.takeIf { it.isNotEmpty() }
 
         internal fun rewardName(home: JSONObject, day: Int): String? {
             val awards = home.optJSONObject("data")?.optJSONArray("awards") ?: return null

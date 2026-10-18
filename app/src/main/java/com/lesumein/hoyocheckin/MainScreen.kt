@@ -15,6 +15,10 @@ data class MainUiState(
     val month: Int,
     val reward: String? = null,
     val lastChecked: String? = null,
+    /** 다음 자동 출석 예정 시각(이미 폰 시간대로 바꾼 문장). */
+    val nextRun: String? = null,
+    val needsExactAlarm: Boolean = false,
+    val needsBatteryExemption: Boolean = false,
     /** 출석이 안 됐을 때 마지막 결과(실패 이유 등). */
     val note: String? = null,
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
@@ -35,6 +39,11 @@ class MainScreen(val root: View) {
     private val heroReward: TextView = root.findViewById(R.id.heroReward)
     private val heroChecked: TextView = root.findViewById(R.id.heroChecked)
     private val heroNote: TextView = root.findViewById(R.id.heroNote)
+    private val heroNextRow: View = root.findViewById(R.id.heroNextRow)
+    private val heroNext: TextView = root.findViewById(R.id.heroNext)
+    private val timingSection: View = root.findViewById(R.id.timingSection)
+    val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
+    val rowBattery: View = root.findViewById(R.id.rowBattery)
     val primaryButton: MaterialButton = root.findViewById(R.id.primaryButton)
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
     private val makeUpText: TextView = root.findViewById(R.id.makeUpText)
@@ -51,6 +60,7 @@ class MainScreen(val root: View) {
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
+        root.findViewById<View>(R.id.timingGroup).clipToOutline = true
     }
 
     fun render(s: MainUiState) {
@@ -69,6 +79,13 @@ class MainScreen(val root: View) {
             else -> "출석하면 표시돼요"
         }
         heroChecked.text = s.lastChecked ?: "아직 없음"
+        heroNextRow.visibility = if (s.nextRun != null) View.VISIBLE else View.GONE
+        heroNext.text = s.nextRun
+
+        rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
+        rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE
+        timingSection.visibility =
+            if (s.loggedIn && (s.needsExactAlarm || s.needsBatteryExemption)) View.VISIBLE else View.GONE
         heroNote.text = s.note
         heroNote.visibility = if (s.note != null && s.busy == null) View.VISIBLE else View.GONE
 

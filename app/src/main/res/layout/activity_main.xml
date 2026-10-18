@@ -169,6 +169,29 @@
 
                 </LinearLayout>
 
+                <LinearLayout
+                    android:id="@+id/heroNextRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/Text.HeroLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="다음 자동 출석" />
+
+                    <TextView
+                        android:id="@+id/heroNext"
+                        style="@style/Text.HeroValue"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:fontFeatureSettings="tnum" />
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/heroNote"
                     android:layout_width="match_parent"
@@ -233,6 +256,103 @@
                 android:text="보충하기"
                 android:textColor="@color/accent"
                 android:textSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/timingSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="28dp"
+                android:layout_marginBottom="8dp"
+                android:text="제때 출석하려면"
+                android:textColor="@color/ink_muted"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/timingGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_group"
+                android:divider="@drawable/divider_inset"
+                android:orientation="vertical"
+                android:showDividers="middle">
+
+                <LinearLayout
+                    android:id="@+id/rowExactAlarm"
+                    style="@style/Row">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Text.RowTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="알람 및 리마인더 허용" />
+
+                        <TextView
+                            style="@style/Text.RowSub"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="하루가 바뀐 직후 정확한 시각에 출석해요. 허용하지 않으면 몇 분 늦을 수 있어요." />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="허용"
+                        android:textColor="@color/accent"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/rowBattery"
+                    style="@style/Row">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Text.RowTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="배터리 최적화 제외" />
+
+                        <TextView
+                            style="@style/Text.RowSub"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="절전 때문에 출석이 밀리거나 빠지지 않게 해요. 폰을 바꾼 뒤에도 다시 확인해 주세요." />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="허용"
+                        android:textColor="@color/accent"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <TextView
@@ -369,7 +489,7 @@
             android:layout_marginHorizontal="4dp"
             android:layout_marginTop="16dp"
             android:lineSpacingExtra="3dp"
-            android:text="6시간마다 출석을 확인하고, 안 했으면 대신 출석해요. 호요랩의 하루는 한국 시간 새벽 1시에 바뀌어요."
+            android:text="호요랩 서버의 날짜가 바뀌는 순간(한국 시간 새벽 1시) 직후에 출석해요. 폰 시계가 틀려도 서버 시각에 맞춰요. 놓치면 6시간마다 다시 확인해요."
             android:textColor="@color/ink_muted"
             android:textSize="12sp" />
     </LinearLayout>

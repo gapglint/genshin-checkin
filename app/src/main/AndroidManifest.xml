@@ -3,6 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 서버 기준 새벽 1시 직후에 정확히 출석하기 위한 알람. 사용자가 설정에서 허용한다. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 절전 때문에 출석이 밀리지 않도록 배터리 최적화 예외를 요청한다. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- 쿠키가 백업으로 다른 기기에 넘어가지 않게 백업을 끈다. -->
     <application
@@ -27,5 +32,19 @@
         <activity
             android:name=".LoginActivity"
             android:exported="false" />
+
+        <receiver
+            android:name=".DailyAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".RescheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
