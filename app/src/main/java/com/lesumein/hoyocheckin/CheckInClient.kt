@@ -37,6 +37,11 @@ class CheckInClient(private val cookie: String) {
         return interpretSign(sign, day) { rewardFor(day) }
     }
 
+    /** 이 쿠키로 로그인된 상태인지. 만료됐을 때만 false. 네트워크 오류는 IOException으로 던진다. */
+    @Throws(IOException::class)
+    fun isLoggedIn(): Boolean =
+        infoError(request("GET", "$API/info?lang=$LANG&act_id=$ACT_ID")) != Outcome.LoginExpired
+
     /** 누적 출첵 일수에 해당하는 보상 이름. 실패해도 출첵 결과에는 영향이 없다. */
     private fun rewardFor(day: Int): String? = try {
         Thread.sleep(REQUEST_GAP_MS)

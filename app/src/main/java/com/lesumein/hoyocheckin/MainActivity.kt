@@ -19,6 +19,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loginStatus: TextView
     private lateinit var lastResult: TextView
     private lateinit var checkInButton: Button
+    private lateinit var loginButton: Button
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -31,7 +32,8 @@ class MainActivity : AppCompatActivity() {
         lastResult = findViewById(R.id.lastResult)
         checkInButton = findViewById(R.id.checkInButton)
 
-        findViewById<Button>(R.id.loginButton).setOnClickListener {
+        loginButton = findViewById(R.id.loginButton)
+        loginButton.setOnClickListener {
             startActivity(LoginActivity.loginIntent(this))
         }
         checkInButton.setOnClickListener { checkInNow() }
@@ -55,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private fun refresh() {
         loginStatus.text = if (store.cookie != null) "로그인됨 · 자동 출첵 켜짐" else "로그인이 필요해요"
         checkInButton.isEnabled = store.cookie != null
+        loginButton.text = if (store.cookie != null) "로그인 확인 / 다시 로그인" else "호요랩 로그인"
         val result = store.lastResult
         lastResult.text = if (result == null) {
             "아직 출첵 기록이 없어요."
