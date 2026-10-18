@@ -232,6 +232,18 @@
             android:textColor="@color/button_primary_text"
             android:textSize="16sp" />
 
+        <!-- 출석·보충·리딤을 돌리는 동안 움직이는 진행 표시. 버튼 글자만으로는 멈춘 것처럼 보인다. -->
+        <ProgressBar
+            android:id="@+id/busyBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="8dp"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/accent"
+            android:visibility="gone" />
+
         <!-- 보충 출석 안내: 가능할 때만 보인다 -->
         <LinearLayout
             android:id="@+id/makeUpCard"

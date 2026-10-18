@@ -57,29 +57,32 @@ object MakeUp {
 
     /** 한 계정의 보충을 할 수 있는 만큼 한다. 출첵과 겹치지 않게 같은 잠금을 쓴다. */
     @Throws(IOException::class)
-    fun perform(store: Store): MakeUpResult = synchronized(CheckIn) {
+    /** 놓친 날을 보충한다. progress로 지금 하는 단계를 알려 준다(보충권 받기, 몇 번째 보충 중). */
+    fun perform(store: Store, progress: (String) -> Unit = {}): MakeUpResult = synchronized(CheckIn) {
         val cookie = store.cookie ?: return MakeUpResult.LoginExpired
         if (!store.signedToday) {
             return MakeUpResult.Unavailable("오늘 출석을 먼저 해야 보충할 수 있어요.")
         }
         val client = CheckInClient(cookie)
-        val result = performWith(client)
+        val result = performWith(client, progress)
         store.makeUpDay = null
         if (result is MakeUpResult.Done) store.signedTotal += result.days
         result
     }
 
-    private fun performWith(client: CheckInClient): MakeUpResult {
+    private fun performWith(client: CheckInClient, progress: (String) -> Unit): MakeUpResult {
         var info = fetchInfo(client) ?: return MakeUpResult.Failed("보충 출석 정보를 받지 못했어요.")
         infoProblem(info)?.let { return it }
 
         val rewards = mutableListOf<String>()
         while (info.canResign) {
             if (!info.hasCards) {
+                progress("보충권 받는 중...")
                 earnCards(client)?.let { return finish(rewards, it) }
                 info = fetchInfo(client) ?: break
                 if (!info.hasCards) return finish(rewards, MakeUpResult.Unavailable("보충권이 부족해요. 오늘 받을 수 있는 임무를 다 했어요."))
             }
+            progress("보충 출석 중... (${rewards.size + 1}번째)")
             pause()
             val json = client.resign()
             when (val code = json.optInt("retcode", Int.MIN_VALUE)) {

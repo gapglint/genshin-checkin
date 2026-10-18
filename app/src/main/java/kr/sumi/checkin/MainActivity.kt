@@ -298,8 +298,8 @@ class MainActivity : Activity() {
 
     private fun makeUpNow() {
         val store = store ?: return
-        runInBackground("보충 출석 중...") {
-            val result = MakeUp.perform(store)
+        runInBackground("보충 출석 준비 중...") {
+            val result = MakeUp.perform(store) { step -> runOnUiThread { busy = step; refresh() } }
             runOnUiThread { showMakeUpResult(result) }
             null
         }
@@ -307,7 +307,10 @@ class MainActivity : Activity() {
 
     /** 네트워크 작업을 백그라운드에서 돌리는 동안 버튼을 막고 진행 안내를 보여 준다. 반환한 문장은 토스트로. */
     private fun runInBackground(label: String, work: () -> String?) {
-        if (busy != null) return
+        busy?.let {
+            Toast.makeText(this, "$it 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
         busy = label
         refresh()
         Thread {

@@ -63,6 +63,7 @@ class MainScreen(val root: View) {
     val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
     val rowBattery: View = root.findViewById(R.id.rowBattery)
     val primaryButton: Button = root.findViewById(R.id.primaryButton)
+    val busyBar: View = root.findViewById(R.id.busyBar)
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
     private val makeUpText: TextView = root.findViewById(R.id.makeUpText)
     val makeUpButton: Button = root.findViewById(R.id.makeUpButton)
@@ -128,6 +129,7 @@ class MainScreen(val root: View) {
         // 오늘 출석을 마쳤으면 누를 일이 없으니 버튼을 숨긴다(카드가 이미 알려 준다).
         primaryButton.visibility = if (s.loggedIn && s.signedToday && s.busy == null) View.GONE else View.VISIBLE
         primaryButton.isEnabled = s.busy == null
+        busyBar.visibility = if (s.busy != null) View.VISIBLE else View.GONE
         primaryButton.text = when {
             s.busy != null -> s.busy
             !s.loggedIn -> "호요랩 로그인"
