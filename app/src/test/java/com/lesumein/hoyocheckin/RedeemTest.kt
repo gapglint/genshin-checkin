@@ -38,6 +38,27 @@ class RedeemTest {
         assertEquals(listOf("LIVE2026"), Redeem.parseOfficialCodes(material))
     }
 
+    /** 2026-10-18에 받아 둔 위키 원문으로 확인한다. */
+    private fun wiki() = JSONObject(javaClass.getResource("/wiki_promotional_code.json")!!.readText())
+
+    @Test fun wikiActiveCodesForAsia() {
+        val groups = Redeem.parseWikiCodes(wiki(), "os_asia", java.time.LocalDate.of(2026, 10, 18))
+        val all = groups.flatten()
+        assertEquals("6LS3F3LS5K87", groups.first().single())
+        // 글로벌 코드는 들어가고, 중국 서버 전용(YuanShen)은 빠진다
+        assert("BALLETCOLLAB" in all && "VESNAONPATROL" in all)
+        assert("YUANSHEN" !in all)
+        // 하나만 쓸 수 있는 묶음 코드는 한 묶음으로
+        assertEquals(listOf("GS71XAVWDS", "GS71XDYGEO", "GS71XYNSYJ", "GS71XOXYLG"), groups.first { it.size > 1 })
+        assertEquals(12, groups.size)
+    }
+
+    @Test fun wikiSkipsExpired() {
+        // VesnaOnPatrol은 2026-10-22 만료
+        val all = Redeem.parseWikiCodes(wiki(), "os_asia", java.time.LocalDate.of(2026, 10, 23)).flatten()
+        assert("VESNAONPATROL" !in all)
+    }
+
     @Test fun mapsRetcodes() {
         assertEquals(RedeemStatus.REDEEMED, Redeem.statusOf(0))
         assertEquals(RedeemStatus.EXPIRED, Redeem.statusOf(-2001))
