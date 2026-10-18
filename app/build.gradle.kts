@@ -18,14 +18,16 @@ val releaseStoreFile = signingValue("storeFile", "KEYSTORE_FILE")
 
 android {
     namespace = "com.lesumein.hoyocheckin"
+    // 플레이 스토어 요구에 맞춰 대상은 최신(36)으로 두고, 컴파일은 35로 한다.
+    // 화면 스냅숏 도구(Paparazzi 1.3.5)가 API 36의 android.jar를 아직 읽지 못하기 때문이다.
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.lesumein.hoyocheckin"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 14
-        versionName = "0.5.2"
+        targetSdk = 36
+        versionCode = 15
+        versionName = "0.6.0"
     }
 
     signingConfigs {
@@ -41,9 +43,30 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 용량 줄이기: 안 쓰는 코드·리소스를 빼고 이름을 줄인다(R8). 동작은 그대로다.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
         }
+    }
+
+    // 앱은 한국어뿐이라 라이브러리에 딸린 다른 언어 번역은 넣지 않는다.
+    androidResources {
+        localeFilters += listOf("ko")
+    }
+
+    packaging {
+        resources.excludes += listOf(
+            "META-INF/*.version", "META-INF/**/*.kotlin_module", "kotlin/**", "DebugProbesKt.bin",
+            "META-INF/com/android/build/gradle/app-metadata.properties",
+        )
+    }
+
+    // 의존성 목록 블록은 APK에서 뺀다(플레이 스토어용 번들에는 남긴다).
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = true
     }
 
     compileOptions {

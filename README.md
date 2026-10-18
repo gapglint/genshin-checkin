@@ -53,9 +53,15 @@
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew test assembleDebug     # 디버그
 ./gradlew recordPaparazziDebug   # 화면 스냅숏 갱신 (app/src/test/snapshots)
-./gradlew assembleRelease        # 서명된 릴리스 (아래 서명 키 필요)
+./gradlew assembleRelease        # 서명된 릴리스 APK (아래 서명 키 필요). R8로 줄여 약 1.6MB
+./gradlew bundleRelease          # 플레이 스토어용 AAB
 # app/build/outputs/apk/release/app-release.apk
 ```
+
+## 플레이 스토어
+
+등록 자료(설명, 이미지, 개인정보처리방침, 데이터 보안 답변, 올리는 순서)는 [store/](store/README.md)에 있다.
+GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab`도 올라간다.
 
 ## 서명 키
 
