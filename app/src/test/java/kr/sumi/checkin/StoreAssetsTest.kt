@@ -95,46 +95,58 @@ class StoreAssetsTest {
     /**
      * 스토어 스크린샷 1080×1920: 위에 큰 문구, 아래에 실제 앱 화면(activity_main)을 줄여 얹는다.
      * scrollTo를 주면 그 뷰가 화면 위쪽에 오도록 내린다.
+     * tablet이면 1440×2560 틀에 폭 720dp(320dpi) 태블릿 화면으로 그린다(7인치·10인치 태블릿 칸에 같이 쓴다).
      */
-    private fun screenshot(state: MainUiState, night: Boolean, title: String, sub: String, scrollTo: Int? = null, aboveDp: Int = 44) {
-        // 앱 화면은 1080×2160 휴대폰(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
+    private fun screenshot(
+        state: MainUiState, night: Boolean, title: String, sub: String,
+        scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false,
+    ) {
+        // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
+        val w = if (tablet) 1440 else 1080
+        val h = if (tablet) 2560 else 1920
+        val appH = w * 2
+        val k = w / 1080f
         paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(
-            screenWidth = 1080, screenHeight = 1920, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
+            screenWidth = w, screenHeight = h, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
+            density = if (tablet) Density.XHIGH else DeviceConfig.PIXEL_6.density,
+            xdpi = if (tablet) 320 else DeviceConfig.PIXEL_6.xdpi, ydpi = if (tablet) 320 else DeviceConfig.PIXEL_6.ydpi,
         ))
+        // 문구 크기를 틀 폭에 맞춘다(휴대폰 420dpi 기준).
+        val textScale = k * 2.625f / (if (tablet) 2f else 2.625f)
         val context = paparazzi.context
         val app = paparazzi.inflate<android.widget.ScrollView>(R.layout.activity_main)
         app.isVerticalScrollBarEnabled = false
         MainScreen(app).render(state)
         if (scrollTo != null) {
-            app.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(2160, View.MeasureSpec.EXACTLY))
-            app.layout(0, 0, 1080, 2160)
+            app.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(appH, View.MeasureSpec.EXACTLY))
+            app.layout(0, 0, w, appH)
             val target = app.findViewById<View>(scrollTo)
             app.scrollTo(0, target.top - (aboveDp * context.resources.displayMetrics.density).toInt())
         }
 
-        // 앱 화면은 실제 크기(1080px 폭)로 배치하고 0.84배로 줄여 둥근 모서리 안에 넣는다.
+        // 앱 화면은 실제 크기(틀 폭)로 배치하고 0.84배로 줄여 둥근 모서리 안에 넣는다.
         val scale = 0.84f
         val screen = FrameLayout(context).apply {
             background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = 64f
+                cornerRadius = 64f * k
                 setColor(context.getColor(R.color.bg))
-                setStroke(4, context.getColor(R.color.hero_line))
+                setStroke((4 * k).toInt(), context.getColor(R.color.hero_line))
             }
             clipToOutline = true
             addView(app, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            pivotX = 540f
+            pivotX = w / 2f
             pivotY = 0f
             scaleX = scale
             scaleY = scale
-            translationY = 540f
+            translationY = 540f * k
         }
         val caption = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(72, 150, 72, 0)
+            setPadding((72 * k).toInt(), (150 * k).toInt(), (72 * k).toInt(), 0)
             addView(TextView(context).apply {
                 text = title
-                textSize = 30f
+                textSize = 30f * textScale
                 gravity = Gravity.CENTER
                 setLineSpacing(0f, 1.15f)
                 setTypeface(typeface, Typeface.BOLD)
@@ -142,15 +154,15 @@ class StoreAssetsTest {
             })
             addView(TextView(context).apply {
                 text = sub
-                textSize = 16f
+                textSize = 16f * textScale
                 gravity = Gravity.CENTER
-                setPadding(0, 36, 0, 0)
+                setPadding(0, (36 * k).toInt(), 0, 0)
                 setTextColor(context.getColor(R.color.gold))
             })
         }
         paparazzi.snapshot(FrameLayout(context).apply {
             setBackgroundResource(R.drawable.ic_launcher_background)
-            addView(screen, FrameLayout.LayoutParams(1080, 2160))
+            addView(screen, FrameLayout.LayoutParams(w, appH))
             addView(caption, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         })
     }
@@ -172,6 +184,17 @@ class StoreAssetsTest {
 
     @Test fun screenshot4Dark() = screenshot(
         signed, night = true,
+        title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
+    )
+
+    // 태블릿은 화면 하나에 내용이 거의 다 들어가서 맨 위부터 보여 준다.
+    @Test fun tablet1Redeem() = screenshot(
+        redeemed, night = false, tablet = true,
+        title = "리딤코드도 출석도\n알아서 챙겨요", sub = "새벽 1시 서버 시각 기준 · 보충 출석까지",
+    )
+
+    @Test fun tablet2Dark() = screenshot(
+        signed, night = true, tablet = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 }
