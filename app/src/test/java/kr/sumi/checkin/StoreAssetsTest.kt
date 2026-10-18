@@ -20,7 +20,7 @@ import org.junit.Test
 /**
  * 플레이 스토어 등록 이미지. ./gradlew recordPaparazziDebug 후 app/src/test/snapshots/images의
  * StoreAssetsTest_* 파일을 store/ 폴더로 옮겨 쓴다.
- * 아이콘 512×512, 대표 이미지 1024×500, 스크린샷 1080×2160(세로 2:1 이하).
+ * 아이콘 512×512, 대표 이미지 1024×500, 스크린샷 1080×1920(플레이는 9:16만 받는다).
  */
 class StoreAssetsTest {
     @get:Rule
@@ -93,23 +93,23 @@ class StoreAssetsTest {
     )
 
     /**
-     * 스토어 스크린샷 1080×2160: 위에 큰 문구, 아래에 실제 앱 화면(activity_main)을 줄여 얹는다.
-     * scrollToRedeem이면 화면을 리딤 코드 칸부터 보이게 내린다.
+     * 스토어 스크린샷 1080×1920: 위에 큰 문구, 아래에 실제 앱 화면(activity_main)을 줄여 얹는다.
+     * scrollTo를 주면 그 뷰가 화면 위쪽에 오도록 내린다.
      */
-    private fun screenshot(state: MainUiState, night: Boolean, title: String, sub: String, scrollToRedeem: Boolean = false) {
-        // 1080×2160 화면을 420dpi로 그린다(일반적인 휴대폰 밀도).
+    private fun screenshot(state: MainUiState, night: Boolean, title: String, sub: String, scrollTo: Int? = null, aboveDp: Int = 44) {
+        // 앱 화면은 1080×2160 휴대폰(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(
-            screenWidth = 1080, screenHeight = 2160, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
+            screenWidth = 1080, screenHeight = 1920, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
         ))
         val context = paparazzi.context
         val app = paparazzi.inflate<android.widget.ScrollView>(R.layout.activity_main)
         app.isVerticalScrollBarEnabled = false
         MainScreen(app).render(state)
-        if (scrollToRedeem) {
+        if (scrollTo != null) {
             app.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(2160, View.MeasureSpec.EXACTLY))
             app.layout(0, 0, 1080, 2160)
-            val group = app.findViewById<View>(R.id.redeemGroup)
-            app.scrollTo(0, group.top - (44 * context.resources.displayMetrics.density).toInt())
+            val target = app.findViewById<View>(scrollTo)
+            app.scrollTo(0, target.top - (aboveDp * context.resources.displayMetrics.density).toInt())
         }
 
         // 앱 화면은 실제 크기(1080px 폭)로 배치하고 0.84배로 줄여 둥근 모서리 안에 넣는다.
@@ -156,16 +156,21 @@ class StoreAssetsTest {
     }
 
     @Test fun screenshot1Redeem() = screenshot(
-        redeemed, night = false, scrollToRedeem = true,
+        redeemed, night = false, scrollTo = R.id.redeemGroup,
         title = "방송 리딤코드,\n알아서 입력돼요", sub = "새 코드가 나오면 고른 캐릭터로 자동 입력",
     )
 
     @Test fun screenshot2CheckIn() = screenshot(
         signed, night = false,
-        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "놓친 날은 보충 출석까지 알려 드려요",
+        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "폰 시계가 아니라 HoYoLAB 서버 시각 기준",
     )
 
-    @Test fun screenshot3Dark() = screenshot(
+    @Test fun screenshot3MakeUp() = screenshot(
+        signed, night = false, scrollTo = R.id.makeUpCard, aboveDp = 150,
+        title = "놓친 날은\n보충 출석까지", sub = "알림을 누르면 바로 보충해요",
+    )
+
+    @Test fun screenshot4Dark() = screenshot(
         signed, night = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )

@@ -61,7 +61,7 @@ https://github.com/lesumein/genshin-checkin
 |---|---|---|
 | 앱 아이콘 | `icon512.png` | 512×512 |
 | 그래픽 이미지 | `featureGraphic.png` | 1024×500 |
-| 휴대전화 스크린샷 | `screenshot1Redeem.png`(리딤), `screenshot2CheckIn.png`(자동 출석), `screenshot3Dark.png`(여러 계정·다크) — 이 순서로 올린다 | 1080×2160 |
+| 휴대전화 스크린샷 | `screenshot1Redeem.png`(리딤), `screenshot2CheckIn.png`(자동 출석), `screenshot3MakeUp.png`(보충 출석), `screenshot4Dark.png`(여러 계정·다크) — 이 순서로 올린다 | 1080×1920 (플레이는 16:9 / 9:16만 받는다) |
 
 이미지는 실제 화면 레이아웃을 그린 것이다(`app/src/test/.../StoreAssetsTest.kt`). 화면이 바뀌면
 `./gradlew recordPaparazziDebug` 후 `app/src/test/snapshots/images/*StoreAssetsTest_*`를 이 폴더로 복사한다.
