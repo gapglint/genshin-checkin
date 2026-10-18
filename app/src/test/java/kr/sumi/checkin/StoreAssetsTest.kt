@@ -95,7 +95,7 @@ class StoreAssetsTest {
     /**
      * 스토어 스크린샷 1080×1920: 위에 큰 문구, 아래에 실제 앱 화면(activity_main)을 줄여 얹는다.
      * scrollTo를 주면 그 뷰가 화면 위쪽에 오도록 내린다.
-     * tablet이면 1440×2560 틀에 폭 720dp(320dpi) 태블릿 화면으로 그린다(7인치·10인치 태블릿 칸에 같이 쓴다).
+     * tablet이면 1440×2560 틀에 폭 576dp(400dpi) 태블릿 화면으로 그린다(7인치·10인치 태블릿 칸에 같이 쓴다).
      */
     private fun screenshot(
         state: MainUiState, night: Boolean, title: String, sub: String,
@@ -104,15 +104,16 @@ class StoreAssetsTest {
         // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         val w = if (tablet) 1440 else 1080
         val h = if (tablet) 2560 else 1920
-        val appH = w * 2
+        // 태블릿은 보이는 높이만큼만 잡아야 내용이 넘쳐서 장면마다 다른 곳으로 스크롤할 수 있다.
+        val appH = if (tablet) ((h - 540f * (w / 1080f)) / 0.84f).toInt() else w * 2
         val k = w / 1080f
         paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(
             screenWidth = w, screenHeight = h, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
-            density = if (tablet) Density.XHIGH else DeviceConfig.PIXEL_6.density,
-            xdpi = if (tablet) 320 else DeviceConfig.PIXEL_6.xdpi, ydpi = if (tablet) 320 else DeviceConfig.PIXEL_6.ydpi,
+            density = if (tablet) Density.create(400) else DeviceConfig.PIXEL_6.density,
+            xdpi = if (tablet) 400 else DeviceConfig.PIXEL_6.xdpi, ydpi = if (tablet) 400 else DeviceConfig.PIXEL_6.ydpi,
         ))
         // 문구 크기를 틀 폭에 맞춘다(휴대폰 420dpi 기준).
-        val textScale = k * 2.625f / (if (tablet) 2f else 2.625f)
+        val textScale = k * 2.625f / (if (tablet) 2.5f else 2.625f)
         val context = paparazzi.context
         val app = paparazzi.inflate<android.widget.ScrollView>(R.layout.activity_main)
         app.isVerticalScrollBarEnabled = false
@@ -187,13 +188,22 @@ class StoreAssetsTest {
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 
-    // 태블릿은 화면 하나에 내용이 거의 다 들어가서 맨 위부터 보여 준다.
     @Test fun tablet1Redeem() = screenshot(
-        redeemed, night = false, tablet = true,
-        title = "리딤코드도 출석도\n알아서 챙겨요", sub = "새벽 1시 서버 시각 기준 · 보충 출석까지",
+        redeemed, night = false, scrollTo = R.id.redeemGroup, tablet = true,
+        title = "방송 리딤코드,\n알아서 입력돼요", sub = "새 코드가 나오면 고른 캐릭터로 자동 입력",
     )
 
-    @Test fun tablet2Dark() = screenshot(
+    @Test fun tablet2CheckIn() = screenshot(
+        signed, night = false, tablet = true,
+        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "폰 시계가 아니라 HoYoLAB 서버 시각 기준",
+    )
+
+    @Test fun tablet3MakeUp() = screenshot(
+        signed, night = false, scrollTo = R.id.makeUpCard, aboveDp = 150, tablet = true,
+        title = "놓친 날은\n보충 출석까지", sub = "알림을 누르면 바로 보충해요",
+    )
+
+    @Test fun tablet4Dark() = screenshot(
         signed, night = true, tablet = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
