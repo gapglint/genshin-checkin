@@ -101,6 +101,7 @@ class StoreAssetsTest {
     private fun screenshot(
         state: MainUiState, night: Boolean, title: String, sub: String,
         scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false, history: HistoryUiState? = null,
+        custom: ((android.content.Context) -> View)? = null,
     ) {
         // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         val w = if (tablet) 1440 else 1080
@@ -116,7 +117,9 @@ class StoreAssetsTest {
         // 문구 크기를 틀 폭에 맞춘다(휴대폰 420dpi 기준).
         val textScale = k * 2.625f / (if (tablet) 2.5f else 2.625f)
         val context = paparazzi.context
-        val app: View = if (history != null) {
+        val app: View = if (custom != null) {
+            custom(context)
+        } else if (history != null) {
             RewardHistoryScreen(context).apply { render(history) }.root
         } else {
             paparazzi.inflate<android.widget.ScrollView>(R.layout.activity_main).also {
@@ -174,6 +177,55 @@ class StoreAssetsTest {
         })
     }
 
+    /**
+     * 알림 장면: 안드로이드 알림창 모양으로, 밤에 온 알림은 '무음'에 조용히 쌓이고 아침 알림은 그대로 오는 모습.
+     * 알림 문구는 Notifier가 실제로 보내는 문구다.
+     */
+    private fun notificationShade(context: android.content.Context): View {
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        val shadeBg = 0xFF15171C.toInt(); val card = 0xFF262931.toInt(); val ink = 0xFFE9EAEE.toInt(); val muted = 0xFFA4A8B3.toInt()
+        fun section(text: String) = TextView(context).apply {
+            this.text = text
+            textSize = 14f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(muted)
+            setPadding(dp(8), dp(18), 0, dp(8))
+        }
+        fun notification(time: String, title: String, body: String) = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(16), dp(14), dp(16), dp(16))
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(card) }
+            addView(android.widget.ImageView(context).apply {
+                setImageResource(R.drawable.ic_notify)
+                setColorFilter(0xFF2A1F08.toInt())
+                setPadding(dp(7), dp(7), dp(7), dp(7))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(context.getColor(R.color.gold))
+                }
+            }, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(14) })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(context).apply { text = "원신 출첵 · $time"; textSize = 12f; setTextColor(muted) })
+                addView(TextView(context).apply { text = title; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(ink); setPadding(0, dp(2), 0, 0) })
+                addView(TextView(context).apply { text = body; textSize = 14f; setTextColor(muted); setPadding(0, dp(2), 0, 0); setLineSpacing(0f, 1.1f) })
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(shadeBg)
+            setPadding(dp(16), dp(28), dp(16), 0)
+            addView(TextView(context).apply { text = "오전 9:00"; textSize = 34f; setTextColor(ink); setPadding(dp(8), 0, 0, 0) })
+            addView(TextView(context).apply { text = "10월 18일 토요일"; textSize = 14f; setTextColor(muted); setPadding(dp(8), 0, 0, dp(4)) })
+            addView(section("알림"))
+            addView(notification("오전 9:00", "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 2일 있어요. 누르면 바로 보충해요."))
+            addView(section("무음 · 밤에 온 알림"))
+            addView(notification("오전 1:05", "리딤 코드 3개를 받았어요", "GA7TQLBCNS9V, VAPTVN8B2R5H, 5T8B9KQW2RJM · 게임 우편함에서 받으세요."))
+            addView(notification("오전 1:03", "원신 출첵 완료", "출첵 완료! (17일째)\n보상: 원석 x20"),
+                LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(8) })
+        }
+    }
+
     /** 보상 내역 장면용 예시: 이번 달 출석 보상과 이 앱으로 받은 리딤 코드. */
     private val history: HistoryUiState get() {
         fun at(day: Int) = java.time.LocalDateTime.of(2026, 10, day, 21, 12).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
@@ -214,9 +266,14 @@ class StoreAssetsTest {
         title = "놓친 날은\n보충 출석까지", sub = "알림을 누르면 바로 보충해요",
     )
 
-    @Test fun screenshot5Dark() = screenshot(
+    @Test fun screenshot5Alerts() = screenshot(
+        signed, night = false, custom = { notificationShade(it) },
+        title = "밤에는 조용히,\n아침에 확인", sub = "알림은 골라 받고, 새벽 알림은 소리 없이",
+    )
+
+    @Test fun screenshot6Dark() = screenshot(
         signed, night = true,
-        title = "여러 계정도\n차례로 자동 출석", sub = "알림은 골라 받고, 밤에는 소리 없이",
+        title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 
     @Test fun tablet1Redeem() = screenshot(
@@ -239,8 +296,13 @@ class StoreAssetsTest {
         title = "놓친 날은\n보충 출석까지", sub = "알림을 누르면 바로 보충해요",
     )
 
-    @Test fun tablet5Dark() = screenshot(
+    @Test fun tablet5Alerts() = screenshot(
+        signed, night = false, custom = { notificationShade(it) }, tablet = true,
+        title = "밤에는 조용히,\n아침에 확인", sub = "알림은 골라 받고, 새벽 알림은 소리 없이",
+    )
+
+    @Test fun tablet6Dark() = screenshot(
         signed, night = true, tablet = true,
-        title = "여러 계정도\n차례로 자동 출석", sub = "알림은 골라 받고, 밤에는 소리 없이",
+        title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 }
