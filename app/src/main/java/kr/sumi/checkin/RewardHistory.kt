@@ -33,7 +33,22 @@ object RewardHistory {
         return if (index < 0) entries.size else index
     }
 
-    fun unseenCodes(log: List<Pair<String, Long>>, seenAt: Long) = log.count { it.second > seenAt }
+    fun unseenCodes(log: List<RedeemedCode>, seenAt: Long) = log.count { it.at > seenAt }
+
+    /** 아이템별 합계. 원석·모라를 앞에, 나머지는 처음 나온 순서대로. */
+    fun totals(items: List<Pair<String, Int>>): List<Pair<String, Int>> {
+        val sums = linkedMapOf<String, Int>()
+        for ((name, count) in items) sums[name] = (sums[name] ?: 0) + count
+        val order = listOf("원석", "모라")
+        return sums.entries.sortedBy { order.indexOf(it.key).let { i -> if (i < 0) order.size else i } }.map { it.key to it.value }
+    }
+
+    /** '원석 ×140 · 모라 ×20,000 외 3종'. 비어 있으면 null. */
+    fun formatTotals(totals: List<Pair<String, Int>>, max: Int = 3): String? {
+        if (totals.isEmpty()) return null
+        val shown = totals.take(max).joinToString(" · ") { (name, count) -> "$name ×${"%,d".format(count)}" }
+        return if (totals.size > max) "$shown 외 ${totals.size - max}종" else shown
+    }
 
     /**
      * 처음 보는 계정이면 지금까지의 내역을 확인한 것으로 기준을 잡는다(수백 개가 전부 새것으로 뜨지 않게).

@@ -65,6 +65,13 @@ class RedeemTest {
         assert("VESNAONPATROL" !in all)
     }
 
+    @Test fun wikiRewardsInKorean() {
+        val raw = Redeem.wikiRewards(wiki())["6LS3F3LS5K87"]
+        assertEquals("Primogem*20;Geode of Replication*160", raw)
+        assertEquals(listOf("원석" to 20, "Geode of Replication" to 160), Redeem.rewardItems(raw!!))
+        assertEquals(listOf("모라" to 10000, "영웅의 경험" to 2), Redeem.rewardItems("[[Mora]]*10,000;Hero's Wit*2"))
+    }
+
     @Test fun mapsRetcodes() {
         assertEquals(RedeemStatus.REDEEMED, Redeem.statusOf(0))
         assertEquals(RedeemStatus.EXPIRED, Redeem.statusOf(-2001))
@@ -101,6 +108,13 @@ class RewardHistoryTest {
     }
 
     @Test fun unseenCodesAfterSeenTime() {
-        assertEquals(1, RewardHistory.unseenCodes(listOf("A" to 300L, "B" to 100L), seenAt = 200L))
+        assertEquals(1, RewardHistory.unseenCodes(listOf(RedeemedCode("A", 300L, null), RedeemedCode("B", 100L, null)), seenAt = 200L))
+    }
+
+    @Test fun totalsPutPrimogemFirstAndFormat() {
+        val totals = RewardHistory.totals(listOf("모라" to 5000, "원석" to 20, "모라" to 5000, "영웅의 경험" to 2, "원석" to 40))
+        assertEquals(listOf("원석" to 60, "모라" to 10000, "영웅의 경험" to 2), totals)
+        assertEquals("원석 ×60 · 모라 ×10,000 외 1종", RewardHistory.formatTotals(totals, max = 2))
+        assertEquals(null, RewardHistory.formatTotals(emptyList()))
     }
 }

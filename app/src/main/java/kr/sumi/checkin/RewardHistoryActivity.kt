@@ -19,17 +19,19 @@ import java.io.IOException
 import java.util.Date
 
 /**
- * 고른 계정의 보상 내역. 알림함처럼 아직 확인하지 않은 보상은 배경을 칠하고, '모두 확인'으로 지운다.
- * 출석·보충 보상은 호요랩의 출석 보상 기록을 그대로 보여 주고(달별로 묶음, 20개씩 더 보기),
- * 리딤 코드는 호요랩에 조회 기능이 없어 이 앱이 받은 기록을 보여 준다.
+ * 고른 계정의 보상 내역. 알림함처럼 화면을 열면 확인한 것으로 치고, 이번에 처음 보는 보상만 배경과 점으로 표시한다.
+ * 위에는 이번 달 출석 보상·리딤 보상 합계를, 아래에는 출석·보충 보상(달별, 20개씩 더 보기)과 리딤 코드를 보여 준다.
+ * 리딤 코드는 호요랩에 조회 기능이 없어 이 앱이 받은 기록이고, 보상은 위키에 적힌 값이다.
  */
 class RewardHistoryActivity : Activity() {
     private lateinit var store: Store
     private lateinit var list: LinearLayout
     private lateinit var more: Button
     private lateinit var status: TextView
-    private lateinit var seenBar: View
-    private lateinit var seenText: TextView
+    private lateinit var newText: TextView
+    // 화면을 열 때의 확인 표시. 열자마자 확인한 것으로 저장하지만, 이번 화면에서는 이 기준으로 새 보상을 칠한다.
+    private var seenAwardKey: String? = null
+    private var seenRedeemAt = 0L
     private val entries = mutableListOf<RewardEntry>()
     private var total = 0
     private var page = 0
@@ -54,29 +56,19 @@ class RewardHistoryActivity : Activity() {
             visibility = View.GONE
             setOnClickListener { loadPage() }
         }
-        seenText = TextView(this).apply {
+        newText = TextView(this).apply {
             setTextColor(context.getColor(R.color.accent))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             setTypeface(typeface, android.graphics.Typeface.BOLD)
-        }
-        val seenButton = pillButton(filled = true).apply {
-            text = "모두 확인"
-            setOnClickListener {
-                RewardHistory.markAllSeen(store, entries.firstOrNull())
-                render()
-            }
-        }
-        seenBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(20), dp(4), dp(16), 0)
-            addView(seenText, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(seenButton)
             visibility = View.GONE
         }
+        // 리딤 코드는 여는 순간 확인한 것으로 친다. 출석 보상은 첫 페이지를 받은 뒤에(기준이 있어야 해서).
+        seenRedeemAt = store.historySeenRedeemAt
+        store.historySeenRedeemAt = ServerClock.now()
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(seenBar)
+            addView(newText)
             addView(list)
             addView(more, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
                 setMargins(dp(16), 0, dp(16), dp(24))
@@ -93,6 +85,7 @@ class RewardHistoryActivity : Activity() {
 
         render()
         loadPage()
+        Thread { if (Redeem.fillMissingRewards(store)) runOnUiThread { render() } }.start()
     }
 
     private fun loadPage() {
@@ -118,10 +111,20 @@ class RewardHistoryActivity : Activity() {
                 result.onSuccess { json ->
                     page++
                     val pageEntries = RewardHistory.parseAwards(json)
-                    if (page == 1) RewardHistory.ensureBaseline(store, pageEntries)
+                    if (page == 1) {
+                        RewardHistory.ensureBaseline(store, pageEntries)
+                        seenAwardKey = store.historySeenAwardKey
+                        pageEntries.firstOrNull()?.let { store.historySeenAwardKey = it.key }
+                        store.historyUnseen = 0
+                    }
                     entries += pageEntries
                     total = json.optJSONObject("data")?.optInt("total") ?: entries.size
-                    status.text = "출석·보충 보상 ${total}개"
+                    status.text = "출석·보충 보상 총 ${"%,d".format(total)}번 받았어요"
+                    // 이번 달 합계가 맞도록, 받아 온 목록이 아직 이번 달에서 끝나면 한 페이지 더 받는다.
+                    val month = entries.firstOrNull()?.date?.take(7)
+                    if (month != null && entries.size < total && entries.last().date.startsWith(month) && page < 3) {
+                        list.post { loadPage() }
+                    }
                 }.onFailure {
                     status.text = "내역을 불러오지 못했어요. ${it.message ?: ""}".trim()
                 }
@@ -133,28 +136,50 @@ class RewardHistoryActivity : Activity() {
     private fun render() {
         list.removeAllViews()
         val codes = store.redeemLog
-        val seenAt = store.historySeenRedeemAt
-        val unseenAwards = RewardHistory.unseenAwards(entries, store.historySeenAwardKey)
-        val unseenCodes = RewardHistory.unseenCodes(codes, seenAt)
+        val unseenAwards = if (page > 0) RewardHistory.unseenAwards(entries, seenAwardKey) else 0
+        val unseenCodes = RewardHistory.unseenCodes(codes, seenRedeemAt)
         val unseen = unseenAwards + unseenCodes
-        if (page > 0) store.historyUnseen = unseen
-        seenBar.visibility = if (unseen > 0) View.VISIBLE else View.GONE
-        seenText.text = "새 보상 ${unseen}개"
+        newText.visibility = if (unseen > 0) View.VISIBLE else View.GONE
+        newText.text = "새로 받은 보상 ${unseen}개"
+
+        // 합계: 이번 달 출석·보충 보상, 이 앱으로 받은 리딤 보상
+        val thisMonth = entries.firstOrNull()?.date?.take(7)
+        val monthEntries = entries.filter { thisMonth != null && it.date.startsWith(thisMonth) }
+        val redeemItems = codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) }
+        list.addView(sectionLabel("합계"))
+        list.addView(group(listOf(
+            row(
+                if (thisMonth != null) "${RewardHistory.monthLabel(thisMonth).substringAfter(" ")} 출석·보충" else "이번 달 출석·보충",
+                if (monthEntries.isNotEmpty()) "${monthEntries.size}번" else null,
+                sub = RewardHistory.formatTotals(RewardHistory.totals(monthEntries.map { it.name to it.count }))
+                    ?: if (page == 0) "불러오는 중..." else "아직 받은 보상이 없어요",
+            ),
+            row(
+                "리딤 코드",
+                if (codes.isNotEmpty()) "${codes.size}개" else null,
+                sub = RewardHistory.formatTotals(RewardHistory.totals(redeemItems))
+                    ?: if (codes.isEmpty()) "아직 이 앱으로 받은 코드가 없어요" else "보상은 게임 우편함에서 확인해요",
+            ),
+        )))
 
         list.addView(sectionLabel("리딤 코드"))
         list.addView(group(
             if (codes.isEmpty()) listOf(row("아직 이 앱으로 받은 코드가 없어요", null, muted = true))
-            else codes.map { (code, at) ->
-                row(code, DateFormat.format("M월 d일 HH:mm", Date(at)).toString(), unseen = at > seenAt)
+            else codes.map {
+                val reward = it.reward?.let { raw -> RewardHistory.formatTotals(Redeem.rewardItems(raw), max = 4) }
+                row(
+                    it.code, DateFormat.format("M월 d일 HH:mm", Date(it.at)).toString(),
+                    sub = reward ?: "보상은 게임 우편함에서 확인해요", unseen = it.at > seenRedeemAt,
+                )
             }
         ))
 
-        // 출석·보충 보상은 달별로 묶는다. 목록 앞쪽 unseenAwards개가 새 보상이다.
+        // 출석·보충 보상은 달별로 묶는다. 목록 앞쪽 unseenAwards개가 이번에 처음 보는 보상이다.
         val newKeys = entries.take(unseenAwards).map { it.key }.toSet()
         for ((month, items) in entries.groupBy { it.date.take(7) }) {
             list.addView(sectionLabel(RewardHistory.monthLabel(month)))
             list.addView(group(items.map {
-                row("${it.name} ×${it.count}", RewardHistory.dayLabel(it.date), unseen = it.key in newKeys)
+                row("${it.name} ×${"%,d".format(it.count)}", RewardHistory.dayLabel(it.date), unseen = it.key in newKeys)
             }))
         }
         more.visibility = if (entries.size < total) View.VISIBLE else View.GONE
@@ -177,7 +202,7 @@ class RewardHistoryActivity : Activity() {
         rows.forEach { addView(it) }
     }
 
-    private fun row(title: String, trailing: String?, muted: Boolean = false, unseen: Boolean = false) = LinearLayout(this).apply {
+    private fun row(title: String, trailing: String?, muted: Boolean = false, unseen: Boolean = false, sub: String? = null) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         minimumHeight = dp(52)
@@ -193,11 +218,20 @@ class RewardHistoryActivity : Activity() {
                 }
             }, LinearLayout.LayoutParams(dp(8), dp(8)).apply { marginEnd = dp(12) })
         }
-        addView(TextView(context).apply {
-            text = title
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (muted) 14f else 16f)
-            setTextColor(context.getColor(if (muted) R.color.ink_muted else R.color.ink))
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(context).apply {
+                text = title
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, if (muted) 14f else 16f)
+                setTextColor(context.getColor(if (muted) R.color.ink_muted else R.color.ink))
+            })
+            if (sub != null) addView(TextView(context).apply {
+                text = sub
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(context.getColor(R.color.ink_muted))
+                setPadding(0, dp(2), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginEnd = dp(12) })
         if (trailing != null) addView(TextView(context).apply {
             text = trailing
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)

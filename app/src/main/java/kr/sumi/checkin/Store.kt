@@ -104,13 +104,17 @@ class Store(private val context: Context, val accountId: String) {
         set(value) = prefs.edit { putString("last_redeem_summary", value) }
 
     /** 이 앱이 받은 리딤 코드 기록(최신이 앞). 호요랩에는 리딤 내역 조회가 없어 직접 남긴다. */
-    var redeemLog: List<Pair<String, Long>>
+    var redeemLog: List<RedeemedCode>
         get() = prefs.getString("redeem_log", null)?.let { raw ->
             val array = JSONArray(raw)
-            (0 until array.length()).map { array.getJSONObject(it) }.map { it.optString("code") to it.optLong("at") }
+            (0 until array.length()).map { array.getJSONObject(it) }.map {
+                RedeemedCode(it.optString("code"), it.optLong("at"), it.optString("reward").ifEmpty { null })
+            }
         } ?: emptyList()
         set(value) = prefs.edit {
-            putString("redeem_log", JSONArray(value.map { JSONObject().put("code", it.first).put("at", it.second) }).toString())
+            putString("redeem_log", JSONArray(value.map {
+                JSONObject().put("code", it.code).put("at", it.at).apply { it.reward?.let { r -> put("reward", r) } }
+            }).toString())
         }
 
     /** 보상 내역에서 '모두 확인'을 누를 때 가장 최근이던 출석·보충 보상의 키. 이보다 앞(최신)이면 새 보상. */
@@ -256,3 +260,6 @@ class AppSettings(private val context: Context) {
         }
     }
 }
+
+/** 이 앱이 받은 리딤 코드. reward는 위키의 보상 표기('Primogem*60;Mora*10000'), 모르면 null. */
+data class RedeemedCode(val code: String, val at: Long, val reward: String?)

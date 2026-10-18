@@ -61,6 +61,13 @@ object Redeem {
     private const val WIKI_URL = "https://genshin-impact.fandom.com/api.php" +
         "?action=parse&page=Promotional_Code&prop=wikitext&format=json&formatversion=2"
     private val WIKI_SERVERS = mapOf("os_asia" to "SEA", "os_usa" to "NA", "os_euro" to "EU", "os_cht" to "SAR")
+    /** 리딤 보상에 자주 나오는 아이템의 한국어 이름. 나머지는 위키의 영어 이름으로 보여 준다. */
+    private val ITEM_NAMES = mapOf(
+        "Primogem" to "원석", "Mora" to "모라",
+        "Hero's Wit" to "영웅의 경험", "Adventurer's Experience" to "모험가의 경험", "Wanderer's Advice" to "방랑자의 경험",
+        "Mystic Enhancement Ore" to "정제용 마법 광석", "Fine Enhancement Ore" to "정제용 양질 광석", "Enhancement Ore" to "정제용 광석",
+        "Fragile Resin" to "취약한 레진",
+    )
     private val COMMENT = Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL)
     private val NAMED_PARAM = Regex("""^[A-Za-z_]+\s*=.*""", RegexOption.DOT_MATCHES_ALL)
     private val SERVER_SPLIT = Regex("""[,/\s]+""")
@@ -99,7 +106,9 @@ object Redeem {
                     break@loop
                 }
                 if (attempt.status == RedeemStatus.TOO_FAST) continue
-                if (attempt.status == RedeemStatus.REDEEMED) store.redeemLog = listOf(code to ServerClock.now()) + store.redeemLog
+                if (attempt.status == RedeemStatus.REDEEMED) {
+                    store.redeemLog = listOf(RedeemedCode(code, ServerClock.now(), rewardOf(code))) + store.redeemLog
+                }
                 if (attempt.status == RedeemStatus.REDEEMED || attempt.status == RedeemStatus.USED) {
                     store.redeemTried = store.redeemTried + group
                     break
@@ -257,6 +266,40 @@ object Redeem {
             positional.getOrNull(0)?.split(";")?.map { it.trim().uppercase() }
                 ?.filter { CODE_TEXT.matches(it) }?.takeIf { it.isNotEmpty() }
         }
+    }
+
+    /** 보상을 모르는 기록(예전 버전에서 받은 코드)에 위키의 보상을 채운다. 하나라도 채웠으면 true. 네트워크 오류는 false. */
+    fun fillMissingRewards(store: Store): Boolean = synchronized(this) {
+        val log = store.redeemLog
+        if (log.none { it.reward == null }) return false
+        val rewards = try { wikiRewards(wikiPage()) } catch (e: Exception) { return false }
+        val filled = log.map { if (it.reward == null) it.copy(reward = rewards[it.code]) else it }
+        if (filled == log) return false
+        store.redeemLog = filled
+        return true
+    }
+
+    /** 위키에 적힌 이 코드의 보상(위키 표기). 위키를 못 받았거나 위키에 없는 코드(커뮤니티 글에서 찾은 것)면 null. */
+    private fun rewardOf(code: String): String? =
+        try { wikiRewards(wikiPage())[code] } catch (e: Exception) { null }
+
+    /** 위키의 코드별 보상 표기. {{Code Row|코드|서버|보상|...}}의 세 번째 인자다. */
+    internal fun wikiRewards(json: JSONObject): Map<String, String> {
+        val text = json.optJSONObject("parse")?.optString("wikitext") ?: return emptyMap()
+        val rewards = mutableMapOf<String, String>()
+        for (params in codeRows(text.replace(COMMENT, ""))) {
+            val positional = params.filter { !NAMED_PARAM.matches(it) }
+            val reward = positional.getOrNull(2)?.trim()?.takeIf { it.contains('*') } ?: continue
+            positional.getOrNull(0)?.split(";")?.map { it.trim().uppercase() }?.forEach { rewards[it] = reward }
+        }
+        return rewards
+    }
+
+    /** 위키 보상 표기를 (한국어 이름, 개수) 목록으로. 모르는 아이템은 영어 이름 그대로 둔다. */
+    fun rewardItems(raw: String): List<Pair<String, Int>> = raw.split(";").mapNotNull { part ->
+        val name = part.substringBefore("*").replace(Regex("\\[\\[|]]|\\{\\{|}}"), "").trim()
+        val count = part.substringAfter("*", "").trim().replace(",", "").toIntOrNull() ?: return@mapNotNull null
+        if (name.isEmpty()) null else (ITEM_NAMES[name] ?: name) to count
     }
 
     /** {{Code Row ...}} 틀마다 최상위 '|'로 나눈 인자 목록. 안쪽 {{ }}·[[ ]]의 '|'는 나누지 않는다. */
