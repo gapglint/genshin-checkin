@@ -660,5 +660,17 @@
             android:text="호요랩 서버의 날짜가 바뀌는 순간(한국 시간 새벽 1시) 직후에 출석해요. 폰 시계가 틀려도 서버 시각에 맞춰요. 놓치면 6시간마다 다시 확인해요."
             android:textColor="@color/ink_muted"
             android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/privacyLink"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_marginTop="4dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:text="개인정보처리방침"
+            android:textColor="@color/ink_muted"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

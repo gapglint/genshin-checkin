@@ -75,6 +75,7 @@ class MainScreen(val root: View) {
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
     val rowLogout: View = root.findViewById(R.id.rowLogout)
+    val privacyLink: TextView = root.findViewById(R.id.privacyLink)
     private val redeemSection: View = root.findViewById(R.id.redeemGroup)
     val rowRedeem: View = root.findViewById(R.id.rowRedeem)
     val redeemSwitch: StarSwitch = root.findViewById(R.id.redeemSwitch)

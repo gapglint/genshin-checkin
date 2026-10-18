@@ -6,6 +6,7 @@ import android.annotation.TargetApi
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
@@ -62,6 +63,8 @@ class MainActivity : Activity() {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
         }
         screen.rowLogout.setOnClickListener { confirmLogout() }
+        screen.privacyLink.paintFlags = screen.privacyLink.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        screen.privacyLink.setOnClickListener { openPrivacyPolicy() }
         screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
         screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }
         screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> settings.redeemEnabled = checked }
@@ -216,6 +219,14 @@ class MainActivity : Activity() {
         return "%s %02d:%02d".format(day, at.hour, at.minute)
     }
 
+    private fun openPrivacyPolicy() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, PRIVACY_URL, Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun openExactAlarmSettings() {
         if (Build.VERSION.SDK_INT < 31) return
         startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
@@ -344,6 +355,7 @@ class MainActivity : Activity() {
     companion object {
         private const val EXTRA_MAKE_UP = "make_up"
         private const val EXTRA_ACCOUNT = "account"
+        private const val PRIVACY_URL = "https://apps.sumi.kr/checkin/privacy/"
 
         /** 그 계정을 띄워 앱을 연다(알림용). */
         fun accountIntent(context: Context, accountId: String) = Intent(context, MainActivity::class.java)
