@@ -26,8 +26,8 @@ android {
         applicationId = "kr.sumi.checkin"
         minSdk = 26
         targetSdk = 36
-        versionCode = 26
-        versionName = "0.8.9"
+        versionCode = 27
+        versionName = "0.9.0"
     }
 
     signingConfigs {
@@ -59,7 +59,7 @@ android {
     packaging {
         resources.excludes += listOf(
             "META-INF/*.version", "META-INF/**/*.kotlin_module", "kotlin/**", "DebugProbesKt.bin",
-            "META-INF/com/android/build/gradle/app-metadata.properties",
+            "META-INF/com/android/build/gradle/app-metadata.properties", "kotlin-tooling-metadata.json",
         )
     }
 

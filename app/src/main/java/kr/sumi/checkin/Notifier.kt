@@ -41,7 +41,7 @@ object Notifier {
         if (outcome is Outcome.AlreadySigned || outcome is Outcome.RateLimited) return
         // 출석 완료 알림은 끌 수 있다. 문제(로그인·캡차 등)는 항상 알린다.
         if (outcome is Outcome.Signed && !AppSettings(context).notifyCheckIn) return
-        val key = "${outcome::class.simpleName}:${Store.checkInDay()}"
+        val key = "${outcome.javaClass.name}:${Store.checkInDay()}"
         if (key == store.lastNotified) return
 
         if (!canNotify(context)) return
