@@ -1,6 +1,6 @@
 # 개인정보처리방침
 
-이 문서는 안드로이드 앱 "원신 출첵"(패키지 `com.lesumein.hoyocheckin`, 이하 "앱")이 어떤 정보를 다루는지 설명합니다.
+이 문서는 Sumi Lab이 만든 안드로이드 앱 "원신 출첵"(패키지 `kr.sumi.checkin`, 이하 "앱")이 어떤 정보를 다루는지 설명합니다.
 앱은 HoYoverse(COGNOSPHERE)와 관계없는 비공식 도구입니다.
 
 ## 앱이 저장하는 정보
@@ -24,6 +24,7 @@
 - 정확한 알람, 부팅 완료 수신, 배터리 최적화 예외 요청: HoYoLAB의 날짜가 바뀌는 시각(한국 시간 새벽 1시) 직후에 자동으로 출석하기 위해
 
 ## 문의
-GitHub: https://github.com/lesumein/genshin-checkin
+개발자: Sumi Lab (sumi.kr)
+문의 이메일은 Google Play 스토어의 앱 페이지에 있습니다.
 
 시행일: 2026년 10월 18일

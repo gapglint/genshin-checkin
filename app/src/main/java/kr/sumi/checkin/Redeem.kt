@@ -1,0 +1,349 @@
+package kr.sumi.checkin
+
+import android.content.Context
+import org.json.JSONObject
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.time.LocalDate
+
+/** 리딤 코드를 받을 게임 캐릭터. 출석과 달리 리딤 보상은 서버·UID 하나로만 간다. */
+data class GameRole(val uid: String, val region: String, val regionName: String, val nickname: String, val level: Int) {
+    /** 서버 이름(한국어). 모르는 서버면 호요랩이 준 이름. */
+    val serverName get() = SERVER_NAMES[region] ?: regionName
+
+    fun label() = "$serverName · $nickname (Lv.$level) · UID $uid"
+
+    companion object {
+        private val SERVER_NAMES = mapOf(
+            "os_asia" to "아시아 서버", "os_usa" to "미국 서버", "os_euro" to "유럽 서버", "os_cht" to "TW·HK·MO 서버",
+        )
+
+        /** 화면에 보일 대표 캐릭터: 리딤용으로 고른 캐릭터, 없으면 레벨이 가장 높은 캐릭터. */
+        fun representative(roles: List<GameRole>, chosen: GameRole?): GameRole? =
+            roles.firstOrNull { it.uid == chosen?.uid } ?: roles.maxByOrNull { it.level }
+    }
+}
+
+/** 코드 하나를 입력한 결과. */
+enum class RedeemStatus { REDEEMED, USED, EXPIRED, INVALID, NOT_LOGGED_IN, TOO_FAST, OTHER }
+
+data class RedeemAttempt(val code: String, val status: RedeemStatus, val message: String)
+
+data class RedeemReport(val found: Int, val attempts: List<RedeemAttempt>, val stopReason: String? = null) {
+    val redeemed get() = attempts.filter { it.status == RedeemStatus.REDEEMED }.map { it.code }
+}
+
+/**
+ * 리딤 코드 자동 입력.
+ * 코드는 세 곳에서 찾는다.
+ * 1. 원신 Fandom 위키의 Promotional_Code 문서: 지금 유효한 코드만 서버·만료일·묶음과 함께 정리돼 있어 주 출처로 쓴다.
+ * 2. 호요랩 원신 홈의 공식 코드 목록(방송 코드 등, 있을 때만).
+ * 3. 호요랩 커뮤니티 글의 '보상 받기' 링크(genshin.hoyoverse.com/.../gift?code=...). 위키에 아직 안 올라온 새 코드용.
+ * 한 번 입력해 본 코드는 기억해 두고 다시 입력하지 않는다. 입력 사이에는 호요랩 제한대로 6초씩 쉰다.
+ */
+object Redeem {
+    private const val BBS = "https://bbs-api-os.hoyolab.com"
+    private const val GAME_BIZ = "hk4e_global"
+    private const val CODE_GAP_MS = 6_000L
+    /**
+     * 이보다 오래된 커뮤니티 글은 보지 않는다. 코드는 며칠에서 몇 달까지 유효해서 넉넉히 잡는다.
+     * 만료된 코드는 한 번 입력해 보고 기억하므로 다시 시도하지 않는다.
+     */
+    private const val POST_MAX_AGE_SEC = 90L * 24 * 3600
+    private const val MAX_POSTS = 20
+    /** 이미 읽은 글은 다시 열지 않는다. 다만 막 올라온 글은 코드가 추가될 수 있어 이 기간 동안은 다시 본다. */
+    private const val POST_RECHECK_SEC = 2L * 24 * 3600
+    /** 링크를 띄어쓰기 없이 이어 붙인 글(…code=ABC123https://…)도 있어 코드 뒤에 http가 오면 거기서 끊는다. */
+    private val CODE_IN_LINK =
+        Regex("""gift\?code=([A-Za-z0-9]{6,20}?)(?=https?:|[^A-Za-z0-9]|$)""", RegexOption.IGNORE_CASE)
+    private const val WIKI_URL = "https://genshin-impact.fandom.com/api.php" +
+        "?action=parse&page=Promotional_Code&prop=wikitext&format=json&formatversion=2"
+    private val WIKI_SERVERS = mapOf("os_asia" to "SEA", "os_usa" to "NA", "os_euro" to "EU", "os_cht" to "SAR")
+    private val COMMENT = Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL)
+    private val NAMED_PARAM = Regex("""^[A-Za-z_]+\s*=.*""", RegexOption.DOT_MATCHES_ALL)
+    private val SERVER_SPLIT = Regex("""[,/\s]+""")
+    private val DATE = Regex("""\d{4}-\d{2}-\d{2}""")
+    private val CODE_TEXT = Regex("[A-Z0-9]{6,20}")
+    private val BBS_HEADERS = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to "ko-kr")
+
+    /** 이 계정의 원신 캐릭터 목록(서버별). */
+    @Throws(IOException::class)
+    fun roles(client: CheckInClient): List<GameRole> =
+        parseRoles(client.get("https://api-account-os.hoyolab.com/binding/api/getUserGameRolesByCookie?game_biz=$GAME_BIZ"))
+
+    /** 새 코드를 찾아 고른 캐릭터로 입력한다. 수동 실행과 예약 실행이 겹치지 않게 한 번에 하나만. */
+    @Throws(IOException::class)
+    fun run(store: Store): RedeemReport = synchronized(this) {
+        val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
+        val role = store.redeemRole ?: chooseOnlyRole(client, store)
+            ?: return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
+
+        val tried = store.redeemTried
+        // 묶음 코드는 하나만 쓸 수 있으니 묶음 단위로 다룬다. 묶음 안에서 하나라도 받았거나 이미 썼으면 나머지는 건너뛴다.
+        val groups = findCodes(client, store, role).map { group -> group.filter { it !in tried } }.filter { it.isNotEmpty() }
+        val attempts = mutableListOf<RedeemAttempt>()
+        var stop: String? = null
+        loop@ for (group in groups) {
+            for (code in group) {
+                if (attempts.isNotEmpty()) Thread.sleep(CODE_GAP_MS)
+                var attempt = redeem(client, role, code)
+                if (attempt.status == RedeemStatus.TOO_FAST) {
+                    Thread.sleep(CODE_GAP_MS)
+                    attempt = redeem(client, role, code)
+                }
+                attempts += attempt
+                if (attempt.status == RedeemStatus.NOT_LOGGED_IN) {
+                    stop = "리딤 코드 입력용 로그인 정보가 없어요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
+                    break@loop
+                }
+                if (attempt.status == RedeemStatus.TOO_FAST) continue
+                if (attempt.status == RedeemStatus.REDEEMED) store.redeemLog = listOf(code to ServerClock.now()) + store.redeemLog
+                if (attempt.status == RedeemStatus.REDEEMED || attempt.status == RedeemStatus.USED) {
+                    store.redeemTried = store.redeemTried + group
+                    break
+                }
+                store.redeemTried = store.redeemTried + code
+            }
+        }
+        val report = RedeemReport(groups.sumOf { it.size }, attempts, stop)
+        store.lastRedeemAt = ServerClock.now()
+        store.lastRedeemSummary = summary(report)
+        report
+    }
+
+    /** 계정의 대표 캐릭터(닉네임 표시용)를 불러와 저장한다. 네트워크 오류는 IOException. */
+    @Throws(IOException::class)
+    fun refreshAccount(store: Store) {
+        val roles = roles(CheckInClient(store.cookie ?: return))
+        store.accountRole = GameRole.representative(roles, store.redeemRole)
+    }
+
+    /** 캐릭터가 하나뿐이면 묻지 않고 그 캐릭터로 정한다. */
+    private fun chooseOnlyRole(client: CheckInClient, store: Store): GameRole? {
+        val roles = roles(client)
+        if (roles.size != 1) return null
+        store.redeemRole = roles.single()
+        return roles.single()
+    }
+
+    /** 위키 + 공식 목록 + 최근 커뮤니티 글에서 코드 묶음을 모은다. 한쪽이 실패해도 나머지는 쓴다. */
+    private fun findCodes(client: CheckInClient, store: Store, role: GameRole): List<List<String>> {
+        val groups = mutableListOf<List<String>>()
+        try {
+            groups += parseWikiCodes(wikiPage(), role.region, ServerClock.today())
+        } catch (e: Exception) {
+        }
+        val codes = linkedSetOf<String>()
+        try {
+            codes += parseOfficialCodes(client.get("$BBS/community/painter/wapi/circle/channel/guide/material?game_id=2", BBS_HEADERS))
+        } catch (e: Exception) {
+        }
+        try {
+            val keyword = URLEncoder.encode("리딤코드", "UTF-8")
+            val search = client.get("$BBS/community/search/wapi/search/post?keyword=$keyword&size=20&game_id=2", BBS_HEADERS)
+            val nowSec = ServerClock.now() / 1000
+            val fresh = recentPostIds(search, nowSec - POST_RECHECK_SEC).toSet()
+            val scanned = store.redeemScannedPosts
+            val toRead = recentPostIds(search, nowSec - POST_MAX_AGE_SEC).take(MAX_POSTS)
+                .filter { it !in scanned || it in fresh }
+            for (postId in toRead) {
+                Thread.sleep(CheckInClient.REQUEST_GAP_MS)
+                codes += parseCodesInPost(client.get("$BBS/community/post/wapi/getPostFull?post_id=$postId", BBS_HEADERS))
+                store.redeemScannedPosts = store.redeemScannedPosts + postId
+            }
+        } catch (e: Exception) {
+        }
+        val known = groups.flatten().toSet()
+        groups += codes.filter { it !in known }.map { listOf(it) }
+        return groups
+    }
+
+    /** 여러 계정을 연달아 돌 때 위키를 계정마다 받지 않도록 잠깐 기억해 둔다. */
+    private var wikiCache: Pair<Long, JSONObject>? = null
+
+    private fun wikiPage(): JSONObject {
+        wikiCache?.let { (at, json) -> if (System.currentTimeMillis() - at < 10 * 60_000) return json }
+        return fetchPublic(WIKI_URL).also { wikiCache = System.currentTimeMillis() to it }
+    }
+
+    /** 호요랩 쿠키를 보내면 안 되는 외부 공개 페이지(위키)를 받는다. */
+    private fun fetchPublic(url: String): JSONObject {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 15_000
+            conn.setRequestProperty("User-Agent", "SumiLab-Checkin/1.0 (Android)")
+            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun redeem(client: CheckInClient, role: GameRole, code: String): RedeemAttempt {
+        val url = "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyHyl" +
+            "?cdkey=$code&game_biz=$GAME_BIZ&lang=ko&region=${role.region}&uid=${role.uid}&t=${ServerClock.now()}"
+        val json = client.get(url, mapOf("Origin" to "https://www.hoyolab.com", "Referer" to "https://www.hoyolab.com/"))
+        return RedeemAttempt(code, statusOf(json.optInt("retcode", Int.MIN_VALUE)), json.optString("message"))
+    }
+
+    fun summary(report: RedeemReport): String = when {
+        report.stopReason != null && report.attempts.none { it.status == RedeemStatus.REDEEMED } -> report.stopReason
+        report.redeemed.isNotEmpty() -> "새 코드 ${report.redeemed.size}개 입력: ${report.redeemed.joinToString(", ")}"
+        report.attempts.isEmpty() -> "새 코드 없음"
+        else -> "새 코드 ${report.attempts.size}개를 확인했지만 받을 수 있는 게 없었어요"
+    }
+
+    /** 결과 창에 보일 자세한 내용. */
+    fun details(report: RedeemReport): String {
+        if (report.attempts.isEmpty()) return report.stopReason ?: "새로 올라온 코드가 없어요. 이미 입력한 코드는 다시 입력하지 않아요."
+        val lines = report.attempts.joinToString("\n") { "${it.code}  ${statusText(it.status)}" }
+        val tail = report.redeemed.takeIf { it.isNotEmpty() }?.let { "\n\n보상은 게임 우편함으로 와요." } ?: ""
+        return (report.stopReason?.let { "$it\n\n" } ?: "") + lines + tail
+    }
+
+    private fun statusText(status: RedeemStatus) = when (status) {
+        RedeemStatus.REDEEMED -> "받음"
+        RedeemStatus.USED -> "이미 받은 코드"
+        RedeemStatus.EXPIRED -> "만료됨"
+        RedeemStatus.INVALID -> "잘못된 코드"
+        RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
+        RedeemStatus.TOO_FAST -> "너무 빨라서 건너뜀"
+        RedeemStatus.OTHER -> "받지 못함"
+    }
+
+    /** 원신 웹 리딤 응답 코드. 0 외에는 호요랩이 공개하지 않아 자주 보이는 값만 나눈다. */
+    internal fun statusOf(retcode: Int) = when (retcode) {
+        0 -> RedeemStatus.REDEEMED
+        -2017, -2018 -> RedeemStatus.USED
+        -2001 -> RedeemStatus.EXPIRED
+        -2003, -2004 -> RedeemStatus.INVALID
+        -1071, -100 -> RedeemStatus.NOT_LOGGED_IN
+        -2016 -> RedeemStatus.TOO_FAST
+        else -> RedeemStatus.OTHER
+    }
+
+    internal fun parseRoles(json: JSONObject): List<GameRole> {
+        val list = json.optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        return (0 until list.length()).map { list.getJSONObject(it) }.map {
+            GameRole(
+                uid = it.optString("game_uid"),
+                region = it.optString("region"),
+                regionName = it.optString("region_name"),
+                nickname = it.optString("nickname"),
+                level = it.optInt("level"),
+            )
+        }.filter { it.uid.isNotEmpty() && it.region.isNotEmpty() }
+    }
+
+    /**
+     * 위키 Promotional_Code 문서의 원문에서 내 서버에 쓸 수 있고 만료되지 않은 코드 묶음을 뽑는다.
+     * 행 모양: {{Code Row|코드1;코드2|서버|보상|발견일|만료일|메모|notacode=yes|ref=...}}
+     * 서버: G(중국 외 전체), A(전체), SEA(아시아), NA(미국), EU(유럽), SAR(TW·HK·MO), CN(중국).
+     */
+    internal fun parseWikiCodes(json: JSONObject, region: String, today: LocalDate): List<List<String>> {
+        val text = json.optJSONObject("parse")?.optString("wikitext") ?: return emptyList()
+        val mine = WIKI_SERVERS[region]
+        return codeRows(text.replace(COMMENT, "")).mapNotNull { params ->
+            if (params.any { it.replace(" ", "").equals("notacode=yes", ignoreCase = true) }) return@mapNotNull null
+            val positional = params.filter { !NAMED_PARAM.matches(it) }
+            val servers = positional.getOrNull(1)?.split(SERVER_SPLIT)?.map { it.trim().uppercase() }
+                ?: return@mapNotNull null
+            if (servers.none { it == "G" || it == "A" || it == mine }) return@mapNotNull null
+            val expiry = positional.getOrNull(4)?.let { DATE.find(it)?.value }?.let(LocalDate::parse)
+            if (expiry != null && expiry.isBefore(today)) return@mapNotNull null
+            positional.getOrNull(0)?.split(";")?.map { it.trim().uppercase() }
+                ?.filter { CODE_TEXT.matches(it) }?.takeIf { it.isNotEmpty() }
+        }
+    }
+
+    /** {{Code Row ...}} 틀마다 최상위 '|'로 나눈 인자 목록. 안쪽 {{ }}·[[ ]]의 '|'는 나누지 않는다. */
+    private fun codeRows(text: String): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        var start = text.indexOf("{{Code Row")
+        while (start >= 0) {
+            val head = start + "{{Code Row".length
+            if (text.startsWith("/", head)) { // {{Code Row/Header}} 같은 다른 틀
+                start = text.indexOf("{{Code Row", head)
+                continue
+            }
+            val params = mutableListOf<String>()
+            val current = StringBuilder()
+            var depth = 0
+            var i = head
+            while (i < text.length) {
+                val two = text.substring(i, minOf(i + 2, text.length))
+                if (two == "{{" || two == "[[") {
+                    depth++; current.append(two); i += 2; continue
+                }
+                if (two == "}}" && depth == 0) break
+                if (two == "}}" || two == "]]") {
+                    depth--; current.append(two); i += 2; continue
+                }
+                if (text[i] == '|' && depth == 0) {
+                    params += current.toString().trim(); current.clear()
+                } else {
+                    current.append(text[i])
+                }
+                i++
+            }
+            params += current.toString().trim()
+            rows += params.drop(1) // 틀 이름과 첫 '|' 사이의 빈 칸
+            start = text.indexOf("{{Code Row", i)
+        }
+        return rows
+    }
+
+    internal fun parseOfficialCodes(json: JSONObject): List<String> {
+        val modules = json.optJSONObject("data")?.optJSONArray("modules") ?: return emptyList()
+        val codes = mutableListOf<String>()
+        for (i in 0 until modules.length()) {
+            val bonuses = modules.getJSONObject(i).optJSONObject("exchange_group")?.optJSONArray("bonuses") ?: continue
+            for (j in 0 until bonuses.length()) {
+                val bonus = bonuses.getJSONObject(j)
+                if (bonus.optString("code_status") == "ON") {
+                    bonus.optString("exchange_code").takeIf { it.isNotEmpty() }?.let { codes += it.uppercase() }
+                }
+            }
+        }
+        return codes
+    }
+
+    /** 검색 결과에서 since(초) 이후에 올라온 글 ID를 최신순으로. */
+    internal fun recentPostIds(json: JSONObject, since: Long): List<String> {
+        val list = json.optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        return (0 until list.length()).mapNotNull { list.getJSONObject(it).optJSONObject("post") }
+            .filter { it.optLong("created_at") >= since }
+            .sortedByDescending { it.optLong("created_at") }
+            .map { it.optString("post_id") }
+            .filter { it.isNotEmpty() }
+    }
+
+    internal fun parseCodesInPost(json: JSONObject): List<String> {
+        val post = json.optJSONObject("data")?.optJSONObject("post")?.optJSONObject("post") ?: return emptyList()
+        val text = post.optString("content") + " " + post.optString("structured_content")
+        return CODE_IN_LINK.findAll(text).map { it.groupValues[1].uppercase() }.distinct().toList()
+    }
+
+    /** 출석이 끝난 뒤 따로 돌린다. 코드 사이 6초 대기 때문에 알람 처리 시간 안에 넣지 않는다. */
+    fun scheduleSoon(context: Context) = Jobs.scheduleOnce(context, Jobs.REDEEM, delayMs = 10_000, replace = false)
+
+    /** 예약 실행: 리딤 자동 입력이 켜져 있으면 계정마다 하루 한 번 입력한다. 네트워크 오류가 있었으면 true(다시 시도). */
+    fun runScheduled(context: Context): Boolean {
+        val settings = AppSettings(context)
+        if (!settings.redeemEnabled) return false
+        var retry = false
+        for (store in settings.accounts()) {
+            // 계정마다 하루 한 번이면 충분하다.
+            if (store.lastRedeemAt > 0 && ServerClock.dayOf(store.lastRedeemAt) == ServerClock.today()) continue
+            try {
+                Notifier.notifyRedeem(context, store, run(store))
+            } catch (e: IOException) {
+                retry = true
+            }
+        }
+        return retry
+    }
+}

@@ -8,7 +8,7 @@
    - 그냥 Google이 새 키를 만들게 하면 플레이 버전과 GitHub 버전은 서로 덮어 설치가 안 된다(지우고 다시 설치해야 함).
 4. **AAB 업로드**: GitHub 릴리스의 `genshin-checkin.aab`를 "내부 테스트" 트랙에 먼저 올려 본인 폰으로 확인한 뒤 프로덕션으로 올린다.
 5. 아래 스토어 등록정보, 이미지, 데이터 보안, 콘텐츠 등급을 채운다.
-6. 개인정보처리방침 URL에 [privacy-policy.md](privacy-policy.md)를 공개된 주소로 올려 넣는다.
+6. 개인정보처리방침 URL: `https://apps.sumi.kr/checkin/privacy/` ([site/](site/) 폴더를 GitHub Pages로 올린다. 아래 "개인정보처리방침 올리기" 참고)
 
 ## 스토어 등록정보
 
@@ -43,7 +43,10 @@ HoYoLAB의 날짜는 한국 시간 새벽 1시에 바뀌어요. 앱은 폰 시�
 ```
 
 **카테고리**: 도구 (또는 게임 > 롤플레잉이 아닌 "도구")
+**개발자 이름**: Sumi Lab
+**패키지 이름**: `kr.sumi.checkin` (플레이에 올린 뒤에는 바꿀 수 없음)
 **연락처 이메일**: (Play Console 계정 이메일)
+**웹사이트**: https://apps.sumi.kr
 
 ## 이미지 (`images/`)
 | 항목 | 파일 | 크기 |
@@ -68,3 +71,15 @@ HoYoLAB의 날짜는 한국 시간 새벽 1시에 바뀌어요. 앱은 폰 시�
 - **배터리 최적화 예외 요청 권한**(`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`): 정해진 시각에 자동 작업을 실행하는 것이 앱의 핵심 기능(작업 자동화)이라 필요하다고 설명한다.
 - **정확한 알람**(`SCHEDULE_EXACT_ALARM`): 사용자가 설정에서 허용하는 방식이며, 허용하지 않아도 몇 분 늦게 동작한다.
 - **상표**: 앱 이름과 설명의 "원신", "HoYoLAB"은 HoYoverse 상표다. 심사에서 지적되면 이름에서 빼야 할 수 있다.
+
+## 개인정보처리방침 올리기 (apps.sumi.kr)
+
+sumi.kr은 도메인만 있고 홈페이지가 없으므로, [site/](site/) 폴더를 GitHub Pages(무료)로 올리고 하위 주소 `apps.sumi.kr`을 연결한다.
+1. GitHub에 **공개** 저장소를 하나 만든다(예: `sumi-lab-site`, README 없이). 비공개 저장소의 Pages는 유료 요금제가 필요하다.
+2. `site/` 폴더의 내용을 그 저장소의 루트에 올린다(`CNAME` 파일 포함).
+3. 저장소 Settings → Pages → Source: "Deploy from a branch", Branch: `main` / `(root)`. Custom domain에 `apps.sumi.kr`이 들어가 있는지 확인하고 "Enforce HTTPS"를 켠다.
+4. sumi.kr을 산 곳(도메인 업체)의 DNS 설정에 레코드를 하나 추가한다.
+   - 유형 `CNAME`, 이름(호스트) `apps`, 값 `lesumein.github.io`
+5. 몇 분~몇 시간 뒤 `https://apps.sumi.kr/checkin/privacy/`가 열리면 끝.
+
+참고: GitHub Pages는 저장소 주인(lesumein)이 드러난다. 숨기고 싶으면 같은 폴더를 Cloudflare Pages에 올려도 된다.

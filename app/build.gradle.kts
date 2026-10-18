@@ -17,17 +17,17 @@ fun signingValue(key: String, env: String): String? =
 val releaseStoreFile = signingValue("storeFile", "KEYSTORE_FILE")
 
 android {
-    namespace = "com.lesumein.hoyocheckin"
+    namespace = "kr.sumi.checkin"
     // 플레이 스토어 요구에 맞춰 대상은 최신(36)으로 두고, 컴파일은 35로 한다.
     // 화면 스냅숏 도구(Paparazzi 1.3.5)가 API 36의 android.jar를 아직 읽지 못하기 때문이다.
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.lesumein.hoyocheckin"
+        applicationId = "kr.sumi.checkin"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.7.0"
+        versionCode = 17
+        versionName = "0.8.0"
     }
 
     signingConfigs {

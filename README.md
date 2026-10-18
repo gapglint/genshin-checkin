@@ -60,7 +60,7 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 
 ## 플레이 스토어
 
-등록 자료(설명, 이미지, 개인정보처리방침, 데이터 보안 답변, 올리는 순서)는 [store/](store/README.md)에 있다.
+개발자 이름 Sumi Lab, 패키지 `kr.sumi.checkin`. 등록 자료(설명, 이미지, 개인정보처리방침과 웹 페이지, 데이터 보안 답변, 올리는 순서)는 [store/](store/README.md)에 있다.
 GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab`도 올라간다.
 
 ## 서명 키

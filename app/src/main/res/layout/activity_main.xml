@@ -422,7 +422,7 @@
                         android:text="호요랩 공식 목록과 커뮤니티 글에서 새 코드를 찾아 하루 한 번 입력해요" />
                 </LinearLayout>
 
-                <com.lesumein.hoyocheckin.StarSwitch
+                <kr.sumi.checkin.StarSwitch
                     android:id="@+id/redeemSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -567,7 +567,7 @@
                         android:text="놓친 날을 채울 수 있으면 알려 드려요. 알림을 누르면 바로 보충해요." />
                 </LinearLayout>
 
-                <com.lesumein.hoyocheckin.StarSwitch
+                <kr.sumi.checkin.StarSwitch
                     android:id="@+id/makeUpSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
