@@ -60,7 +60,7 @@ class StoreAssetsTest {
                 setTextColor(context.getColor(R.color.hero_ink))
             })
             addView(TextView(context).apply {
-                text = "리딤코드 자동 입력 · 매일 자동 출석 · 보충 출석"
+                text = "리딤코드 자동 입력 · 새벽 1시 자동 출석 · 보상 합계"
                 textSize = 22f
                 setPadding(0, 28, 0, 0)
                 setTextColor(context.getColor(R.color.gold))
@@ -96,10 +96,11 @@ class StoreAssetsTest {
      * 스토어 스크린샷 1080×1920: 위에 큰 문구, 아래에 실제 앱 화면(activity_main)을 줄여 얹는다.
      * scrollTo를 주면 그 뷰가 화면 위쪽에 오도록 내린다.
      * tablet이면 1440×2560 틀에 폭 576dp(400dpi) 태블릿 화면으로 그린다(7인치·10인치 태블릿 칸에 같이 쓴다).
+     * history를 주면 메인 화면 대신 보상 내역 화면을 그린다.
      */
     private fun screenshot(
         state: MainUiState, night: Boolean, title: String, sub: String,
-        scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false,
+        scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false, history: HistoryUiState? = null,
     ) {
         // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         val w = if (tablet) 1440 else 1080
@@ -115,10 +116,15 @@ class StoreAssetsTest {
         // 문구 크기를 틀 폭에 맞춘다(휴대폰 420dpi 기준).
         val textScale = k * 2.625f / (if (tablet) 2.5f else 2.625f)
         val context = paparazzi.context
-        val app = paparazzi.inflate<android.widget.ScrollView>(R.layout.activity_main)
-        app.isVerticalScrollBarEnabled = false
-        MainScreen(app).render(state)
-        if (scrollTo != null) {
+        val app: View = if (history != null) {
+            RewardHistoryScreen(context).apply { render(history) }.root
+        } else {
+            paparazzi.inflate<android.widget.ScrollView>(R.layout.activity_main).also {
+                it.isVerticalScrollBarEnabled = false
+                MainScreen(it).render(state)
+            }
+        }
+        if (scrollTo != null && app is android.widget.ScrollView) {
             app.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(appH, View.MeasureSpec.EXACTLY))
             app.layout(0, 0, w, appH)
             val target = app.findViewById<View>(scrollTo)
@@ -168,6 +174,26 @@ class StoreAssetsTest {
         })
     }
 
+    /** 보상 내역 장면용 예시: 이번 달 출석 보상과 이 앱으로 받은 리딤 코드. */
+    private val history: HistoryUiState get() {
+        fun at(day: Int) = java.time.LocalDateTime.of(2026, 10, day, 21, 12).atZone(java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
+        val names = listOf("원석" to 20, "모라" to 5000, "영웅의 경험" to 3, "원석" to 20, "정제용 양질 광석" to 3, "모라" to 5000, "원석" to 20)
+        val entries = (18 downTo 1).map { day ->
+            val (name, count) = names[day % names.size]
+            RewardEntry("$day", name, count, "2026-10-%02d".format(day))
+        }
+        return HistoryUiState(
+            title = "보상 내역 · 여행자", status = "출석·보충 보상 총 412번 받았어요", month = "2026-10",
+            entries = entries, total = 412, loaded = true,
+            codes = listOf(
+                RedeemedCode("GA7TQLBCNS9V", at(18), "Primogem*60;Mora*10000;Hero's Wit*2"),
+                RedeemedCode("VAPTVN8B2R5H", at(18), "Primogem*60;Mora*5000;Mystic Enhancement Ore*5"),
+                RedeemedCode("OPERACOLLAB", at(2), "Primogem*30;Mora*20000;Hero's Wit*2"),
+            ),
+            newAwardKeys = setOf("18"), seenRedeemAt = at(10),
+        )
+    }
+
     @Test fun screenshot1Redeem() = screenshot(
         redeemed, night = false, scrollTo = R.id.redeemGroup,
         title = "방송 리딤코드,\n알아서 입력돼요", sub = "새 코드가 나오면 고른 캐릭터로 자동 입력",
@@ -178,14 +204,19 @@ class StoreAssetsTest {
         title = "새벽 1시, 서버 시각에\n자동 출석", sub = "폰 시계가 아니라 HoYoLAB 서버 시각 기준",
     )
 
-    @Test fun screenshot3MakeUp() = screenshot(
+    @Test fun screenshot3History() = screenshot(
+        signed, night = false, history = history,
+        title = "이번 달 받은 원석,\n한눈에", sub = "리딤으로 받은 보상까지 합계로",
+    )
+
+    @Test fun screenshot4MakeUp() = screenshot(
         signed, night = false, scrollTo = R.id.makeUpCard, aboveDp = 150,
         title = "놓친 날은\n보충 출석까지", sub = "알림을 누르면 바로 보충해요",
     )
 
-    @Test fun screenshot4Dark() = screenshot(
+    @Test fun screenshot5Dark() = screenshot(
         signed, night = true,
-        title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
+        title = "여러 계정도\n차례로 자동 출석", sub = "알림은 골라 받고, 밤에는 소리 없이",
     )
 
     @Test fun tablet1Redeem() = screenshot(
@@ -198,13 +229,18 @@ class StoreAssetsTest {
         title = "새벽 1시, 서버 시각에\n자동 출석", sub = "폰 시계가 아니라 HoYoLAB 서버 시각 기준",
     )
 
-    @Test fun tablet3MakeUp() = screenshot(
+    @Test fun tablet3History() = screenshot(
+        signed, night = false, history = history, tablet = true,
+        title = "이번 달 받은 원석,\n한눈에", sub = "리딤으로 받은 보상까지 합계로",
+    )
+
+    @Test fun tablet4MakeUp() = screenshot(
         signed, night = false, scrollTo = R.id.makeUpCard, aboveDp = 150, tablet = true,
         title = "놓친 날은\n보충 출석까지", sub = "알림을 누르면 바로 보충해요",
     )
 
-    @Test fun tablet4Dark() = screenshot(
+    @Test fun tablet5Dark() = screenshot(
         signed, night = true, tablet = true,
-        title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
+        title = "여러 계정도\n차례로 자동 출석", sub = "알림은 골라 받고, 밤에는 소리 없이",
     )
 }
