@@ -183,13 +183,16 @@ class RewardHistoryActivity : Activity() {
         minimumHeight = dp(52)
         setPadding(dp(20), dp(12), dp(16), dp(12))
         if (unseen) setBackgroundResource(R.color.unseen_bg)
-        if (unseen) addView(TextView(context).apply {
-            text = "새로"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setTextColor(context.getColor(R.color.accent))
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setPadding(0, 0, dp(10), 0)
-        })
+        // 알림함처럼 새 보상은 배경을 칠하고 앞에 작은 금색 점을 찍는다.
+        if (unseen) {
+            contentDescription = "새 보상, $title"
+            addView(View(context).apply {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(context.getColor(R.color.accent))
+                }
+            }, LinearLayout.LayoutParams(dp(8), dp(8)).apply { marginEnd = dp(12) })
+        }
         addView(TextView(context).apply {
             text = title
             setTextSize(TypedValue.COMPLEX_UNIT_SP, if (muted) 14f else 16f)

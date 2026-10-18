@@ -114,8 +114,9 @@ class LoginActivity : Activity() {
                 webView.loadUrl(CheckInClient.CHECK_IN_PAGE)
                 handler.postDelayed(pollCookie, 1000)
             } else {
-                pageStore?.cookie?.let { injectCookie(it) }
-                webView.loadUrl(CheckInClient.CHECK_IN_PAGE)
+                val cookie = pageStore?.cookie
+                if (cookie == null) webView.loadUrl(CheckInClient.CHECK_IN_PAGE)
+                else injectCookie(cookie) { webView.loadUrl(CheckInClient.CHECK_IN_PAGE) }
             }
         }
     }
@@ -142,16 +143,23 @@ class LoginActivity : Activity() {
         super.onDestroy()
     }
 
-    /** 저장해 둔 계정 쿠키를 WebView에 넣어 그 계정으로 페이지를 연다. */
-    private fun injectCookie(cookie: String) {
+    /**
+     * 저장해 둔 계정 쿠키를 WebView에 넣고, 다 들어간 뒤에 then을 부른다.
+     * setCookie는 비동기라 바로 페이지를 열면 쿠키가 들어가기 전에 요청이 나가 로그인 안 된 화면이 뜬다.
+     */
+    private fun injectCookie(cookie: String, then: () -> Unit) {
         val manager = CookieManager.getInstance()
-        for ((name, value) in cookieValues(cookie)) {
-            if (name.isEmpty()) continue
-            for (url in listOf("https://www.hoyolab.com", "https://act.hoyolab.com")) {
-                manager.setCookie(url, "$name=$value; Domain=.hoyolab.com; Path=/; Secure")
+        val values = cookieValues(cookie).filterKeys { it.isNotEmpty() }
+        var pending = values.size
+        if (pending == 0) return then()
+        for ((name, value) in values) {
+            manager.setCookie("https://www.hoyolab.com", "$name=$value; Domain=.hoyolab.com; Path=/; Secure") {
+                if (--pending == 0) {
+                    manager.flush()
+                    then()
+                }
             }
         }
-        manager.flush()
     }
 
     /** WebView에 호요랩 로그인 쿠키가 있으면 그 쿠키 문자열. HttpOnly 쿠키도 여기서는 읽힌다. */
