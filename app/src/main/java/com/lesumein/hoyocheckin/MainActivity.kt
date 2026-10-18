@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var store: Store
     private lateinit var screen: MainScreen
     private var busy: String? = null
+    private var loadingNickname = false
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -77,6 +78,23 @@ class MainActivity : AppCompatActivity() {
         // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
         if (store.cookie != null) DailyAlarm.schedule(this)
         refresh()
+        loadNicknameIfMissing()
+    }
+
+    /** 닉네임을 아직 모르면 조용히 불러온다(화면을 막지 않는다). */
+    private fun loadNicknameIfMissing() {
+        if (store.cookie == null || store.accountRole != null || loadingNickname) return
+        loadingNickname = true
+        Thread {
+            try {
+                Redeem.refreshAccount(this)
+            } catch (e: Exception) {
+            }
+            runOnUiThread {
+                loadingNickname = false
+                refresh()
+            }
+        }.start()
     }
 
     /** 보충 출석 알림을 눌러 들어왔으면 바로 보충한다. */
@@ -97,6 +115,8 @@ class MainActivity : AppCompatActivity() {
             MainUiState(
                 loggedIn = cookie != null,
                 uid = cookie?.let { LoginActivity.uidOf(it) },
+                nickname = store.accountRole?.nickname,
+                server = store.accountRole?.serverName,
                 signedToday = signedToday,
                 totalDays = if (sameMonth) store.signedTotal else 0,
                 month = today.monthValue,
@@ -173,6 +193,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle("보상 받을 캐릭터")
             .setSingleChoiceItems(roles.map { it.label() }.toTypedArray(), current) { dialog, which ->
                 store.redeemRole = roles[which]
+                store.accountRole = roles[which]
                 dialog.dismiss()
                 refresh()
             }

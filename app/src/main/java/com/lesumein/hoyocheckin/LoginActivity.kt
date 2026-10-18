@@ -165,7 +165,14 @@ class LoginActivity : AppCompatActivity() {
 
     private fun onLoggedIn(cookie: String, alreadyLoggedIn: Boolean) {
         CookieManager.getInstance().flush()
-        Store(this).cookie = cookie
+        val store = Store(this)
+        // 다른 계정으로 바뀌었으면 이전 계정의 닉네임·리딤 정보는 버린다(메인 화면에서 다시 불러온다).
+        if (store.cookie?.let { uidOf(it) } != uidOf(cookie)) {
+            store.accountRole = null
+            store.redeemRole = null
+            store.redeemTried = emptySet()
+        }
+        store.cookie = cookie
         CheckIn.schedule(this, restart = !alreadyLoggedIn)
         setResult(RESULT_OK)
         if (!alreadyLoggedIn) {
@@ -176,7 +183,10 @@ class LoginActivity : AppCompatActivity() {
         status.text = "로그인돼 있어요."
         MaterialAlertDialogBuilder(this)
             .setTitle("이미 로그인돼 있어요")
-            .setMessage("호요랩 UID ${uidOf(cookie) ?: "확인 불가"} 계정으로 자동 출첵 중이에요.")
+            .setMessage(
+                Store(this).accountRole?.let { "${it.nickname} (${it.serverName})\nHoYoLAB UID ${uidOf(cookie) ?: "확인 불가"} 계정으로 자동 출석 중이에요." }
+                    ?: "HoYoLAB UID ${uidOf(cookie) ?: "확인 불가"} 계정으로 자동 출석 중이에요."
+            )
             .setPositiveButton("확인") { _, _ -> finish() }
             .setNegativeButton("다른 계정으로 로그인") { _, _ -> switchAccount() }
             .setOnCancelListener { finish() }

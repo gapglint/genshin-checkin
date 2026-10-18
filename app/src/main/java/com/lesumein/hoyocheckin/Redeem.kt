@@ -15,7 +15,20 @@ import java.util.concurrent.TimeUnit
 
 /** 리딤 코드를 받을 게임 캐릭터. 출석과 달리 리딤 보상은 서버·UID 하나로만 간다. */
 data class GameRole(val uid: String, val region: String, val regionName: String, val nickname: String, val level: Int) {
-    fun label() = "$regionName · $nickname (Lv.$level) · UID $uid"
+    /** 서버 이름(한국어). 모르는 서버면 호요랩이 준 이름. */
+    val serverName get() = SERVER_NAMES[region] ?: regionName
+
+    fun label() = "$serverName · $nickname (Lv.$level) · UID $uid"
+
+    companion object {
+        private val SERVER_NAMES = mapOf(
+            "os_asia" to "아시아 서버", "os_usa" to "미국 서버", "os_euro" to "유럽 서버", "os_cht" to "TW·HK·MO 서버",
+        )
+
+        /** 화면에 보일 대표 캐릭터: 리딤용으로 고른 캐릭터, 없으면 레벨이 가장 높은 캐릭터. */
+        fun representative(roles: List<GameRole>, chosen: GameRole?): GameRole? =
+            roles.firstOrNull { it.uid == chosen?.uid } ?: roles.maxByOrNull { it.level }
+    }
 }
 
 /** 코드 하나를 입력한 결과. */
@@ -78,6 +91,14 @@ object Redeem {
         store.lastRedeemAt = ServerClock.now()
         store.lastRedeemSummary = summary(report)
         report
+    }
+
+    /** 계정의 대표 캐릭터(닉네임 표시용)를 불러와 저장한다. 네트워크 오류는 IOException. */
+    @Throws(IOException::class)
+    fun refreshAccount(context: Context) {
+        val store = Store(context)
+        val roles = roles(CheckInClient(store.cookie ?: return))
+        store.accountRole = GameRole.representative(roles, store.redeemRole)
     }
 
     /** 캐릭터가 하나뿐이면 묻지 않고 그 캐릭터로 정한다. */

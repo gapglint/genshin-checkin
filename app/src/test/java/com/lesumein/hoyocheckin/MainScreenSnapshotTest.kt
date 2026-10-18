@@ -15,9 +15,9 @@ class MainScreenSnapshotTest {
     )
 
     private val signed = MainUiState(
-        loggedIn = true, uid = "812345678", signedToday = true, totalDays = 17, month = 10,
+        loggedIn = true, uid = "181234567", nickname = "여행자", server = "아시아 서버", signedToday = true, totalDays = 17, month = 10,
         reward = "원석 x20", lastChecked = "10월 18일 21:04", nextRun = "내일 01:03", makeUpMissed = 2,
-        redeemRole = "Asia Server · 여행자 (Lv.60) · UID 812345678", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: OKTCV81F9H8D",
+        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 812345678", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: OKTCV81F9H8D",
     )
     private val waiting = MainUiState(
         loggedIn = true, uid = "812345678", totalDays = 16, month = 10, lastChecked = "10월 18일 03:00",

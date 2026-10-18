@@ -10,6 +10,9 @@ import com.google.android.material.materialswitch.MaterialSwitch
 data class MainUiState(
     val loggedIn: Boolean,
     val uid: String? = null,
+    /** 게임 닉네임과 서버. 아직 못 불러왔으면 null. */
+    val nickname: String? = null,
+    val server: String? = null,
     val signedToday: Boolean = false,
     val totalDays: Int = 0,
     val month: Int,
@@ -36,6 +39,7 @@ data class MainUiState(
 class MainScreen(val root: View) {
     private val context = root.context
     private val statusChip: TextView = root.findViewById(R.id.statusChip)
+    private val heroEyebrow: TextView = root.findViewById(R.id.heroEyebrow)
     private val heroDay: TextView = root.findViewById(R.id.heroDay)
     private val heroDayRow: View = root.findViewById(R.id.heroDayRow)
     private val heroStats: View = root.findViewById(R.id.heroStats)
@@ -122,8 +126,10 @@ class MainScreen(val root: View) {
         rowRedeemRole.isEnabled = s.loggedIn && s.busy == null
         rowRedeemNow.isEnabled = s.loggedIn && s.busy == null
 
-        accountTitle.text = "로그인 상태 확인"
-        accountSub.text = "UID ${s.uid ?: "확인 불가"} · 자동 출석 켜짐"
+        heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
+        // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
+        accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else "로그인 상태 확인"
+        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 자동 출석 켜짐"
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE

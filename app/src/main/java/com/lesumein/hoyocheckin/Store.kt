@@ -83,16 +83,25 @@ class Store(context: Context) {
 
     /** 리딤 보상을 받을 캐릭터. */
     var redeemRole: GameRole?
-        get() = prefs.getString("redeem_role", null)?.let {
-            val j = JSONObject(it)
-            GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
-        }
-        set(value) = prefs.edit {
-            putString("redeem_role", value?.let {
-                JSONObject().put("uid", it.uid).put("region", it.region).put("regionName", it.regionName)
-                    .put("nickname", it.nickname).put("level", it.level).toString()
-            })
-        }
+        get() = getRole("redeem_role")
+        set(value) = putRole("redeem_role", value)
+
+    /** 화면에 닉네임을 보여 줄 대표 캐릭터. 로그인할 때 불러온다. */
+    var accountRole: GameRole?
+        get() = getRole("account_role")
+        set(value) = putRole("account_role", value)
+
+    private fun getRole(key: String) = prefs.getString(key, null)?.let {
+        val j = JSONObject(it)
+        GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
+    }
+
+    private fun putRole(key: String, role: GameRole?) = prefs.edit {
+        putString(key, role?.let {
+            JSONObject().put("uid", it.uid).put("region", it.region).put("regionName", it.regionName)
+                .put("nickname", it.nickname).put("level", it.level).toString()
+        })
+    }
 
     /** 한 번 입력해 본 코드. 다시 입력하지 않는다. */
     var redeemTried: Set<String>
