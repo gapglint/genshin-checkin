@@ -75,9 +75,11 @@ object CheckIn {
         return outcome
     }
 
-    /** 오늘 출석을 확인한 직후, 하루 한 번 보충 출석이 가능한지 보고 알린다. 실패해도 출첵 결과에는 영향이 없다. */
+    /**
+     * 오늘 출석을 확인한 직후, 보충 출석이 가능한지 본다. 앱 화면의 보충 카드는 알림 설정과 관계없이 보이고,
+     * 알림은 켜 둔 경우에만 보낸다. 실패해도 출첵 결과에는 영향이 없다.
+     */
     private fun checkMakeUp(context: Context, settings: AppSettings, store: Store, client: CheckInClient, today: String) {
-        if (!settings.makeUpAlerts) return
         val missed = try {
             Thread.sleep(CheckInClient.REQUEST_GAP_MS)
             MakeUp.availableDays(client)
@@ -90,7 +92,7 @@ object CheckIn {
         }
         store.makeUpDay = today
         store.makeUpMissed = missed
-        Notifier.notifyMakeUp(context, store, missed)
+        if (settings.makeUpAlerts) Notifier.notifyMakeUp(context, store, missed)
     }
 
     fun describe(outcome: Outcome): String = when (outcome) {

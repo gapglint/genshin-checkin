@@ -55,9 +55,11 @@ object MakeUp {
         return if (earnable) info.missed else null
     }
 
-    /** 한 계정의 보충을 할 수 있는 만큼 한다. 출첵과 겹치지 않게 같은 잠금을 쓴다. */
+    /**
+     * 한 계정의 보충을 할 수 있는 만큼 한다. 출첵과 겹치지 않게 같은 잠금을 쓴다.
+     * progress로 지금 하는 단계를 알려 준다(보충권 받기, 몇 번째 보충 중).
+     */
     @Throws(IOException::class)
-    /** 놓친 날을 보충한다. progress로 지금 하는 단계를 알려 준다(보충권 받기, 몇 번째 보충 중). */
     fun perform(store: Store, progress: (String) -> Unit = {}): MakeUpResult = synchronized(CheckIn) {
         val cookie = store.cookie ?: return MakeUpResult.LoginExpired
         if (!store.signedToday) {
