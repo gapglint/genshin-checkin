@@ -24,6 +24,12 @@ class RedeemTest {
         assertEquals(listOf("OKTCV81F9H8D", "GENSHINGIFT"), Redeem.parseCodesInPost(post))
     }
 
+    @Test fun splitsLinksGluedTogether() {
+        val post = JSONObject().put("data", JSONObject().put("post", JSONObject().put("post", JSONObject()
+            .put("content", "https://genshin.hoyoverse.com/ko/gift?code=PFY1S40I88T9https://genshin.hoyoverse.com/ko/gift?code=MageNicolesPuzzlehttps://genshin.hoyoverse.com/ko/gift?code=OHOHONICOLE\\n"))))
+        assertEquals(listOf("PFY1S40I88T9", "MAGENICOLESPUZZLE", "OHOHONICOLE"), Redeem.parseCodesInPost(post))
+    }
+
     @Test fun keepsOnlyRecentPostsNewestFirst() {
         val search = JSONObject("""{"data":{"list":[
             {"post":{"post_id":"1","created_at":1000}},

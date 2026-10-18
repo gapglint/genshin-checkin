@@ -63,7 +63,9 @@ object Redeem {
     private const val MAX_POSTS = 20
     /** 이미 읽은 글은 다시 열지 않는다. 다만 막 올라온 글은 코드가 추가될 수 있어 이 기간 동안은 다시 본다. */
     private const val POST_RECHECK_SEC = 2L * 24 * 3600
-    private val CODE_IN_LINK = Regex("""gift\?code=([A-Za-z0-9]{6,20})""")
+    /** 링크를 띄어쓰기 없이 이어 붙인 글(…code=ABC123https://…)도 있어 코드 뒤에 http가 오면 거기서 끊는다. */
+    private val CODE_IN_LINK =
+        Regex("""gift\?code=([A-Za-z0-9]{6,20}?)(?=https?:|[^A-Za-z0-9]|$)""", RegexOption.IGNORE_CASE)
     private const val WIKI_URL = "https://genshin-impact.fandom.com/api.php" +
         "?action=parse&page=Promotional_Code&prop=wikitext&format=json&formatversion=2"
     private val WIKI_SERVERS = mapOf("os_asia" to "SEA", "os_usa" to "NA", "os_euro" to "EU", "os_cht" to "SAR")
