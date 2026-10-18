@@ -46,6 +46,8 @@ class RewardHistoryScreen(private val context: Context) {
         setPadding(dp(16), 0, dp(16), dp(8))
     }
     val more: Button = pillButton().apply { text = "더 보기"; visibility = View.GONE }
+    /** 리딤 코드 줄을 눌렀을 때(상세 보기). */
+    var onCodeClick: ((RedeemedCode) -> Unit)? = null
     val root: LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundResource(R.color.bg)
@@ -69,9 +71,11 @@ class RewardHistoryScreen(private val context: Context) {
             if (s.codes.isEmpty()) listOf(row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요", null, muted = true))
             else listOf(redeemTotals(s.codes)) + s.codes.map {
                 val reward = it.reward?.let { raw -> RewardHistory.formatTotals(Redeem.rewardItems(raw), max = 4) }
+                val code = it
                 row(
                     R.drawable.ic_item_gift, it.code, DateFormat.format("M월 d일", Date(it.at)).toString(),
                     sub = reward ?: "보상은 게임 우편함에서 확인해요", unseen = it.at > s.seenRedeemAt,
+                    onClick = { onCodeClick?.invoke(code) },
                 )
             }
         ))
@@ -240,16 +244,33 @@ class RewardHistoryScreen(private val context: Context) {
         rows.forEach { addView(it) }
     }
 
-    /** 아이콘 · 제목(+설명) · 오른쪽 날짜. 새 보상은 배경을 칠하고 아이콘 위에 금색 점을 찍는다. */
-    private fun row(icon: Int, title: String, trailing: String?, muted: Boolean = false, unseen: Boolean = false, sub: String? = null) =
-        LinearLayout(context).apply {
+    /**
+     * 아이콘 · 제목(+설명) · 오른쪽 날짜. 새 보상은 배경을 칠하고 아이콘 위에 금색 점을 찍는다.
+     * 새 보상 줄을 누르면 알림함처럼 표시가 지워지고, onClick이 있으면 그것도 부른다.
+     */
+    private fun row(
+        icon: Int, title: String, trailing: String?, muted: Boolean = false, unseen: Boolean = false,
+        sub: String? = null, onClick: (() -> Unit)? = null,
+    ) = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(60)
             setPadding(dp(16), dp(10), dp(16), dp(10))
+            var dot: View? = null
             if (unseen) {
                 setBackgroundResource(R.color.unseen_bg)
                 contentDescription = "새 보상, $title"
+            }
+            if (unseen || onClick != null) {
+                foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run {
+                    getDrawable(0).also { recycle() }
+                }
+                setOnClickListener {
+                    background = null
+                    dot?.visibility = View.GONE
+                    contentDescription = null
+                    onClick?.invoke()
+                }
             }
             addView(FrameLayout(context).apply {
                 addView(ImageView(context).apply {
@@ -268,6 +289,7 @@ class RewardHistoryScreen(private val context: Context) {
                         setColor(context.getColor(R.color.accent))
                         setStroke(dp(2), context.getColor(R.color.unseen_bg))
                     }
+                    dot = this
                 }, FrameLayout.LayoutParams(dp(12), dp(12), Gravity.END or Gravity.TOP))
             }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(14) })
             addView(LinearLayout(context).apply {

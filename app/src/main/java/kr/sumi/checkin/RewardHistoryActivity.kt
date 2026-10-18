@@ -31,6 +31,7 @@ class RewardHistoryActivity : Activity() {
         screen = RewardHistoryScreen(this)
         screen.back.setOnClickListener { finish() }
         screen.more.setOnClickListener { loadPage() }
+        screen.onCodeClick = { showCode(it) }
         setContentView(screen.root)
         MainActivity.applySystemBarInsets(screen.root)
 
@@ -102,6 +103,25 @@ class RewardHistoryActivity : Activity() {
             newAwardKeys = entries.take(unseenAwards).map { it.key }.toSet(),
             seenRedeemAt = seenRedeemAt,
         ))
+    }
+
+    /** 리딤 코드 상세: 받은 시각, 보상 전체, 코드 복사. */
+    private fun showCode(code: RedeemedCode) {
+        val items = code.reward?.let { Redeem.rewardItems(it) }.orEmpty()
+        val rewards = if (items.isEmpty()) "위키에 보상 정보가 없는 코드예요. 게임 우편함에서 확인해 주세요."
+        else items.joinToString("\n") { (name, count) -> "· $name ×${"%,d".format(count)}" }
+        AppDialog(this)
+            .setTitle(code.code)
+            .setMessage("${android.text.format.DateFormat.format("M월 d일 HH:mm", java.util.Date(code.at))}에 받았어요\n\n$rewards")
+            .setNeutralButton("코드 복사") {
+                getSystemService(android.content.ClipboardManager::class.java)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("리딤 코드", code.code))
+                if (android.os.Build.VERSION.SDK_INT < 33) {
+                    android.widget.Toast.makeText(this, "코드를 복사했어요", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setPositiveButton("확인")
+            .show()
     }
 
     companion object {
