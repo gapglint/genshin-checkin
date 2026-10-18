@@ -58,4 +58,9 @@ class CheckInClientTest {
         assertFalse(LoginActivity.hasLoginTokens("mi18nLang=ko-kr; ltuid_v2=123"))
         assertFalse(LoginActivity.hasLoginTokens("old_ltoken_v2=x; ltuid_v2=1"))
     }
+
+    @Test fun uidFromCookie() {
+        assertEquals("123", LoginActivity.uidOf("mi18nLang=ko-kr; ltoken_v2=v2_abc; ltuid_v2=123"))
+        assertNull(LoginActivity.uidOf("ltoken_v2=v2_abc"))
+    }
 }

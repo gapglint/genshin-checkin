@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     private fun refresh() {
         loginStatus.text = if (store.cookie != null) "로그인됨 · 자동 출첵 켜짐" else "로그인이 필요해요"
         checkInButton.isEnabled = store.cookie != null
-        loginButton.text = if (store.cookie != null) "로그인 확인 / 다시 로그인" else "호요랩 로그인"
+        loginButton.text = if (store.cookie != null) "로그인 상태 확인" else "호요랩 로그인"
         val result = store.lastResult
         lastResult.text = if (result == null) {
             "아직 출첵 기록이 없어요."
