@@ -26,6 +26,8 @@ data class MainUiState(
     val nextRun: String? = null,
     val needsExactAlarm: Boolean = false,
     val needsBatteryExemption: Boolean = false,
+    /** 오래 안 열면 앱을 멈추는 '사용하지 않는 앱 일시중지'(Android 11+)가 켜져 있는지. */
+    val needsHibernationExemption: Boolean = false,
     /** 출석이 안 됐을 때 마지막 결과(실패 이유 등). */
     val note: String? = null,
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
@@ -63,6 +65,7 @@ class MainScreen(val root: View) {
     private val timingSection: View = root.findViewById(R.id.timingSection)
     val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
     val rowBattery: View = root.findViewById(R.id.rowBattery)
+    val rowHibernation: View = root.findViewById(R.id.rowHibernation)
     val primaryButton: Button = root.findViewById(R.id.primaryButton)
     val busyBar: View = root.findViewById(R.id.busyBar)
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
@@ -123,8 +126,9 @@ class MainScreen(val root: View) {
 
         rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
         rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE
+        rowHibernation.visibility = if (s.loggedIn && s.needsHibernationExemption) View.VISIBLE else View.GONE
         timingSection.visibility =
-            if (s.loggedIn && (s.needsExactAlarm || s.needsBatteryExemption)) View.VISIBLE else View.GONE
+            if (s.loggedIn && (s.needsExactAlarm || s.needsBatteryExemption || s.needsHibernationExemption)) View.VISIBLE else View.GONE
         heroNote.text = s.note
         heroNote.visibility = if (s.note != null && s.busy == null) View.VISIBLE else View.GONE
 

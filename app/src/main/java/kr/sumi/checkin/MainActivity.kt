@@ -71,6 +71,7 @@ class MainActivity : Activity() {
         screen.rowRedeemRole.setOnClickListener { chooseRedeemRole() }
         screen.rowRedeemNow.setOnClickListener { redeemNow() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
+        screen.rowHibernation.setOnClickListener { openHibernationSettings() }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -148,6 +149,7 @@ class MainActivity : Activity() {
                 needsExactAlarm = !DailyAlarm.canRunExactly(this),
                 needsBatteryExemption = !getSystemService(PowerManager::class.java)
                     .isIgnoringBatteryOptimizations(packageName),
+                needsHibernationExemption = Build.VERSION.SDK_INT >= 30 && !packageManager.isAutoRevokeWhitelisted,
                 note = store?.lastProblem?.takeIf { !signedToday && store.lastProblemDay == today.toString() },
                 makeUpMissed = store?.makeUpMissed?.takeIf { store.makeUpDay == today.toString() },
                 notificationsSummary = notificationsSummary(),
@@ -224,6 +226,16 @@ class MainActivity : Activity() {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(this, url, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** '사용하지 않는 앱 일시중지'를 끄는 화면(앱 정보). 이 앱은 사용자가 거의 열지 않으므로 꺼 두어야 계속 돈다. */
+    private fun openHibernationSettings() {
+        if (Build.VERSION.SDK_INT < 30) return
+        try {
+            startActivity(Intent(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, Uri.fromParts("package", packageName, null)))
+        } catch (e: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
     }
 

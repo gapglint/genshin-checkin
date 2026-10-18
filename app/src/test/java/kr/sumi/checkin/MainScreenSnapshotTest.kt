@@ -23,7 +23,7 @@ class MainScreenSnapshotTest {
     private val waiting = MainUiState(
         loggedIn = true, uid = "812345678", totalDays = 16, month = 10, lastChecked = "10월 18일 03:00",
         nextRun = "오늘 09:00", note = "요청이 너무 잦다고 해요. 잠시 뒤 자동으로 다시 시도해요.",
-        needsExactAlarm = true, needsBatteryExemption = true,
+        needsExactAlarm = true, needsBatteryExemption = true, needsHibernationExemption = true,
     )
     private val loggedOut = MainUiState(loggedIn = false, month = 10)
 
