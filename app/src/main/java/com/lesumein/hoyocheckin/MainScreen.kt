@@ -24,6 +24,10 @@ data class MainUiState(
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
     val makeUpMissed: Int? = null,
     val makeUpAlerts: Boolean = true,
+    val redeemEnabled: Boolean = true,
+    /** 리딤 보상을 받을 캐릭터 설명. 아직 안 골랐으면 null. */
+    val redeemRole: String? = null,
+    val redeemSummary: String? = null,
     /** 출첵·보충이 진행 중이면 그 안내. */
     val busy: String? = null,
 )
@@ -55,12 +59,20 @@ class MainScreen(val root: View) {
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
     val rowLogout: View = root.findViewById(R.id.rowLogout)
+    private val redeemSection: View = root.findViewById(R.id.redeemGroup)
+    val rowRedeem: View = root.findViewById(R.id.rowRedeem)
+    val redeemSwitch: MaterialSwitch = root.findViewById(R.id.redeemSwitch)
+    val rowRedeemRole: View = root.findViewById(R.id.rowRedeemRole)
+    private val redeemRoleSub: TextView = root.findViewById(R.id.redeemRoleSub)
+    val rowRedeemNow: View = root.findViewById(R.id.rowRedeemNow)
+    private val redeemSummary: TextView = root.findViewById(R.id.redeemSummary)
 
     init {
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
         root.findViewById<View>(R.id.timingGroup).clipToOutline = true
+        redeemSection.clipToOutline = true
     }
 
     fun render(s: MainUiState) {
@@ -103,6 +115,12 @@ class MainScreen(val root: View) {
         makeUpButton.isEnabled = s.busy == null
 
         makeUpSwitch.isChecked = s.makeUpAlerts
+        redeemSwitch.isChecked = s.redeemEnabled
+        redeemRoleSub.text = s.redeemRole ?: if (s.loggedIn) "눌러서 골라 주세요" else "로그인하면 고를 수 있어요"
+        redeemRoleSub.setTextColor(ContextCompat.getColor(context, if (s.redeemRole == null && s.loggedIn) R.color.accent else R.color.ink_muted))
+        redeemSummary.text = s.redeemSummary ?: "아직 확인하지 않았어요"
+        rowRedeemRole.isEnabled = s.loggedIn && s.busy == null
+        rowRedeemNow.isEnabled = s.loggedIn && s.busy == null
 
         accountTitle.text = "로그인 상태 확인"
         accountSub.text = "UID ${s.uid ?: "확인 불가"} · 자동 출석 켜짐"

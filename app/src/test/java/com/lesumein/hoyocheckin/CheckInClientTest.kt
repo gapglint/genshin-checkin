@@ -35,8 +35,8 @@ class CheckInClientTest {
     }
 
     @Test fun tooFrequent() {
-        assertEquals(Outcome.RateLimited, sign("""{"retcode":-1004,"message":"Visits too frequently"}"""))
-        assertEquals(Outcome.RateLimited, CheckInClient.infoError(JSONObject("""{"retcode":-1004}""")))
+        assertEquals(Outcome.RateLimited("출석"), sign("""{"retcode":-1004,"message":"Visits too frequently"}"""))
+        assertEquals(Outcome.RateLimited("출석 확인"), CheckInClient.infoError(JSONObject("""{"retcode":-1004}""")))
     }
 
     @Test fun unknownError() {

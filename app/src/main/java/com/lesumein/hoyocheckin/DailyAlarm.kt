@@ -60,7 +60,7 @@ class DailyAlarmReceiver : BroadcastReceiver() {
         val pending = goAsync()
         Thread {
             try {
-                if (CheckIn.run(app) == Outcome.RateLimited) CheckIn.retrySoon(app)
+                if (CheckIn.run(app) is Outcome.RateLimited) CheckIn.retrySoon(app)
             } catch (e: IOException) {
                 CheckIn.retrySoon(app)
             } finally {

@@ -16,6 +16,8 @@ import androidx.core.content.ContextCompat
 object Notifier {
     private const val CHANNEL = "checkin"
     private const val CHANNEL_MAKE_UP = "make_up"
+    private const val CHANNEL_REDEEM = "redeem"
+    private const val ID_REDEEM = 3
     private const val ID_CHECK_IN = 1
     private const val ID_MAKE_UP = 2
 
@@ -23,13 +25,14 @@ object Notifier {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "출첵 결과", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_MAKE_UP, "보충 출석", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_REDEEM, "리딤 코드", NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     /** 이미 출첵한 경우는 조용히 넘어가고, 나머지는 같은 날 같은 종류를 한 번만 알린다. */
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
     fun notify(context: Context, store: Store, outcome: Outcome) {
         // 이미 출첵했거나 잠깐의 속도 제한은 알릴 필요가 없다.
-        if (outcome is Outcome.AlreadySigned || outcome == Outcome.RateLimited) return
+        if (outcome is Outcome.AlreadySigned || outcome is Outcome.RateLimited) return
         val key = "${outcome::class.simpleName}:${Store.checkInDay()}"
         if (key == store.lastNotified) return
 
@@ -80,6 +83,34 @@ object Notifier {
             .build()
         NotificationManagerCompat.from(context).notify(ID_MAKE_UP, notification)
         store.lastMakeUpNotified = key
+    }
+
+    /** 리딤 코드를 받았거나, 로그인 문제로 입력하지 못했을 때만 알린다. 같은 내용은 하루 한 번. */
+    @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
+    fun notifyRedeem(context: Context, report: RedeemReport) {
+        val (title, text) = when {
+            report.redeemed.isNotEmpty() -> "리딤 코드 ${report.redeemed.size}개를 받았어요" to
+                "${report.redeemed.joinToString(", ")} · 게임 우편함에서 받으세요."
+            report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
+            else -> return
+        }
+        val store = Store(context)
+        val key = "$title:${Store.checkInDay()}"
+        if (key == store.lastRedeemNotified || !canNotify(context)) return
+        val pending = PendingIntent.getActivity(
+            context, ID_REDEEM, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_REDEEM)
+            .setSmallIcon(R.drawable.ic_notify)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(ID_REDEEM, notification)
+        store.lastRedeemNotified = key
     }
 
     private fun canNotify(context: Context) = Build.VERSION.SDK_INT < 33 ||

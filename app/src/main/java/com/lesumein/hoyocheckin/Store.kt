@@ -2,6 +2,7 @@ package com.lesumein.hoyocheckin
 
 import android.content.Context
 import androidx.core.content.edit
+import org.json.JSONObject
 import java.time.LocalDate
 
 /**
@@ -18,6 +19,15 @@ class Store(context: Context) {
     var lastResult: String?
         get() = prefs.getString("last_result", null)
         set(value) = prefs.edit { putString("last_result", value) }
+
+    /** 오늘(서버 기준) 출석에서 생긴 문제 안내. 출석이 확인되면 지운다. */
+    var lastProblem: String?
+        get() = prefs.getString("last_problem", null)
+        set(value) = prefs.edit { putString("last_problem", value) }
+
+    var lastProblemDay: String?
+        get() = prefs.getString("last_problem_day", null)
+        set(value) = prefs.edit { putString("last_problem_day", value) }
 
     var lastRunAt: Long
         get() = prefs.getLong("last_run_at", 0)
@@ -66,6 +76,41 @@ class Store(context: Context) {
         get() = prefs.getLong("next_run_at", 0)
         set(value) = prefs.edit { putLong("next_run_at", value) }
 
+    /** 리딤 코드 자동 입력. 앱 설정에서 끌 수 있다. */
+    var redeemEnabled: Boolean
+        get() = prefs.getBoolean("redeem_enabled", true)
+        set(value) = prefs.edit { putBoolean("redeem_enabled", value) }
+
+    /** 리딤 보상을 받을 캐릭터. */
+    var redeemRole: GameRole?
+        get() = prefs.getString("redeem_role", null)?.let {
+            val j = JSONObject(it)
+            GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
+        }
+        set(value) = prefs.edit {
+            putString("redeem_role", value?.let {
+                JSONObject().put("uid", it.uid).put("region", it.region).put("regionName", it.regionName)
+                    .put("nickname", it.nickname).put("level", it.level).toString()
+            })
+        }
+
+    /** 한 번 입력해 본 코드. 다시 입력하지 않는다. */
+    var redeemTried: Set<String>
+        get() = prefs.getStringSet("redeem_tried", emptySet())!!.toSet()
+        set(value) = prefs.edit { putStringSet("redeem_tried", value) }
+
+    var lastRedeemAt: Long
+        get() = prefs.getLong("last_redeem_at", 0)
+        set(value) = prefs.edit { putLong("last_redeem_at", value) }
+
+    var lastRedeemSummary: String?
+        get() = prefs.getString("last_redeem_summary", null)
+        set(value) = prefs.edit { putString("last_redeem_summary", value) }
+
+    var lastRedeemNotified: String?
+        get() = prefs.getString("last_redeem_notified", null)
+        set(value) = prefs.edit { putString("last_redeem_notified", value) }
+
     var lastMakeUpNotified: String?
         get() = prefs.getString("last_make_up_notified", null)
         set(value) = prefs.edit { putString("last_make_up_notified", value) }
@@ -73,8 +118,10 @@ class Store(context: Context) {
     /** 로그인·기록을 지운다. 사용자가 고른 설정은 남긴다. */
     fun clear() {
         val alerts = makeUpAlerts
+        val redeem = redeemEnabled
         prefs.edit { clear() }
         makeUpAlerts = alerts
+        redeemEnabled = redeem
     }
 
     companion object {

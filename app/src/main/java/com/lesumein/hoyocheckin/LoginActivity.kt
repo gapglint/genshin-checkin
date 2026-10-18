@@ -42,7 +42,7 @@ class LoginActivity : AppCompatActivity() {
     private val pollCookie = object : Runnable {
         override fun run() {
             val cookie = loginCookie()
-            if (cookie == null || cookie == checkedCookie) {
+            if (cookie == null || loginTokens(cookie) == checkedCookie?.let { loginTokens(it) }) {
                 handler.postDelayed(this, 1000)
                 return
             }
@@ -221,6 +221,12 @@ class LoginActivity : AppCompatActivity() {
         internal fun hasLoginTokens(cookie: String): Boolean {
             val names = cookieValues(cookie).keys
             return "ltoken_v2" in names && "ltuid_v2" in names
+        }
+
+        /** 로그인 토큰 부분만. 호요랩 페이지는 분석용 쿠키를 수시로 바꾸므로 '새로 로그인했는지'는 이것으로 비교한다. */
+        internal fun loginTokens(cookie: String): String {
+            val values = cookieValues(cookie)
+            return "${values["ltuid_v2"]}:${values["ltoken_v2"]}"
         }
 
         internal fun uidOf(cookie: String): String? = cookieValues(cookie)["ltuid_v2"]?.takeIf { it.isNotEmpty() }

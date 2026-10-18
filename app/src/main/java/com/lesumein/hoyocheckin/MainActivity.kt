@@ -53,6 +53,10 @@ class MainActivity : AppCompatActivity() {
         screen.rowAccount.setOnClickListener { startActivity(LoginActivity.loginIntent(this)) }
         screen.rowLogout.setOnClickListener { confirmLogout() }
         screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
+        screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }
+        screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> store.redeemEnabled = checked }
+        screen.rowRedeemRole.setOnClickListener { chooseRedeemRole() }
+        screen.rowRedeemNow.setOnClickListener { redeemNow() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
 
         if (Build.VERSION.SDK_INT >= 33) {
@@ -103,9 +107,15 @@ class MainActivity : AppCompatActivity() {
                 needsExactAlarm = !DailyAlarm.canRunExactly(this),
                 needsBatteryExemption = !getSystemService(PowerManager::class.java)
                     .isIgnoringBatteryOptimizations(packageName),
-                note = if (!signedToday) store.lastResult else null,
+                note = store.lastProblem.takeIf { !signedToday && store.lastProblemDay == today.toString() },
                 makeUpMissed = store.makeUpMissed.takeIf { store.makeUpDay == today.toString() },
                 makeUpAlerts = store.makeUpAlerts,
+                redeemEnabled = store.redeemEnabled,
+                redeemRole = store.redeemRole?.label(),
+                redeemSummary = store.lastRedeemSummary?.let { summary ->
+                    val at = DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt))
+                    "$at · $summary"
+                },
                 busy = busy,
             )
         )
@@ -140,6 +150,46 @@ class MainActivity : AppCompatActivity() {
         } catch (e: ActivityNotFoundException) {
             startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
+    }
+
+    /** 이 계정의 서버별 캐릭터를 불러와 리딤 보상을 받을 캐릭터를 고르게 한다. */
+    private fun chooseRedeemRole() = runInBackground("캐릭터 불러오는 중...") {
+        val roles = Redeem.roles(CheckInClient(store.cookie ?: return@runInBackground null))
+        runOnUiThread { showRoleChoice(roles) }
+        null
+    }
+
+    private fun showRoleChoice(roles: List<GameRole>) {
+        if (roles.isEmpty()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("캐릭터가 없어요")
+                .setMessage("이 계정에 연결된 원신 캐릭터를 찾지 못했어요. 로그인이 풀렸다면 다시 로그인해 주세요.")
+                .setPositiveButton("확인", null)
+                .show()
+            return
+        }
+        val current = roles.indexOfFirst { it.uid == store.redeemRole?.uid }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("보상 받을 캐릭터")
+            .setSingleChoiceItems(roles.map { it.label() }.toTypedArray(), current) { dialog, which ->
+                store.redeemRole = roles[which]
+                dialog.dismiss()
+                refresh()
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun redeemNow() = runInBackground("리딤 코드 확인 중...") {
+        val report = Redeem.run(this)
+        runOnUiThread {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(if (report.redeemed.isNotEmpty()) "리딤 코드 ${report.redeemed.size}개를 받았어요" else "리딤 코드")
+                .setMessage(Redeem.details(report))
+                .setPositiveButton("확인", null)
+                .show()
+        }
+        null
     }
 
     private fun checkInNow() = runInBackground("출석하는 중...") {

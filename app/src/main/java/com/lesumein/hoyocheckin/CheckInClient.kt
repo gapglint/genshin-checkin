@@ -15,8 +15,8 @@ sealed class Outcome {
     object CaptchaRequired : Outcome()
     /** 출석 성공 응답을 받았는데 다시 확인해 보니 반영되지 않았다. 직접 확인해야 한다. */
     object NotConfirmed : Outcome()
-    /** 요청이 너무 잦다(-1004). 잠시 뒤 다시 시도한다. */
-    object RateLimited : Outcome()
+    /** 요청이 너무 잦다(-1004). 잠시 뒤 다시 시도한다. step은 어느 요청에서 막혔는지(원인 파악용). */
+    data class RateLimited(val step: String) : Outcome()
     data class Failed(val message: String) : Outcome()
 }
 
@@ -112,6 +112,10 @@ class CheckInClient(private val cookie: String) {
         null
     }
 
+    /** 출석 외 호요랩 API(리딤 등)도 같은 쿠키·헤더·서버 시각 기록을 쓰도록 연다. */
+    @Throws(IOException::class)
+    fun get(url: String, headers: Map<String, String> = emptyMap()): JSONObject = request("GET", url, null, headers)
+
     private fun request(
         method: String,
         url: String,
@@ -163,7 +167,7 @@ class CheckInClient(private val cookie: String) {
             val code = json.optInt("retcode", Int.MIN_VALUE)
             return when {
                 code in NOT_LOGGED_IN -> Outcome.LoginExpired
-                code == TOO_FREQUENT -> Outcome.RateLimited
+                code == TOO_FREQUENT -> Outcome.RateLimited("출석 확인")
                 code != 0 || json.optJSONObject("data") == null -> Outcome.Failed(describe(json))
                 else -> null
             }
@@ -179,7 +183,7 @@ class CheckInClient(private val cookie: String) {
                 }
                 -5003 -> Outcome.AlreadySigned(day - 1)
                 in NOT_LOGGED_IN -> Outcome.LoginExpired
-                TOO_FREQUENT -> Outcome.RateLimited
+                TOO_FREQUENT -> Outcome.RateLimited("출석")
                 else -> Outcome.Failed(describe(json).ifEmpty { "retcode $code" })
             }
         }
