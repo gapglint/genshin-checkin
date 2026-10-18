@@ -124,6 +124,6 @@ GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab
 ## 라이선스
 
 [Apache License 2.0](LICENSE). 코드를 고쳐 쓰거나 다시 배포할 때는 [NOTICE](NOTICE)를 함께 남겨야 한다.
-라이선스는 코드에만 적용된다. "원신 출첵", "Sumi Lab" 이름과 앱 아이콘은 포함되지 않으므로(Apache 2.0 6조), 고쳐서 배포할 때는 다른 이름과 아이콘을 써야 한다.
+라이선스는 "Sumi Lab"이라는 이름을 쓸 권리를 주지 않는다(Apache 2.0 6조). 고쳐서 배포할 때는 이 앱과 헷갈리지 않게 다른 앱 이름과 아이콘을 써 주면 좋겠다. "원신"은 HoYoverse의 상표다.
 
 출석 카드의 숫자 글꼴(`res/font/hoyo_numerals.ttf`)은 Marcellus에서 숫자 0~9만 남긴 것으로, SIL Open Font License 1.1을 따른다([licenses/Marcellus-OFL.txt](licenses/Marcellus-OFL.txt)). OFL에 따라 수정본에는 예약된 글꼴 이름을 쓰지 않고 "Hoyo Numerals"로 바꿨다.
