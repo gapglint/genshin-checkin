@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 원신의 밤하늘(남색)과 별빛(금색). 출석 카드는 두 테마 모두 남색으로 둔다. -->
 <resources>
-    <color name="brand">#3D7BB8</color>
-    <color name="brand_dark">#2B5A88</color>
-    <color name="icon_bg">#F4E6C3</color>
+    <color name="bg">#EDEFF5</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="line">#DDE1EB</color>
+    <color name="ink">#1B2030</color>
+    <color name="ink_muted">#5C6479</color>
+    <!-- 밝은 면 위의 금색 글자. 흰 바탕 대비를 맞추려 어둡게 잡았다. -->
+    <color name="accent">#8A6420</color>
+    <color name="warn">#B04A2A</color>
+    <color name="action">#1F2742</color>
+    <color name="on_action">#F2EEE3</color>
+
+    <color name="hero">#1F2742</color>
+    <color name="hero_line">#33FFFFFF</color>
+    <color name="hero_ink">#F2EEE3</color>
+    <color name="hero_muted">#A8AFC6</color>
+    <color name="gold">#E1BB66</color>
+    <color name="on_gold">#2A1F08</color>
+
+    <color name="icon_bg_top">#2A3560</color>
+    <color name="icon_bg_bottom">#151B30</color>
 </resources>

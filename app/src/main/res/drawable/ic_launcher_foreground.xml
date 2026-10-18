@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 나침반 고리 안의 네 갈래 별. 출석 도장을 별빛으로 표현했다. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#3D7BB8"
-        android:pathData="M36,38h36a4,4 0,0 1,4 4v28a4,4 0,0 1,-4 4h-36a4,4 0,0 1,-4 -4v-28a4,4 0,0 1,4 -4z" />
-    <path
-        android:fillColor="#2B5A88"
-        android:pathData="M32,42a4,4 0,0 1,4 -4h36a4,4 0,0 1,4 4v6h-44z" />
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M44,61l7,7l13,-14" />
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#00000000" android:strokeColor="#E1BB66" android:strokeAlpha="0.45"
+        android:strokeWidth="1.6"
+        android:pathData="M54,54m-25,0a25,25 0,1 1,50 0a25,25 0,1 1,-50 0" />
+    <path android:pathData="M54,24 C56.2,45.5 62.5,51.8 84,54 C62.5,56.2 56.2,62.5 54,84 C51.8,62.5 45.5,56.2 24,54 C45.5,51.8 51.8,45.5 54,24 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="40" android:startY="26" android:endX="68" android:endY="82"
+                android:startColor="#F6DFA0" android:endColor="#D4A44A" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#F2EEE3"
+        android:pathData="M74.5,31 C75,35.2 76.3,36.5 80.5,37 C76.3,37.5 75,38.8 74.5,43 C74,38.8 72.7,37.5 68.5,37 C72.7,36.5 74,35.2 74.5,31 Z" />
 </vector>

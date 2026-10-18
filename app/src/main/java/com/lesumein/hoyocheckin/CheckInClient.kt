@@ -42,6 +42,28 @@ class CheckInClient(private val cookie: String) {
     fun isLoggedIn(): Boolean =
         infoError(request("GET", "$API/info?lang=$LANG&act_id=$ACT_ID")) != Outcome.LoginExpired
 
+    @Throws(IOException::class)
+    fun resignInfo(): JSONObject = request("GET", "$API/resign_info?lang=$LANG&act_id=$ACT_ID")
+
+    @Throws(IOException::class)
+    fun taskList(): JSONObject = request("GET", "$API/task/list?lang=$LANG&act_id=$ACT_ID")
+
+    /** 링크 방문 임무를 완료로 표시한다. */
+    @Throws(IOException::class)
+    fun completeTask(id: Int): JSONObject = request("POST", "$API/task/complete?lang=$LANG", taskBody(id))
+
+    /** 완료한 임무의 보충권을 받는다. */
+    @Throws(IOException::class)
+    fun claimTask(id: Int): JSONObject = request("POST", "$API/task/award?lang=$LANG", taskBody(id))
+
+    /** 놓친 날 하나를 보충권으로 채운다. */
+    @Throws(IOException::class)
+    fun resign(): JSONObject =
+        request("POST", "$API/resign?lang=$LANG", JSONObject().put("act_id", ACT_ID).put("lang", LANG).toString())
+
+    private fun taskBody(id: Int) =
+        JSONObject().put("id", id).put("act_id", ACT_ID).put("lang", LANG).toString()
+
     /** 누적 출첵 일수에 해당하는 보상 이름. 실패해도 출첵 결과에는 영향이 없다. */
     private fun rewardFor(day: Int): String? = try {
         Thread.sleep(REQUEST_GAP_MS)
@@ -85,10 +107,10 @@ class CheckInClient(private val cookie: String) {
         const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
 
-        private val NOT_LOGGED_IN = setOf(-100, -101)
-        private const val TOO_FREQUENT = -1004
+        internal val NOT_LOGGED_IN = setOf(-100, -101)
+        internal const val TOO_FREQUENT = -1004
         /** 브라우저처럼 요청 사이에 잠깐 쉰다. */
-        private const val REQUEST_GAP_MS = 1000L
+        const val REQUEST_GAP_MS = 1000L
 
         /** info 응답이 정상이 아니면 그에 맞는 결과, 정상이면 null. */
         internal fun infoError(json: JSONObject): Outcome? {

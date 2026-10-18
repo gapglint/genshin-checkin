@@ -6,7 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -17,7 +17,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AlertDialog
+import androidx.core.view.WindowCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import java.io.IOException
 
@@ -61,14 +62,15 @@ class LoginActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = if (loginMode) "호요랩 로그인" else "원신 출석체크"
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val screenTitle = if (loginMode) "호요랩 로그인" else "원신 출석체크"
+        title = screenTitle
 
-        status = TextView(this).apply {
-            text = if (loginMode) "로그인 상태 확인 중..." else "오늘 출석 칸을 눌러 직접 출첵해 주세요. 캡차가 나오면 풀면 됩니다."
-            setPadding(32, 24, 32, 24)
-            textSize = 14f
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
+        val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
+        header.findViewById<TextView>(R.id.headerTitle).text = screenTitle
+        header.findViewById<View>(R.id.headerBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        status = header.findViewById(R.id.headerStatus)
+        status.text = if (loginMode) "로그인 상태 확인 중..." else "오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요."
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
@@ -89,11 +91,14 @@ class LoginActivity : AppCompatActivity() {
         cookies.setAcceptCookie(true)
         cookies.setAcceptThirdPartyCookies(webView, true)
 
-        setContentView(LinearLayout(this).apply {
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(status, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            setBackgroundResource(R.color.bg)
+            addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(webView, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
-        })
+        }
+        setContentView(root)
+        MainActivity.applySystemBarInsets(root)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -134,9 +139,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showLoginPage() {
-        status.text = "아이디·비밀번호로 로그인하고 캡차를 풀어 주세요. 로그인되면 자동으로 닫혀요.\n로그인 창이 안 뜨면 왼쪽 위 「로그인」을 누르세요."
-        status.gravity = Gravity.START
-        status.textSize = 13f
+        status.text = "아이디·비밀번호로 로그인하고 캡차를 풀어 주세요. 로그인되면 자동으로 닫혀요.\n로그인 창이 안 뜨면 페이지 왼쪽 위 「로그인」을 누르세요."
         webView.visibility = View.VISIBLE
         webView.loadUrl(CheckInClient.CHECK_IN_PAGE)
         handler.postDelayed(pollCookie, 1000)
@@ -171,7 +174,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
         status.text = "로그인돼 있어요."
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("이미 로그인돼 있어요")
             .setMessage("호요랩 UID ${uidOf(cookie) ?: "확인 불가"} 계정으로 자동 출첵 중이에요.")
             .setPositiveButton("확인") { _, _ -> finish() }

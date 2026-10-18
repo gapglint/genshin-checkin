@@ -29,16 +29,44 @@ object CheckIn {
         // 오늘 출첵을 이미 확인했으면 서버에 묻지 않는다.
         if (store.signedDay == today) return Outcome.AlreadySigned(store.signedTotal)
 
-        val outcome = CheckInClient(cookie).run()
+        val client = CheckInClient(cookie)
+        val outcome = client.run()
         when (outcome) {
-            is Outcome.Signed -> { store.signedDay = today; store.signedTotal = outcome.day }
-            is Outcome.AlreadySigned -> { store.signedDay = today; store.signedTotal = outcome.day }
+            is Outcome.Signed -> {
+                store.signedDay = today
+                store.signedTotal = outcome.day
+                store.lastReward = outcome.reward
+            }
+            is Outcome.AlreadySigned -> {
+                if (store.signedDay != today) store.lastReward = null
+                store.signedDay = today
+                store.signedTotal = outcome.day
+            }
             else -> {}
         }
         store.lastResult = describe(outcome)
         store.lastRunAt = System.currentTimeMillis()
         Notifier.notify(context, store, outcome)
+        if (outcome is Outcome.Signed || outcome is Outcome.AlreadySigned) checkMakeUp(context, store, client, today)
         return outcome
+    }
+
+    /** 오늘 출석을 확인한 직후, 하루 한 번 보충 출석이 가능한지 보고 알린다. 실패해도 출첵 결과에는 영향이 없다. */
+    private fun checkMakeUp(context: Context, store: Store, client: CheckInClient, today: String) {
+        if (!store.makeUpAlerts) return
+        val missed = try {
+            Thread.sleep(CheckInClient.REQUEST_GAP_MS)
+            MakeUp.availableDays(client)
+        } catch (e: IOException) {
+            null
+        }
+        if (missed == null) {
+            store.makeUpDay = null
+            return
+        }
+        store.makeUpDay = today
+        store.makeUpMissed = missed
+        Notifier.notifyMakeUp(context, store, missed)
     }
 
     fun describe(outcome: Outcome): String = when (outcome) {

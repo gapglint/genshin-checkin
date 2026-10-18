@@ -11,6 +11,9 @@
 3. **막히면 알림**
    - 로그인이 풀림 → 알림을 누르면 로그인 화면이 열린다.
    - 호요랩이 출첵에 캡차를 걸음 → 알림을 누르면 출첵 페이지가 열린다. 직접 눌러서 출첵한다.
+4. **보충 출석** — 오늘 출석을 확인한 직후 하루 한 번, 놓친 날을 채울 수 있는지 본다.
+   가능하면 알림을 보내고, 알림을 누르면 앱이 바로 보충한다. 보충권이 모자라면 출석 페이지의 링크 방문 임무를
+   완료 처리해 보충권을 받은 뒤 보충한다. 앱 설정의 "보충 출석 알림"으로 끌 수 있다.
 
 비밀번호는 앱이 저장하지 않는다. 쿠키만 앱 전용 저장소에 두고, 백업·기기 이전 대상에서도 뺐다.
 
@@ -19,6 +22,7 @@
 ```sh
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew test assembleDebug     # 디버그
+./gradlew recordPaparazziDebug   # 화면 스냅숏 갱신 (app/src/test/snapshots)
 ./gradlew assembleRelease        # 서명된 릴리스 (아래 서명 키 필요)
 # app/build/outputs/apk/release/app-release.apk
 ```
@@ -53,8 +57,10 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 |---|---|
 | `CheckInClient.kt` | 출첵 API 호출(info → sign → 보상 이름)과 응답 해석 |
 | `CheckIn.kt` | 실행·결과 저장·알림을 묶고, WorkManager 예약 |
+| `MakeUp.kt` | 보충 출석: 가능 여부 확인, 임무로 보충권 받기, 보충 |
 | `LoginActivity.kt` | WebView 로그인·쿠키 추출, 직접 출첵 페이지 |
-| `MainActivity.kt` | 상태 표시, 지금 출첵, 로그아웃 |
+| `MainActivity.kt` | 화면 동작(출첵, 보충, 설정, 로그아웃) |
+| `MainScreen.kt` | 메인 화면을 상태(`MainUiState`)대로 그림. 스냅숏 테스트도 이걸 쓴다 |
 | `Notifier.kt` | 결과 알림(같은 날 같은 알림은 한 번만) |
 | `Store.kt` | 쿠키·마지막 결과 저장 |
 
@@ -67,3 +73,5 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ## 라이선스
 
 [Apache License 2.0](LICENSE)
+
+출석 카드의 숫자 글꼴 Marcellus는 SIL Open Font License 1.1을 따른다([licenses/Marcellus-OFL.txt](licenses/Marcellus-OFL.txt)).

@@ -1,8 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.HoyoCheckin" parent="Theme.AppCompat.DayNight.DarkActionBar">
-        <item name="colorPrimary">@color/brand</item>
-        <item name="colorPrimaryDark">@color/brand_dark</item>
-        <item name="colorAccent">@color/brand</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.HoyoCheckin" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/action</item>
+        <item name="colorOnPrimary">@color/on_action</item>
+        <item name="colorSecondaryContainer">@color/line</item>
+        <item name="colorOnSecondaryContainer">@color/ink</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="colorOnSurfaceVariant">@color/ink_muted</item>
+        <item name="colorOutline">@color/ink_muted</item>
+        <item name="colorSurfaceContainerHigh">@color/surface</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:windowLightStatusBar">@bool/light_bars</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/light_bars</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Text.Eyebrow" parent="">
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">@color/hero_muted</item>
+    </style>
+
+    <style name="Text.RowTitle" parent="">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+
+    <style name="Text.RowSub" parent="">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/ink_muted</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <style name="Text.HeroLabel" parent="">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/hero_muted</item>
+    </style>
+
+    <style name="Text.HeroValue" parent="">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/hero_ink</item>
+        <item name="android:gravity">end</item>
+    </style>
+
+    <style name="Row" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
     </style>
 </resources>
