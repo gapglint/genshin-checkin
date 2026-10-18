@@ -43,7 +43,7 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
   | `KEY_ALIAS` | `genshin-checkin` |
   | `KEY_PASSWORD` | 키 비밀번호 |
 
-  main에 푸시하면 Actions 아티팩트로, `v0.1.0` 같은 태그를 푸시하면 Releases에 APK가 올라간다.
+  main에 푸시하면 Actions 아티팩트로 APK가 올라간다. 릴리스는 `v0.1.0` 같은 태그를 푸시하거나, Actions → Build APK → Run workflow에서 release 칸에 태그 이름을 넣으면 Releases에 APK가 올라간다.
 
 인증서 SHA-256: `f4b459c21d197b5d4d94d312dc7e8b5cff2e62c268175d38e8c6b88e41a63447`
 
