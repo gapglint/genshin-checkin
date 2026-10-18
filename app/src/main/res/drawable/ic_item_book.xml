@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 경험책: 책. 게임 그림을 쓰지 않고 앱 색으로 단순하게 그렸다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="@color/item_book" android:pathData="M6,3h11a2,2 0,0 1,2 2v14a2,2 0,0 1,-2 2H6a2,2 0,0 1,-2,-2V5a2,2 0,0 1,2,-2z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.85" android:pathData="M7,5h1.6v14H7z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.6" android:pathData="M11,8h5v1.4h-5zM11,11h5v1.4h-5z" />
+</vector>

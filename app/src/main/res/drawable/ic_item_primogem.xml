@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 원석: 네 갈래 별 모양 보석. 게임 그림을 쓰지 않고 앱 색으로 단순하게 그렸다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="@color/gold" android:pathData="M12,2 C12.9,8.6 15.4,11.1 22,12 C15.4,12.9 12.9,15.4 12,22 C11.1,15.4 8.6,12.9 2,12 C8.6,11.1 11.1,8.6 12,2 Z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.55" android:pathData="M12,6 C12.4,9.9 13.1,10.6 15,12 C13.1,12.4 12.4,13.1 12,15 Z" />
+</vector>

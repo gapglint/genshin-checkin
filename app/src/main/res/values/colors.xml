@@ -21,6 +21,12 @@
     <color name="gold">#E1BB66</color>
     <color name="on_gold">#2A1F08</color>
 
+    <!-- 보상 내역 아이템 아이콘 -->
+    <color name="item_mora">#C2913A</color>
+    <color name="item_book">#5B78C9</color>
+    <color name="item_ore">#7C93B5</color>
+    <color name="item_tile">#E9ECF3</color>
+
     <color name="icon_bg_top">#2A3560</color>
     <color name="icon_bg_bottom">#151B30</color>
 </resources>

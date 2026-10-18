@@ -11,4 +11,5 @@
     <color name="action">#E1BB66</color>
     <color name="on_action">#2A1F08</color>
     <color name="hero">#1C2340</color>
+    <color name="item_tile">#232838</color>
 </resources>
