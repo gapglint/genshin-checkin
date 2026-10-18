@@ -314,7 +314,7 @@ class StoreAssetsTest {
 
     @Test fun screenshot5Alerts() = screenshot(
         signed, night = false, custom = { notificationShade(it) },
-        title = "밤에는 조용히,\n아침에 확인", sub = "알림은 골라 받고, 새벽 알림은 소리 없이",
+        title = "밤에는 조용히,\n아침에 확인", sub = "필요 없는 알림은 끄고, 새벽 알림은 소리 없이",
     )
 
     @Test fun screenshot6Dark() = screenshot(
@@ -349,7 +349,7 @@ class StoreAssetsTest {
 
     @Test fun tablet5Alerts() = screenshot(
         signed, night = false, custom = { notificationShade(it) }, tablet = true,
-        title = "밤에는 조용히,\n아침에 확인", sub = "알림은 골라 받고, 새벽 알림은 소리 없이",
+        title = "밤에는 조용히,\n아침에 확인", sub = "필요 없는 알림은 끄고, 새벽 알림은 소리 없이",
     )
 
     @Test fun tablet6Dark() = screenshot(
