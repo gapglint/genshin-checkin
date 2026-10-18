@@ -55,12 +55,11 @@ object MakeUp {
         return if (earnable) info.missed else null
     }
 
-    /** 보충을 할 수 있는 만큼 한다. 출첵과 겹치지 않게 같은 잠금을 쓴다. */
+    /** 한 계정의 보충을 할 수 있는 만큼 한다. 출첵과 겹치지 않게 같은 잠금을 쓴다. */
     @Throws(IOException::class)
-    fun perform(context: Context): MakeUpResult = synchronized(CheckIn) {
-        val store = Store(context)
+    fun perform(store: Store): MakeUpResult = synchronized(CheckIn) {
         val cookie = store.cookie ?: return MakeUpResult.LoginExpired
-        if (store.signedDay != Store.checkInDay().toString()) {
+        if (!store.signedToday) {
             return MakeUpResult.Unavailable("오늘 출석을 먼저 해야 보충할 수 있어요.")
         }
         val client = CheckInClient(cookie)

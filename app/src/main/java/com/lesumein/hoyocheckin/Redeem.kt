@@ -83,8 +83,7 @@ object Redeem {
 
     /** 새 코드를 찾아 고른 캐릭터로 입력한다. 수동 실행과 예약 실행이 겹치지 않게 한 번에 하나만. */
     @Throws(IOException::class)
-    fun run(context: Context): RedeemReport = synchronized(this) {
-        val store = Store(context)
+    fun run(store: Store): RedeemReport = synchronized(this) {
         val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
         val role = store.redeemRole ?: chooseOnlyRole(client, store)
             ?: return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
@@ -104,7 +103,7 @@ object Redeem {
                 }
                 attempts += attempt
                 if (attempt.status == RedeemStatus.NOT_LOGGED_IN) {
-                    stop = "리딤 코드 입력용 로그인 정보가 없어요. '로그인 상태 확인'에서 다른 계정으로 로그인을 눌러 다시 로그인해 주세요."
+                    stop = "리딤 코드 입력용 로그인 정보가 없어요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
                     break@loop
                 }
                 if (attempt.status == RedeemStatus.TOO_FAST) continue
@@ -123,8 +122,7 @@ object Redeem {
 
     /** 계정의 대표 캐릭터(닉네임 표시용)를 불러와 저장한다. 네트워크 오류는 IOException. */
     @Throws(IOException::class)
-    fun refreshAccount(context: Context) {
-        val store = Store(context)
+    fun refreshAccount(store: Store) {
         val roles = roles(CheckInClient(store.cookie ?: return))
         store.accountRole = GameRole.representative(roles, store.redeemRole)
     }
@@ -141,7 +139,7 @@ object Redeem {
     private fun findCodes(client: CheckInClient, store: Store, role: GameRole): List<List<String>> {
         val groups = mutableListOf<List<String>>()
         try {
-            groups += parseWikiCodes(fetchPublic(WIKI_URL), role.region, ServerClock.today())
+            groups += parseWikiCodes(wikiPage(), role.region, ServerClock.today())
         } catch (e: Exception) {
         }
         val codes = linkedSetOf<String>()
@@ -167,6 +165,14 @@ object Redeem {
         val known = groups.flatten().toSet()
         groups += codes.filter { it !in known }.map { listOf(it) }
         return groups
+    }
+
+    /** 여러 계정을 연달아 돌 때 위키를 계정마다 받지 않도록 잠깐 기억해 둔다. */
+    private var wikiCache: Pair<Long, JSONObject>? = null
+
+    private fun wikiPage(): JSONObject {
+        wikiCache?.let { (at, json) -> if (System.currentTimeMillis() - at < 10 * 60_000) return json }
+        return fetchPublic(WIKI_URL).also { wikiCache = System.currentTimeMillis() to it }
     }
 
     /** 호요랩 쿠키를 보내면 안 되는 외부 공개 페이지(위키)를 받는다. */
@@ -340,15 +346,18 @@ object Redeem {
 
 class RedeemWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
-        val store = Store(applicationContext)
-        if (!store.redeemEnabled || store.cookie == null) return Result.success()
-        // 하루 한 번이면 충분하다.
-        if (store.lastRedeemAt > 0 && ServerClock.dayOf(store.lastRedeemAt) == ServerClock.today()) return Result.success()
-        return try {
-            Notifier.notifyRedeem(applicationContext, Redeem.run(applicationContext))
-            Result.success()
-        } catch (e: IOException) {
-            Result.retry()
+        val settings = AppSettings(applicationContext)
+        if (!settings.redeemEnabled) return Result.success()
+        var retry = false
+        for (store in settings.accounts()) {
+            // 계정마다 하루 한 번이면 충분하다.
+            if (store.lastRedeemAt > 0 && ServerClock.dayOf(store.lastRedeemAt) == ServerClock.today()) continue
+            try {
+                Notifier.notifyRedeem(applicationContext, store, Redeem.run(store))
+            } catch (e: IOException) {
+                retry = true
+            }
         }
+        return if (retry) Result.retry() else Result.success()
     }
 }

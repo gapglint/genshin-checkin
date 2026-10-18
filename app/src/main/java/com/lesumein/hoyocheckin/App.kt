@@ -6,6 +6,6 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Notifier.createChannel(this)
-        ServerClock.offsetMs = Store(this).clockOffset
+        ServerClock.offsetMs = AppSettings(this).clockOffset
     }
 }

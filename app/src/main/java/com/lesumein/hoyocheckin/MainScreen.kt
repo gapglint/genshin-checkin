@@ -4,11 +4,18 @@ import android.view.View
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.google.android.material.materialswitch.MaterialSwitch
 
-/** 메인 화면에 그릴 내용. 저장소에서 만들고, 화면은 이것만 보고 그린다. */
+/** 계정 칩 하나. */
+data class AccountChip(val id: String, val label: String, val signedToday: Boolean)
+
+/** 메인 화면에 그릴 내용. 저장소에서 만들고, 화면은 이것만 보고 그린다. 계정에 관한 값은 지금 고른 계정 것이다. */
 data class MainUiState(
     val loggedIn: Boolean,
+    val accounts: List<AccountChip> = emptyList(),
+    val currentId: String? = null,
     val uid: String? = null,
     /** 게임 닉네임과 서버. 아직 못 불러왔으면 null. */
     val nickname: String? = null,
@@ -39,6 +46,10 @@ data class MainUiState(
 class MainScreen(val root: View) {
     private val context = root.context
     private val statusChip: TextView = root.findViewById(R.id.statusChip)
+    private val accountBar: View = root.findViewById(R.id.accountBar)
+    private val accountChips: ChipGroup = root.findViewById(R.id.accountChips)
+    /** 계정 칩을 누르면 그 계정 ID, '계정 추가'를 누르면 null. 액티비티가 정한다. */
+    var onAccountChip: (String?) -> Unit = {}
     private val heroEyebrow: TextView = root.findViewById(R.id.heroEyebrow)
     private val heroDay: TextView = root.findViewById(R.id.heroDay)
     private val heroDayRow: View = root.findViewById(R.id.heroDayRow)
@@ -80,6 +91,7 @@ class MainScreen(val root: View) {
     }
 
     fun render(s: MainUiState) {
+        renderAccounts(s)
         renderChip(s)
 
         // 로그인 전에는 숫자 대신 할 일을 크게 보여 준다.
@@ -133,6 +145,26 @@ class MainScreen(val root: View) {
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+    }
+
+    private fun renderAccounts(s: MainUiState) {
+        accountBar.visibility = if (s.accounts.isEmpty()) View.GONE else View.VISIBLE
+        accountChips.removeAllViews()
+        for (account in s.accounts) {
+            accountChips.addView(Chip(context).apply {
+                // 오늘 출석을 마친 계정은 별 표시로 한눈에 보이게 한다.
+                text = if (account.signedToday) "★ ${account.label}" else account.label
+                isCheckable = true
+                isChecked = account.id == s.currentId
+                isCheckedIconVisible = false
+                setOnClickListener { onAccountChip(account.id) }
+            })
+        }
+        accountChips.addView(Chip(context).apply {
+            text = "+ 계정 추가"
+            isCheckable = false
+            setOnClickListener { onAccountChip(null) }
+        })
     }
 
     private fun renderChip(s: MainUiState) {

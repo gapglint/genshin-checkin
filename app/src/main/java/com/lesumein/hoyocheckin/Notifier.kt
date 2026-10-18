@@ -40,13 +40,14 @@ object Notifier {
 
         val intent = when (outcome) {
             Outcome.LoginExpired -> LoginActivity.loginIntent(context)
-            Outcome.CaptchaRequired, Outcome.NotConfirmed -> LoginActivity.checkInPageIntent(context)
-            else -> Intent(context, MainActivity::class.java)
+            Outcome.CaptchaRequired, Outcome.NotConfirmed -> LoginActivity.checkInPageIntent(context, store.accountId)
+            else -> MainActivity.accountIntent(context, store.accountId)
         }
+        val id = idFor(ID_CHECK_IN, store)
         val pending = PendingIntent.getActivity(
-            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val title = when (outcome) {
+        val title = who(context, store) + when (outcome) {
             is Outcome.Signed -> "원신 출첵 완료"
             Outcome.LoginExpired -> "호요랩 로그인이 필요해요"
             Outcome.CaptchaRequired -> "출첵에 캡차가 필요해요"
@@ -61,7 +62,7 @@ object Notifier {
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(ID_CHECK_IN, notification)
+        NotificationManagerCompat.from(context).notify(id, notification)
         store.lastNotified = key
     }
 
@@ -70,48 +71,56 @@ object Notifier {
     fun notifyMakeUp(context: Context, store: Store, missed: Int) {
         val key = "MakeUp:${Store.checkInDay()}"
         if (key == store.lastMakeUpNotified || !canNotify(context)) return
+        val id = idFor(ID_MAKE_UP, store)
         val pending = PendingIntent.getActivity(
-            context, ID_MAKE_UP, MainActivity.makeUpIntent(context),
+            context, id, MainActivity.makeUpIntent(context, store.accountId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_MAKE_UP)
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle("보충 출석을 할 수 있어요")
+            .setContentTitle(who(context, store) + "보충 출석을 할 수 있어요")
             .setContentText("이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.")
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(ID_MAKE_UP, notification)
+        NotificationManagerCompat.from(context).notify(id, notification)
         store.lastMakeUpNotified = key
     }
 
     /** 리딤 코드를 받았거나, 로그인 문제로 입력하지 못했을 때만 알린다. 같은 내용은 하루 한 번. */
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
-    fun notifyRedeem(context: Context, report: RedeemReport) {
+    fun notifyRedeem(context: Context, store: Store, report: RedeemReport) {
         val (title, text) = when {
             report.redeemed.isNotEmpty() -> "리딤 코드 ${report.redeemed.size}개를 받았어요" to
                 "${report.redeemed.joinToString(", ")} · 게임 우편함에서 받으세요."
             report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
             else -> return
         }
-        val store = Store(context)
         val key = "$title:${Store.checkInDay()}"
         if (key == store.lastRedeemNotified || !canNotify(context)) return
+        val id = idFor(ID_REDEEM, store)
         val pending = PendingIntent.getActivity(
-            context, ID_REDEEM, Intent(context, MainActivity::class.java),
+            context, id, MainActivity.accountIntent(context, store.accountId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_REDEEM)
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(title)
+            .setContentTitle(who(context, store) + title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(ID_REDEEM, notification)
+        NotificationManagerCompat.from(context).notify(id, notification)
         store.lastRedeemNotified = key
     }
+
+    /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */
+    private fun who(context: Context, store: Store) =
+        if (AppSettings(context).accounts().size > 1) "${store.displayName} · " else ""
+
+    /** 계정마다 알림이 서로 덮어쓰지 않도록 종류와 계정으로 ID를 만든다. */
+    private fun idFor(kind: Int, store: Store) = kind * 10_000 + store.notificationSalt
 
     private fun canNotify(context: Context) = Build.VERSION.SDK_INT < 33 ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==

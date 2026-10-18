@@ -1,16 +1,17 @@
 package com.lesumein.hoyocheckin
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import org.json.JSONObject
 import java.time.LocalDate
 
 /**
- * 쿠키와 마지막 실행 결과를 앱 전용 저장소에 둔다.
- * 다른 앱은 읽을 수 없고, 매니페스트에서 백업도 막아 두었다.
+ * 계정 하나의 저장소: 쿠키, 출석 기록, 보충·리딤 상태.
+ * 계정마다 다른 파일(hoyo_acc_<HoYoLAB UID>)에 두고, 다른 앱은 읽을 수 없다. 매니페스트에서 백업도 막아 두었다.
  */
-class Store(context: Context) {
-    private val prefs = context.getSharedPreferences("hoyo", Context.MODE_PRIVATE)
+class Store(private val context: Context, val accountId: String) {
+    private val prefs = context.getSharedPreferences(fileName(accountId), Context.MODE_PRIVATE)
 
     var cookie: String?
         get() = prefs.getString("cookie", null)
@@ -42,15 +43,12 @@ class Store(context: Context) {
         get() = prefs.getInt("signed_total", 0)
         set(value) = prefs.edit { putInt("signed_total", value) }
 
+    val signedToday get() = signedDay == checkInDay().toString()
+
     /** 오늘 받은 출첵 보상 이름. 화면에 보여 준다. */
     var lastReward: String?
         get() = prefs.getString("last_reward", null)
         set(value) = prefs.edit { putString("last_reward", value) }
-
-    /** 보충 출석이 가능할 때 알릴지. 앱 설정에서 끌 수 있다. */
-    var makeUpAlerts: Boolean
-        get() = prefs.getBoolean("make_up_alerts", true)
-        set(value) = prefs.edit { putBoolean("make_up_alerts", value) }
 
     /** 보충 출석이 가능하다고 확인한 날과 그때 놓친 날 수. 화면의 보충 안내에 쓴다. */
     var makeUpDay: String?
@@ -66,42 +64,19 @@ class Store(context: Context) {
         get() = prefs.getString("last_notified", null)
         set(value) = prefs.edit { putString("last_notified", value) }
 
-    /** 서버 시각 - 폰 시각(ms). 앱을 다시 켜도 서버 기준으로 계산하려고 남겨 둔다. */
-    var clockOffset: Long
-        get() = prefs.getLong("clock_offset", 0)
-        set(value) = prefs.edit { putLong("clock_offset", value) }
-
-    /** 다음 자동 출석 예정 시각(서버 기준 ms). 화면 표시용. */
-    var nextRunAt: Long
-        get() = prefs.getLong("next_run_at", 0)
-        set(value) = prefs.edit { putLong("next_run_at", value) }
-
-    /** 리딤 코드 자동 입력. 앱 설정에서 끌 수 있다. */
-    var redeemEnabled: Boolean
-        get() = prefs.getBoolean("redeem_enabled", true)
-        set(value) = prefs.edit { putBoolean("redeem_enabled", value) }
+    var lastMakeUpNotified: String?
+        get() = prefs.getString("last_make_up_notified", null)
+        set(value) = prefs.edit { putString("last_make_up_notified", value) }
 
     /** 리딤 보상을 받을 캐릭터. */
     var redeemRole: GameRole?
         get() = getRole("redeem_role")
         set(value) = putRole("redeem_role", value)
 
-    /** 화면에 닉네임을 보여 줄 대표 캐릭터. 로그인할 때 불러온다. */
+    /** 화면에 닉네임을 보여 줄 대표 캐릭터. */
     var accountRole: GameRole?
         get() = getRole("account_role")
         set(value) = putRole("account_role", value)
-
-    private fun getRole(key: String) = prefs.getString(key, null)?.let {
-        val j = JSONObject(it)
-        GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
-    }
-
-    private fun putRole(key: String, role: GameRole?) = prefs.edit {
-        putString(key, role?.let {
-            JSONObject().put("uid", it.uid).put("region", it.region).put("regionName", it.regionName)
-                .put("nickname", it.nickname).put("level", it.level).toString()
-        })
-    }
 
     /** 한 번 입력해 본 코드. 다시 입력하지 않는다. */
     var redeemTried: Set<String>
@@ -125,21 +100,123 @@ class Store(context: Context) {
         get() = prefs.getString("last_redeem_notified", null)
         set(value) = prefs.edit { putString("last_redeem_notified", value) }
 
-    var lastMakeUpNotified: String?
-        get() = prefs.getString("last_make_up_notified", null)
-        set(value) = prefs.edit { putString("last_make_up_notified", value) }
+    /** 화면·알림에 쓸 이름: 닉네임, 없으면 UID. */
+    val displayName get() = accountRole?.nickname ?: "UID $accountId"
 
-    /** 로그인·기록을 지운다. 사용자가 고른 설정은 남긴다. */
-    fun clear() {
-        val alerts = makeUpAlerts
-        val redeem = redeemEnabled
-        prefs.edit { clear() }
-        makeUpAlerts = alerts
-        redeemEnabled = redeem
+    /** 알림 ID가 계정끼리 겹치지 않게 하는 값. */
+    val notificationSalt get() = (accountId.hashCode() and 0x7fffffff) % 10_000
+
+    private fun getRole(key: String) = prefs.getString(key, null)?.let {
+        val j = JSONObject(it)
+        GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
+    }
+
+    private fun putRole(key: String, role: GameRole?) = prefs.edit {
+        putString(key, role?.let {
+            JSONObject().put("uid", it.uid).put("region", it.region).put("regionName", it.regionName)
+                .put("nickname", it.nickname).put("level", it.level).toString()
+        })
+    }
+
+    /** 이 계정의 모든 기록을 지운다. */
+    fun wipe() {
+        prefs.edit(commit = true) { clear() }
+        context.deleteSharedPreferences(fileName(accountId))
     }
 
     companion object {
+        private fun fileName(id: String) = "hoyo_acc_$id"
+
         /** 서버 기준 출석 날짜. 호요랩 출첵 하루는 UTC+8 자정(한국 시간 새벽 1시)에 바뀐다. */
         fun checkInDay(): LocalDate = ServerClock.today()
+    }
+}
+
+/** 모든 계정이 함께 쓰는 설정과 계정 목록. */
+class AppSettings(private val context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("hoyo", Context.MODE_PRIVATE)
+
+    init {
+        migrateSingleAccount()
+    }
+
+    /** 보충 출석이 가능할 때 알릴지. */
+    var makeUpAlerts: Boolean
+        get() = prefs.getBoolean("make_up_alerts", true)
+        set(value) = prefs.edit { putBoolean("make_up_alerts", value) }
+
+    /** 리딤 코드 자동 입력. */
+    var redeemEnabled: Boolean
+        get() = prefs.getBoolean("redeem_enabled", true)
+        set(value) = prefs.edit { putBoolean("redeem_enabled", value) }
+
+    /** 서버 시각 - 폰 시각(ms). 앱을 다시 켜도 서버 기준으로 계산하려고 남겨 둔다. */
+    var clockOffset: Long
+        get() = prefs.getLong("clock_offset", 0)
+        set(value) = prefs.edit { putLong("clock_offset", value) }
+
+    /** 다음 자동 출석 예정 시각(서버 기준 ms). 화면 표시용. */
+    var nextRunAt: Long
+        get() = prefs.getLong("next_run_at", 0)
+        set(value) = prefs.edit { putLong("next_run_at", value) }
+
+    /** 등록한 계정의 HoYoLAB UID, 추가한 순서대로. */
+    var accountIds: List<String>
+        get() = prefs.getString("account_ids", "")!!.split(",").filter { it.isNotEmpty() }
+        private set(value) = prefs.edit { putString("account_ids", value.joinToString(",")) }
+
+    /** 화면에 보이는 계정. */
+    var currentId: String?
+        get() = prefs.getString("current_account", null)?.takeIf { it in accountIds } ?: accountIds.firstOrNull()
+        set(value) = prefs.edit { putString("current_account", value) }
+
+    /** 로그인 정보가 있는 계정들. */
+    fun accounts(): List<Store> = accountIds.map { Store(context, it) }.filter { it.cookie != null }
+
+    fun current(): Store? = currentId?.let { Store(context, it) }?.takeIf { it.cookie != null }
+
+    fun account(id: String): Store? = id.takeIf { it in accountIds }?.let { Store(context, it) }
+
+    val hasAccounts get() = accounts().isNotEmpty()
+
+    /** 계정을 추가하거나(처음 보는 UID) 다시 로그인한 쿠키로 갱신한다. 그 계정을 화면에 띄운다. */
+    fun saveLogin(id: String, cookie: String): Store {
+        if (id !in accountIds) accountIds = accountIds + id
+        val store = Store(context, id)
+        store.cookie = cookie
+        currentId = id
+        return store
+    }
+
+    fun remove(id: String) {
+        Store(context, id).wipe()
+        accountIds = accountIds - id
+        if (prefs.getString("current_account", null) == id) currentId = accountIds.firstOrNull()
+    }
+
+    /** 계정 하나만 쓰던 예전 버전의 저장소를 첫 번째 계정으로 옮긴다. */
+    private fun migrateSingleAccount() {
+        val oldCookie = prefs.getString("cookie", null) ?: return
+        val id = LoginActivity.uidOf(oldCookie) ?: "account1"
+        val shared = setOf("make_up_alerts", "redeem_enabled", "clock_offset", "next_run_at", "account_ids", "current_account")
+        val target = context.getSharedPreferences("hoyo_acc_$id", Context.MODE_PRIVATE)
+        target.edit(commit = true) {
+            for ((key, value) in prefs.all) {
+                if (key in shared) continue
+                @Suppress("UNCHECKED_CAST")
+                when (value) {
+                    is String -> putString(key, value)
+                    is Int -> putInt(key, value)
+                    is Long -> putLong(key, value)
+                    is Boolean -> putBoolean(key, value)
+                    is Set<*> -> putStringSet(key, value as Set<String>)
+                }
+            }
+        }
+        prefs.edit(commit = true) {
+            for (key in prefs.all.keys) if (key !in shared) remove(key)
+            putString("account_ids", id)
+            putString("current_account", id)
+        }
     }
 }

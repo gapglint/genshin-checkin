@@ -13,7 +13,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.view.View
-import android.webkit.CookieManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -28,8 +27,10 @@ import java.time.ZoneId
 import java.util.Date
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var store: Store
+    private lateinit var settings: AppSettings
     private lateinit var screen: MainScreen
+    /** 지금 화면에 보이는 계정. 없으면 로그인 전 화면. */
+    private val store: Store? get() = settings.current()
     private var busy: String? = null
     private var loadingNickname = false
 
@@ -40,22 +41,32 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
-        store = Store(this)
+        settings = AppSettings(this)
         screen = MainScreen(findViewById(R.id.scroll))
         applySystemBarInsets(findViewById(R.id.content))
 
+        screen.onAccountChip = { id ->
+            if (id == null) {
+                startActivity(LoginActivity.loginIntent(this))
+            } else {
+                settings.currentId = id
+                refresh()
+            }
+        }
         screen.primaryButton.setOnClickListener {
-            if (store.cookie == null) startActivity(LoginActivity.loginIntent(this)) else checkInNow()
+            if (store == null) startActivity(LoginActivity.loginIntent(this)) else checkInNow()
         }
         screen.makeUpButton.setOnClickListener { makeUpNow() }
         screen.rowMakeUpAlerts.setOnClickListener { screen.makeUpSwitch.toggle() }
-        screen.makeUpSwitch.setOnCheckedChangeListener { _, checked -> store.makeUpAlerts = checked }
-        screen.rowOpenPage.setOnClickListener { startActivity(LoginActivity.checkInPageIntent(this)) }
-        screen.rowAccount.setOnClickListener { startActivity(LoginActivity.loginIntent(this)) }
+        screen.makeUpSwitch.setOnCheckedChangeListener { _, checked -> settings.makeUpAlerts = checked }
+        screen.rowOpenPage.setOnClickListener {
+            store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) }
+        }
+        screen.rowAccount.setOnClickListener { checkLogin() }
         screen.rowLogout.setOnClickListener { confirmLogout() }
         screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
         screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }
-        screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> store.redeemEnabled = checked }
+        screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> settings.redeemEnabled = checked }
         screen.rowRedeemRole.setOnClickListener { chooseRedeemRole() }
         screen.rowRedeemNow.setOnClickListener { redeemNow() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
@@ -64,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         // 앱 업데이트 등으로 예약이 사라졌어도 다시 건다. 이미 있으면 그대로 둔다.
-        if (store.cookie != null) CheckIn.schedule(this)
+        if (settings.hasAccounts) CheckIn.schedule(this)
         handleIntent(intent)
     }
 
@@ -76,19 +87,22 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
-        if (store.cookie != null) DailyAlarm.schedule(this)
+        if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
-        loadNicknameIfMissing()
+        loadNicknamesIfMissing()
     }
 
-    /** 닉네임을 아직 모르면 조용히 불러온다(화면을 막지 않는다). */
-    private fun loadNicknameIfMissing() {
-        if (store.cookie == null || store.accountRole != null || loadingNickname) return
+    /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */
+    private fun loadNicknamesIfMissing() {
+        val missing = settings.accounts().filter { it.accountRole == null }
+        if (missing.isEmpty() || loadingNickname) return
         loadingNickname = true
         Thread {
-            try {
-                Redeem.refreshAccount(this)
-            } catch (e: Exception) {
+            for (account in missing) {
+                try {
+                    Redeem.refreshAccount(account)
+                } catch (e: Exception) {
+                }
             }
             runOnUiThread {
                 loadingNickname = false
@@ -97,8 +111,12 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    /** 보충 출석 알림을 눌러 들어왔으면 바로 보충한다. */
+    /** 알림을 눌러 들어왔으면 그 계정을 띄우고, 보충 출석 알림이면 바로 보충한다. */
     private fun handleIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_ACCOUNT)?.let {
+            settings.currentId = it
+            intent.removeExtra(EXTRA_ACCOUNT)
+        }
         if (intent?.getBooleanExtra(EXTRA_MAKE_UP, false) == true) {
             intent.removeExtra(EXTRA_MAKE_UP)
             makeUpNow()
@@ -106,39 +124,64 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refresh() {
-        val cookie = store.cookie
+        val store = store
         val today = Store.checkInDay()
-        val signedToday = store.signedDay == today.toString()
+        val signedToday = store?.signedToday == true
         // 지난달 기록이면 이번 달 누적은 0부터 다시 센다.
-        val sameMonth = store.signedDay?.startsWith(today.toString().substring(0, 7)) == true
+        val sameMonth = store?.signedDay?.startsWith(today.toString().substring(0, 7)) == true
         screen.render(
             MainUiState(
-                loggedIn = cookie != null,
-                uid = cookie?.let { LoginActivity.uidOf(it) },
-                nickname = store.accountRole?.nickname,
-                server = store.accountRole?.serverName,
+                loggedIn = store != null,
+                accounts = settings.accounts().map { AccountChip(it.accountId, it.displayName, it.signedToday) },
+                currentId = store?.accountId,
+                uid = store?.accountId,
+                nickname = store?.accountRole?.nickname,
+                server = store?.accountRole?.serverName,
                 signedToday = signedToday,
-                totalDays = if (sameMonth) store.signedTotal else 0,
+                totalDays = if (sameMonth) store?.signedTotal ?: 0 else 0,
                 month = today.monthValue,
-                reward = if (signedToday) store.lastReward else null,
-                lastChecked = store.lastRunAt.takeIf { it > 0 }
+                reward = if (signedToday) store?.lastReward else null,
+                lastChecked = store?.lastRunAt?.takeIf { it > 0 }
                     ?.let { DateFormat.format("M월 d일 HH:mm", Date(it)).toString() },
-                nextRun = store.nextRunAt.takeIf { cookie != null && it > 0 }?.let { describeNextRun(it) },
+                nextRun = settings.nextRunAt.takeIf { store != null && it > 0 }?.let { describeNextRun(it) },
                 needsExactAlarm = !DailyAlarm.canRunExactly(this),
                 needsBatteryExemption = !getSystemService(PowerManager::class.java)
                     .isIgnoringBatteryOptimizations(packageName),
-                note = store.lastProblem.takeIf { !signedToday && store.lastProblemDay == today.toString() },
-                makeUpMissed = store.makeUpMissed.takeIf { store.makeUpDay == today.toString() },
-                makeUpAlerts = store.makeUpAlerts,
-                redeemEnabled = store.redeemEnabled,
-                redeemRole = store.redeemRole?.label(),
-                redeemSummary = store.lastRedeemSummary?.let { summary ->
+                note = store?.lastProblem?.takeIf { !signedToday && store.lastProblemDay == today.toString() },
+                makeUpMissed = store?.makeUpMissed?.takeIf { store.makeUpDay == today.toString() },
+                makeUpAlerts = settings.makeUpAlerts,
+                redeemEnabled = settings.redeemEnabled,
+                redeemRole = store?.redeemRole?.label(),
+                redeemSummary = store?.lastRedeemSummary?.let { summary ->
                     val at = DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt))
                     "$at · $summary"
                 },
                 busy = busy,
             )
         )
+    }
+
+    /** 고른 계정의 로그인이 아직 유효한지 호요랩에 물어보고 알려 준다. 풀렸으면 다시 로그인하게 한다. */
+    private fun checkLogin() {
+        val store = store ?: return
+        runInBackground("로그인 확인 중...") {
+            val valid = CheckInClient(store.cookie ?: return@runInBackground null).isLoggedIn()
+            runOnUiThread {
+                val who = store.accountRole?.let { "${it.nickname} (${it.serverName})\n" } ?: ""
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(if (valid) "로그인돼 있어요" else "로그인이 풀렸어요")
+                    .setMessage(
+                        if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요."
+                        else "${who}HoYoLAB UID ${store.accountId} 계정을 다시 로그인해 주세요."
+                    )
+                    .setPositiveButton(if (valid) "확인" else "다시 로그인") { _, _ ->
+                        if (!valid) startActivity(LoginActivity.loginIntent(this))
+                    }
+                    .apply { if (valid) setNeutralButton("다시 로그인") { _, _ -> startActivity(LoginActivity.loginIntent(this@MainActivity)) } }
+                    .show()
+            }
+            null
+        }
     }
 
     /**
@@ -173,13 +216,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 이 계정의 서버별 캐릭터를 불러와 리딤 보상을 받을 캐릭터를 고르게 한다. */
-    private fun chooseRedeemRole() = runInBackground("캐릭터 불러오는 중...") {
-        val roles = Redeem.roles(CheckInClient(store.cookie ?: return@runInBackground null))
-        runOnUiThread { showRoleChoice(roles) }
-        null
+    private fun chooseRedeemRole() {
+        val store = store ?: return
+        runInBackground("캐릭터 불러오는 중...") {
+            val roles = Redeem.roles(CheckInClient(store.cookie ?: return@runInBackground null))
+            runOnUiThread { showRoleChoice(store, roles) }
+            null
+        }
     }
 
-    private fun showRoleChoice(roles: List<GameRole>) {
+    private fun showRoleChoice(store: Store, roles: List<GameRole>) {
         if (roles.isEmpty()) {
             MaterialAlertDialogBuilder(this)
                 .setTitle("캐릭터가 없어요")
@@ -201,8 +247,13 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun redeemNow() = runInBackground("리딤 코드 확인 중...") {
-        val report = Redeem.run(this)
+    private fun redeemNow() {
+        val store = store ?: return
+        runInBackground("리딤 코드 확인 중...") { redeemFor(store) }
+    }
+
+    private fun redeemFor(store: Store): String? {
+        val report = Redeem.run(store)
         runOnUiThread {
             MaterialAlertDialogBuilder(this)
                 .setTitle(if (report.redeemed.isNotEmpty()) "리딤 코드 ${report.redeemed.size}개를 받았어요" else "리딤 코드")
@@ -210,17 +261,21 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("확인", null)
                 .show()
         }
-        null
+        return null
     }
 
-    private fun checkInNow() = runInBackground("출석하는 중...") {
-        CheckIn.run(this)?.let { CheckIn.describe(it) }
+    private fun checkInNow() {
+        val store = store ?: return
+        runInBackground("출석하는 중...") { CheckIn.run(this, store)?.let { CheckIn.describe(it) } }
     }
 
-    private fun makeUpNow() = runInBackground("보충 출석 중...") {
-        val result = MakeUp.perform(this)
-        runOnUiThread { showMakeUpResult(result) }
-        null
+    private fun makeUpNow() {
+        val store = store ?: return
+        runInBackground("보충 출석 중...") {
+            val result = MakeUp.perform(store)
+            runOnUiThread { showMakeUpResult(result) }
+            null
+        }
     }
 
     /** 네트워크 작업을 백그라운드에서 돌리는 동안 버튼을 막고 진행 안내를 보여 준다. 반환한 문장은 토스트로. */
@@ -257,14 +312,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmLogout() {
+        val store = store ?: return
         MaterialAlertDialogBuilder(this)
-            .setTitle("로그아웃할까요?")
-            .setMessage("저장된 로그인을 지우고 자동 출석을 멈춰요. 다시 쓰려면 로그인하면 돼요.")
+            .setTitle("${store.displayName} 계정을 로그아웃할까요?")
+            .setMessage("이 계정의 로그인과 기록을 지우고 이 계정은 자동 출석을 멈춰요. 다른 계정은 그대로예요.")
             .setPositiveButton("로그아웃") { _, _ ->
-                CheckIn.cancel(this)
-                store.clear()
-                CookieManager.getInstance().removeAllCookies(null)
-                CookieManager.getInstance().flush()
+                settings.remove(store.accountId)
+                if (!settings.hasAccounts) CheckIn.cancel(this)
                 refresh()
             }
             .setNegativeButton("취소", null)
@@ -273,10 +327,15 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_MAKE_UP = "make_up"
+        private const val EXTRA_ACCOUNT = "account"
 
-        fun makeUpIntent(context: Context) = Intent(context, MainActivity::class.java)
-            .putExtra(EXTRA_MAKE_UP, true)
+        /** 그 계정을 띄워 앱을 연다(알림용). */
+        fun accountIntent(context: Context, accountId: String) = Intent(context, MainActivity::class.java)
+            .putExtra(EXTRA_ACCOUNT, accountId)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
+        fun makeUpIntent(context: Context, accountId: String) = accountIntent(context, accountId)
+            .putExtra(EXTRA_MAKE_UP, true)
 
         /** 화면을 시스템 바 아래까지 그리고, 내용은 상태 바·내비게이션 바를 피하게 한다. */
         fun applySystemBarInsets(view: View) {

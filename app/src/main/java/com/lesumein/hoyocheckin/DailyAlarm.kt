@@ -32,14 +32,14 @@ object DailyAlarm {
             // 정확한 알람 권한이 없으면 절전 중에도 울리되 시스템이 몇 분 늦출 수 있다.
             alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pendingIntent(context))
         }
-        val store = Store(context)
-        store.nextRunAt = runAt
-        if (ServerClock.offsetMs != 0L) store.clockOffset = ServerClock.offsetMs
+        val settings = AppSettings(context)
+        settings.nextRunAt = runAt
+        if (ServerClock.offsetMs != 0L) settings.clockOffset = ServerClock.offsetMs
     }
 
     fun cancel(context: Context) {
         context.getSystemService(AlarmManager::class.java).cancel(pendingIntent(context))
-        Store(context).nextRunAt = 0
+        AppSettings(context).nextRunAt = 0
     }
 
     /** 정확한 시각에 울릴 수 있는지. Android 12부터는 사용자가 '알람 및 리마인더'를 허용해야 한다. */
@@ -54,13 +54,24 @@ object DailyAlarm {
 
 /** 알람이 울리면 바로 출석하고 다음 날 알람을 건다. 네트워크가 안 되면 연결될 때 다시 시도한다. */
 class DailyAlarmReceiver : BroadcastReceiver() {
+    private companion object {
+        const val MAX_INLINE_ACCOUNTS = 3
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext
-        if (Store(app).cookie == null) return
+        val count = AppSettings(app).accounts().size
+        if (count == 0) return
+        // 알람 처리에는 1분 정도의 시간 제한이 있다. 계정이 많으면 작업 예약으로 넘겨 시간 제한 없이 돌린다.
+        if (count > MAX_INLINE_ACCOUNTS) {
+            CheckIn.retrySoon(app)
+            DailyAlarm.schedule(app)
+            return
+        }
         val pending = goAsync()
         Thread {
             try {
-                if (CheckIn.run(app) is Outcome.RateLimited) CheckIn.retrySoon(app)
+                if (CheckIn.runAll(app).any { it is Outcome.RateLimited }) CheckIn.retrySoon(app)
             } catch (e: IOException) {
                 CheckIn.retrySoon(app)
             } finally {
@@ -74,6 +85,6 @@ class DailyAlarmReceiver : BroadcastReceiver() {
 /** 재부팅·앱 업데이트·정확한 알람 권한 변경 뒤에는 알람이 사라지거나 바뀌므로 다시 건다. */
 class RescheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (Store(context).cookie != null) CheckIn.schedule(context)
+        if (AppSettings(context).hasAccounts) CheckIn.schedule(context)
     }
 }
