@@ -15,6 +15,7 @@ object Notifier {
     private const val CHANNEL = "checkin"
     private const val CHANNEL_MAKE_UP = "make_up"
     private const val CHANNEL_REDEEM = "redeem"
+    private const val CHANNEL_QUIET = "quiet_night"
     private const val ID_REDEEM = 3
     private const val ID_CHECK_IN = 1
     private const val ID_MAKE_UP = 2
@@ -24,6 +25,13 @@ object Notifier {
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "출첵 결과", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_MAKE_UP, "보충 출석", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_REDEEM, "리딤 코드", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_QUIET, "밤 알림(소리 없음)", NotificationManager.IMPORTANCE_LOW))
+    }
+
+    /** 밤에 조용히가 켜져 있고 지금이 밤(폰 시각 오후 10시~오전 8시)이면 소리 없는 채널, 아니면 원래 채널. */
+    private fun channel(context: Context, normal: String): String {
+        val hour = java.time.LocalTime.now().hour
+        return if (AppSettings(context).quietNight && (hour >= 22 || hour < 8)) CHANNEL_QUIET else normal
     }
 
     /** 이미 출첵한 경우는 조용히 넘어가고, 나머지는 같은 날 같은 종류를 한 번만 알린다. */
@@ -31,6 +39,8 @@ object Notifier {
     fun notify(context: Context, store: Store, outcome: Outcome) {
         // 이미 출첵했거나 잠깐의 속도 제한은 알릴 필요가 없다.
         if (outcome is Outcome.AlreadySigned || outcome is Outcome.RateLimited) return
+        // 출석 완료 알림은 끌 수 있다. 문제(로그인·캡차 등)는 항상 알린다.
+        if (outcome is Outcome.Signed && !AppSettings(context).notifyCheckIn) return
         val key = "${outcome::class.simpleName}:${Store.checkInDay()}"
         if (key == store.lastNotified) return
 
@@ -52,7 +62,7 @@ object Notifier {
             Outcome.NotConfirmed -> "출석이 반영되지 않았어요"
             else -> "원신 출첵 실패"
         }
-        val notification = Notification.Builder(context, CHANNEL)
+        val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
             .setContentText(CheckIn.describe(outcome))
@@ -74,7 +84,7 @@ object Notifier {
             context, id, MainActivity.makeUpIntent(context, store.accountId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = Notification.Builder(context, CHANNEL_MAKE_UP)
+        val notification = Notification.Builder(context, channel(context, CHANNEL_MAKE_UP))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + "보충 출석을 할 수 있어요")
             .setContentText("이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.")
@@ -89,6 +99,7 @@ object Notifier {
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
     fun notifyRedeem(context: Context, store: Store, report: RedeemReport) {
         val (title, text) = when {
+            report.redeemed.isNotEmpty() && !AppSettings(context).notifyRedeem -> return
             report.redeemed.isNotEmpty() -> "리딤 코드 ${report.redeemed.size}개를 받았어요" to
                 "${report.redeemed.joinToString(", ")} · 게임 우편함에서 받으세요."
             report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
@@ -101,7 +112,7 @@ object Notifier {
             context, id, MainActivity.accountIntent(context, store.accountId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = Notification.Builder(context, CHANNEL_REDEEM)
+        val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + title)
             .setContentText(text)

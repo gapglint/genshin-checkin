@@ -26,6 +26,9 @@ class AppDialog(private val activity: Activity) {
     private var items: Array<String>? = null
     private var checkedItem = -1
     private var onItem: ((DialogInterface, Int) -> Unit)? = null
+    private var multiItems: Array<String>? = null
+    private var multiChecked: BooleanArray? = null
+    private var footer: String? = null
     // 버튼은 왼쪽부터 중립, 취소, 확인 순서로 놓인다.
     private var neutral: Pair<String, (() -> Unit)?>? = null
     private var negative: Pair<String, (() -> Unit)?>? = null
@@ -45,6 +48,15 @@ class AppDialog(private val activity: Activity) {
         checkedItem = checked
         onItem = action
     }
+
+    /** 여러 개를 켜고 끄는 목록. checked 배열을 직접 바꾸므로, 확인 버튼에서 그 배열을 읽으면 된다. */
+    fun setMultiChoiceItems(list: Array<String>, checked: BooleanArray) = apply {
+        multiItems = list
+        multiChecked = checked
+    }
+
+    /** 목록 아래의 작은 안내문. */
+    fun setFooter(text: String) = apply { footer = text }
 
     fun show(): Dialog {
         val context = activity
@@ -89,6 +101,32 @@ class AppDialog(private val activity: Activity) {
                 })
             }
             body.addView(ScrollView(context).apply { addView(group) }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f))
+        }
+
+        multiItems?.let { list ->
+            val checked = multiChecked ?: BooleanArray(list.size)
+            val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            list.forEachIndexed { index, label ->
+                group.addView(android.widget.CheckBox(context).apply {
+                    text = label
+                    isChecked = checked[index]
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                    setTextColor(color(R.color.ink))
+                    buttonTintList = android.content.res.ColorStateList.valueOf(color(R.color.action))
+                    minHeight = dp(48f)
+                    setPadding(dp(8f), dp(8f), 0, dp(8f))
+                    setOnCheckedChangeListener { _, on -> checked[index] = on }
+                })
+            }
+            body.addView(ScrollView(context).apply { addView(group) }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f))
+        }
+        footer?.let {
+            body.addView(TextView(context).apply {
+                text = it
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(color(R.color.ink_muted))
+                setPadding(0, dp(8f), 0, 0)
+            })
         }
 
         val row = LinearLayout(context).apply {

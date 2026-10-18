@@ -185,6 +185,21 @@ class AppSettings(private val context: Context) {
         get() = prefs.getBoolean("make_up_alerts", true)
         set(value) = prefs.edit { putBoolean("make_up_alerts", value) }
 
+    /** 매일 출석했을 때 알릴지(로그인·캡차 같은 문제는 이 설정과 관계없이 알린다). */
+    var notifyCheckIn: Boolean
+        get() = prefs.getBoolean("notify_check_in", true)
+        set(value) = prefs.edit { putBoolean("notify_check_in", value) }
+
+    /** 리딤 코드를 받았을 때 알릴지. */
+    var notifyRedeem: Boolean
+        get() = prefs.getBoolean("notify_redeem", true)
+        set(value) = prefs.edit { putBoolean("notify_redeem", value) }
+
+    /** 밤(오후 10시~오전 8시, 폰 시각)에는 소리·진동 없이 알림만 남길지. */
+    var quietNight: Boolean
+        get() = prefs.getBoolean("quiet_night", true)
+        set(value) = prefs.edit { putBoolean("quiet_night", value) }
+
     /** 리딤 코드 자동 입력. */
     var redeemEnabled: Boolean
         get() = prefs.getBoolean("redeem_enabled", true)

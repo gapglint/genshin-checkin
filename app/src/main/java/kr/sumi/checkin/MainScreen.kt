@@ -30,7 +30,8 @@ data class MainUiState(
     val note: String? = null,
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
     val makeUpMissed: Int? = null,
-    val makeUpAlerts: Boolean = true,
+    /** 알림 설정 요약, 예: "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이". */
+    val notificationsSummary: String = "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이",
     val redeemEnabled: Boolean = true,
     /** 리딤 보상을 받을 캐릭터 설명. 아직 안 골랐으면 null. */
     val redeemRole: String? = null,
@@ -67,8 +68,8 @@ class MainScreen(val root: View) {
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
     private val makeUpText: TextView = root.findViewById(R.id.makeUpText)
     val makeUpButton: Button = root.findViewById(R.id.makeUpButton)
-    val makeUpSwitch: StarSwitch = root.findViewById(R.id.makeUpSwitch)
-    val rowMakeUpAlerts: View = root.findViewById(R.id.rowMakeUpAlerts)
+    val rowNotifications: View = root.findViewById(R.id.rowNotifications)
+    private val notificationsSub: TextView = root.findViewById(R.id.notificationsSub)
     val rowOpenPage: View = root.findViewById(R.id.rowOpenPage)
     val rowHistory: View = root.findViewById(R.id.rowHistory)
     private val historySub: TextView = root.findViewById(R.id.historySub)
@@ -140,7 +141,7 @@ class MainScreen(val root: View) {
         makeUpText.text = "이번 달에 놓친 날 ${s.makeUpMissed ?: 0}일을 보충권으로 채워요"
         makeUpButton.isEnabled = s.busy == null
 
-        makeUpSwitch.isChecked = s.makeUpAlerts
+        notificationsSub.text = s.notificationsSummary
         redeemSwitch.isChecked = s.redeemEnabled
         redeemRoleSub.text = s.redeemRole ?: if (s.loggedIn) "눌러서 골라 주세요" else "로그인하면 고를 수 있어요"
         redeemRoleSub.setTextColor(context.getColor(if (s.redeemRole == null && s.loggedIn) R.color.accent else R.color.ink_muted))

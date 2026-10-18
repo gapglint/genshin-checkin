@@ -556,7 +556,7 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/rowMakeUpAlerts"
+                android:id="@+id/rowNotifications"
                 style="@style/Row">
 
                 <LinearLayout
@@ -569,21 +569,21 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="보충 출석 알림" />
+                        android:text="알림" />
 
                     <TextView
+                        android:id="@+id/notificationsSub"
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="놓친 날을 채울 수 있으면 알려 드려요. 알림을 누르면 바로 보충해요." />
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
 
-                <kr.sumi.checkin.StarSwitch
-                    android:id="@+id/makeUpSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp" />
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_chevron" />
             </LinearLayout>
 
             <LinearLayout

@@ -53,8 +53,7 @@ class MainActivity : Activity() {
             if (store == null) startActivity(LoginActivity.loginIntent(this)) else checkInNow()
         }
         screen.makeUpButton.setOnClickListener { makeUpNow() }
-        screen.rowMakeUpAlerts.setOnClickListener { screen.makeUpSwitch.toggle() }
-        screen.makeUpSwitch.setOnCheckedChangeListener { _, checked -> settings.makeUpAlerts = checked }
+        screen.rowNotifications.setOnClickListener { chooseNotifications() }
         screen.rowOpenPage.setOnClickListener {
             store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) }
         }
@@ -150,7 +149,7 @@ class MainActivity : Activity() {
                     .isIgnoringBatteryOptimizations(packageName),
                 note = store?.lastProblem?.takeIf { !signedToday && store.lastProblemDay == today.toString() },
                 makeUpMissed = store?.makeUpMissed?.takeIf { store.makeUpDay == today.toString() },
-                makeUpAlerts = settings.makeUpAlerts,
+                notificationsSummary = notificationsSummary(),
                 redeemEnabled = settings.redeemEnabled,
                 redeemRole = store?.redeemRole?.label(),
                 redeemSummary = store?.lastRedeemSummary?.let { summary ->
@@ -294,6 +293,39 @@ class MainActivity : Activity() {
     private fun checkInNow() {
         val store = store ?: return
         runInBackground("출석하는 중...") { CheckIn.run(this, store)?.let { CheckIn.describe(it) } }
+    }
+
+    /** 알림 종류를 고른다. 로그인·캡차 같은 문제는 항상 알린다. */
+    private fun chooseNotifications() {
+        val checked = booleanArrayOf(settings.notifyCheckIn, settings.makeUpAlerts, settings.notifyRedeem, settings.quietNight)
+        AppDialog(this)
+            .setTitle("알림")
+            .setMultiChoiceItems(arrayOf(
+                "매일 출석했을 때",
+                "보충 출석을 할 수 있을 때",
+                "리딤 코드를 받았을 때",
+                "밤(오후 10시~오전 8시)에는 소리·진동 없이",
+            ), checked)
+            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요.")
+            .setNegativeButton("취소")
+            .setPositiveButton("저장") {
+                settings.notifyCheckIn = checked[0]
+                settings.makeUpAlerts = checked[1]
+                settings.notifyRedeem = checked[2]
+                settings.quietNight = checked[3]
+                refresh()
+            }
+            .show()
+    }
+
+    private fun notificationsSummary(): String {
+        val kinds = listOfNotNull(
+            "출석 완료".takeIf { settings.notifyCheckIn },
+            "보충 출석".takeIf { settings.makeUpAlerts },
+            "리딤 코드".takeIf { settings.notifyRedeem },
+        )
+        val what = if (kinds.isEmpty()) "문제가 있을 때만" else kinds.joinToString(" · ")
+        return if (settings.quietNight) "$what · 밤에는 소리 없이" else what
     }
 
     private fun makeUpNow() {

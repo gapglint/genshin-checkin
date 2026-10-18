@@ -64,11 +64,10 @@ class RewardHistoryScreen(private val context: Context) {
         list.removeAllViews()
         list.addView(monthCard(s), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
 
-        val allRedeem = RewardHistory.totals(s.codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) })
-        list.addView(sectionLabel("리딤 코드", RewardHistory.formatTotals(allRedeem, max = 2)?.let { "모두 $it" }))
+        list.addView(sectionLabel("리딤 코드"))
         list.addView(group(
             if (s.codes.isEmpty()) listOf(row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요", null, muted = true))
-            else s.codes.map {
+            else listOf(redeemTotals(s.codes)) + s.codes.map {
                 val reward = it.reward?.let { raw -> RewardHistory.formatTotals(Redeem.rewardItems(raw), max = 4) }
                 row(
                     R.drawable.ic_item_gift, it.code, DateFormat.format("M월 d일", Date(it.at)).toString(),
@@ -133,6 +132,55 @@ class RewardHistoryScreen(private val context: Context) {
             }, FrameLayout.LayoutParams(dp(150), dp(150), Gravity.END or Gravity.TOP).apply { topMargin = -dp(30); marginEnd = -dp(30) })
             addView(card)
         }
+    }
+
+    /** 이 앱으로 받은 리딤 보상 합계: 원석·모라·코드 수를 아이콘과 큰 숫자로. */
+    private fun redeemTotals(codes: List<RedeemedCode>): View {
+        val totals = RewardHistory.totals(codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) })
+        fun amount(name: String) = "%,d".format(totals.firstOrNull { it.first == name }?.second ?: 0)
+        val unknown = codes.count { it.reward == null }
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(12))
+            addView(TextView(context).apply {
+                text = "이 앱으로 받은 리딤 보상"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(context.getColor(R.color.ink_muted))
+            })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(total(R.drawable.ic_item_primogem, amount("원석"), "원석"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_mora, amount("모라"), "모라"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_gift, "${codes.size}", "코드"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
+            if (unknown > 0) addView(TextView(context).apply {
+                text = "보상을 모르는 코드 ${unknown}개는 합계에서 빠졌어요"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(context.getColor(R.color.ink_muted))
+                setPadding(0, dp(8), 0, 0)
+            })
+        }
+    }
+
+    private fun total(icon: Int, value: String, label: String) = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        addView(ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(8) })
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(context).apply {
+                text = value
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(context.getColor(R.color.ink))
+                fontFeatureSettings = "tnum"
+            })
+            addView(TextView(context).apply {
+                text = label
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(context.getColor(R.color.ink_muted))
+            })
+        })
     }
 
     private fun stat(icon: Int, label: String, value: String, gold: Boolean) = LinearLayout(context).apply {
