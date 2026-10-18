@@ -50,9 +50,14 @@ object Redeem {
     private const val BBS = "https://bbs-api-os.hoyolab.com"
     private const val GAME_BIZ = "hk4e_global"
     private const val CODE_GAP_MS = 6_000L
-    /** 이보다 오래된 커뮤니티 글은 보지 않는다. 코드는 보통 며칠~몇 주면 만료된다. */
-    private const val POST_MAX_AGE_SEC = 14L * 24 * 3600
-    private const val MAX_POSTS = 6
+    /**
+     * 이보다 오래된 커뮤니티 글은 보지 않는다. 코드는 며칠에서 몇 달까지 유효해서 넉넉히 잡는다.
+     * 만료된 코드는 한 번 입력해 보고 기억하므로 다시 시도하지 않는다.
+     */
+    private const val POST_MAX_AGE_SEC = 90L * 24 * 3600
+    private const val MAX_POSTS = 20
+    /** 이미 읽은 글은 다시 열지 않는다. 다만 막 올라온 글은 코드가 추가될 수 있어 이 기간 동안은 다시 본다. */
+    private const val POST_RECHECK_SEC = 2L * 24 * 3600
     private val CODE_IN_LINK = Regex("""gift\?code=([A-Za-z0-9]{6,20})""")
     private val BBS_HEADERS = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to "ko-kr")
 
@@ -70,7 +75,7 @@ object Redeem {
             ?: return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
 
         val tried = store.redeemTried
-        val codes = findCodes(client).filter { it !in tried }
+        val codes = findCodes(client, store).filter { it !in tried }
         val attempts = mutableListOf<RedeemAttempt>()
         var stop: String? = null
         for (code in codes) {
@@ -110,7 +115,7 @@ object Redeem {
     }
 
     /** 공식 목록 + 최근 커뮤니티 글에서 코드를 모은다. 한쪽이 실패해도 다른 쪽은 쓴다. */
-    private fun findCodes(client: CheckInClient): List<String> {
+    private fun findCodes(client: CheckInClient, store: Store): List<String> {
         val codes = linkedSetOf<String>()
         try {
             codes += parseOfficialCodes(client.get("$BBS/community/painter/wapi/circle/channel/guide/material?game_id=2", BBS_HEADERS))
@@ -119,10 +124,15 @@ object Redeem {
         try {
             val keyword = URLEncoder.encode("리딤코드", "UTF-8")
             val search = client.get("$BBS/community/search/wapi/search/post?keyword=$keyword&size=20&game_id=2", BBS_HEADERS)
-            val since = ServerClock.now() / 1000 - POST_MAX_AGE_SEC
-            for (postId in recentPostIds(search, since).take(MAX_POSTS)) {
+            val nowSec = ServerClock.now() / 1000
+            val fresh = recentPostIds(search, nowSec - POST_RECHECK_SEC).toSet()
+            val scanned = store.redeemScannedPosts
+            val toRead = recentPostIds(search, nowSec - POST_MAX_AGE_SEC).take(MAX_POSTS)
+                .filter { it !in scanned || it in fresh }
+            for (postId in toRead) {
                 Thread.sleep(CheckInClient.REQUEST_GAP_MS)
                 codes += parseCodesInPost(client.get("$BBS/community/post/wapi/getPostFull?post_id=$postId", BBS_HEADERS))
+                store.redeemScannedPosts = store.redeemScannedPosts + postId
             }
         } catch (e: Exception) {
         }

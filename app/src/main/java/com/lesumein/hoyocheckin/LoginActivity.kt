@@ -171,6 +171,7 @@ class LoginActivity : AppCompatActivity() {
             store.accountRole = null
             store.redeemRole = null
             store.redeemTried = emptySet()
+            store.redeemScannedPosts = emptySet()
         }
         store.cookie = cookie
         CheckIn.schedule(this, restart = !alreadyLoggedIn)

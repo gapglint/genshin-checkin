@@ -108,6 +108,11 @@ class Store(context: Context) {
         get() = prefs.getStringSet("redeem_tried", emptySet())!!.toSet()
         set(value) = prefs.edit { putStringSet("redeem_tried", value) }
 
+    /** 이미 코드를 찾아본 커뮤니티 글 ID. */
+    var redeemScannedPosts: Set<String>
+        get() = prefs.getStringSet("redeem_scanned_posts", emptySet())!!.toSet()
+        set(value) = prefs.edit { putStringSet("redeem_scanned_posts", value) }
+
     var lastRedeemAt: Long
         get() = prefs.getLong("last_redeem_at", 0)
         set(value) = prefs.edit { putLong("last_redeem_at", value) }
