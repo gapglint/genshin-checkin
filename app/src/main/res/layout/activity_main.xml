@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/loginStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lastResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:lineSpacingExtra="4dp"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/loginButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="호요랩 로그인" />
+
+        <Button
+            android:id="@+id/checkInButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="지금 출첵" />
+
+        <Button
+            android:id="@+id/openPageButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="출첵 페이지 열기 (직접 누르기)" />
+
+        <Button
+            android:id="@+id/logoutButton"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="로그아웃 (저장된 쿠키 삭제)" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:alpha="0.7"
+            android:lineSpacingExtra="3dp"
+            android:text="로그인은 한 번만 하면 됩니다. 앱이 6시간마다 출첵 여부를 확인하고, 안 했으면 대신 출첵합니다. 로그인이 풀리거나 호요랩이 캡차를 요구하면 알림으로 알려드려요."
+            android:textSize="13sp" />
+    </LinearLayout>
+</ScrollView>
