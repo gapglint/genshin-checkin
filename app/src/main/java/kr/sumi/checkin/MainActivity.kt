@@ -62,8 +62,9 @@ class MainActivity : Activity() {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
         }
         screen.rowLogout.setOnClickListener { confirmLogout() }
-        screen.privacyLink.paintFlags = screen.privacyLink.paintFlags or Paint.UNDERLINE_TEXT_FLAG
-        screen.privacyLink.setOnClickListener { openPrivacyPolicy() }
+        for (link in listOf(screen.privacyLink, screen.sourceLink)) link.paintFlags = link.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        screen.privacyLink.setOnClickListener { openWeb(PRIVACY_URL) }
+        screen.sourceLink.setOnClickListener { openWeb(SOURCE_URL) }
         screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
         screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }
         screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> settings.redeemEnabled = checked }
@@ -218,11 +219,11 @@ class MainActivity : Activity() {
         return "%s %02d:%02d".format(day, at.hour, at.minute)
     }
 
-    private fun openPrivacyPolicy() {
+    private fun openWeb(url: String) {
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, PRIVACY_URL, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, url, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -391,6 +392,7 @@ class MainActivity : Activity() {
         private const val EXTRA_MAKE_UP = "make_up"
         private const val EXTRA_ACCOUNT = "account"
         private const val PRIVACY_URL = "https://apps.sumi.kr/checkin/privacy/"
+        private const val SOURCE_URL = "https://github.com/lesumein/genshin-checkin"
 
         /** 그 계정을 띄워 앱을 연다(알림용). */
         fun accountIntent(context: Context, accountId: String) = Intent(context, MainActivity::class.java)
