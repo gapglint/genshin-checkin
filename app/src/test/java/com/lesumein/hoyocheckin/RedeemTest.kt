@@ -73,3 +73,17 @@ class RedeemTest {
         assertEquals(RedeemStatus.TOO_FAST, Redeem.statusOf(-2016))
     }
 }
+
+class RewardHistoryTest {
+    @Test fun parsesAwardHistory() {
+        val json = JSONObject("""{"retcode":0,"data":{"total":2,"list":[
+            {"id":"1","name":"원석","cnt":20,"created_at":"2026-10-18 01:02:03"},
+            {"id":"2","name":"모라","cnt":5000,"created_at":"1792249323"}]}}""")
+        val entries = RewardHistoryActivity.parseAwards(json)
+        assertEquals(RewardEntry("원석", 20, "2026-10-18"), entries[0])
+        assertEquals("모라", entries[1].name)
+        assertEquals(10, entries[1].date.length)
+        assertEquals("2026년 10월", RewardHistoryActivity.monthLabel("2026-10"))
+        assertEquals("10월 8일", RewardHistoryActivity.dayLabel("2026-10-08"))
+    }
+}

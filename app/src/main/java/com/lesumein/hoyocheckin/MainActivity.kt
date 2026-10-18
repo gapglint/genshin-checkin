@@ -63,6 +63,9 @@ class MainActivity : AppCompatActivity() {
             store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) }
         }
         screen.rowAccount.setOnClickListener { checkLogin() }
+        screen.rowHistory.setOnClickListener {
+            store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
+        }
         screen.rowLogout.setOnClickListener { confirmLogout() }
         screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
         screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }

@@ -70,6 +70,7 @@ class MainScreen(val root: View) {
     val makeUpSwitch: MaterialSwitch = root.findViewById(R.id.makeUpSwitch)
     val rowMakeUpAlerts: View = root.findViewById(R.id.rowMakeUpAlerts)
     val rowOpenPage: View = root.findViewById(R.id.rowOpenPage)
+    val rowHistory: View = root.findViewById(R.id.rowHistory)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
@@ -145,6 +146,7 @@ class MainScreen(val root: View) {
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+        rowHistory.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
     }
 
     private fun renderAccounts(s: MainUiState) {

@@ -510,6 +510,37 @@
             android:showDividers="middle">
 
             <LinearLayout
+                android:id="@+id/rowHistory"
+                style="@style/Row">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.RowTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="보상 내역" />
+
+                    <TextView
+                        style="@style/Text.RowSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="출석·보충·리딤 코드로 받은 보상을 날짜별로 봐요" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_chevron" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/rowMakeUpAlerts"
                 style="@style/Row">
 

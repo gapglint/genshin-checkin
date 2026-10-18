@@ -107,6 +107,7 @@ object Redeem {
                     break@loop
                 }
                 if (attempt.status == RedeemStatus.TOO_FAST) continue
+                if (attempt.status == RedeemStatus.REDEEMED) store.redeemLog = listOf(code to ServerClock.now()) + store.redeemLog
                 if (attempt.status == RedeemStatus.REDEEMED || attempt.status == RedeemStatus.USED) {
                     store.redeemTried = store.redeemTried + group
                     break

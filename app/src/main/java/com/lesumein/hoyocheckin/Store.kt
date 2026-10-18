@@ -3,6 +3,7 @@ package com.lesumein.hoyocheckin
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 
@@ -95,6 +96,16 @@ class Store(private val context: Context, val accountId: String) {
     var lastRedeemSummary: String?
         get() = prefs.getString("last_redeem_summary", null)
         set(value) = prefs.edit { putString("last_redeem_summary", value) }
+
+    /** 이 앱이 받은 리딤 코드 기록(최신이 앞). 호요랩에는 리딤 내역 조회가 없어 직접 남긴다. */
+    var redeemLog: List<Pair<String, Long>>
+        get() = prefs.getString("redeem_log", null)?.let { raw ->
+            val array = JSONArray(raw)
+            (0 until array.length()).map { array.getJSONObject(it) }.map { it.optString("code") to it.optLong("at") }
+        } ?: emptyList()
+        set(value) = prefs.edit {
+            putString("redeem_log", JSONArray(value.map { JSONObject().put("code", it.first).put("at", it.second) }).toString())
+        }
 
     var lastRedeemNotified: String?
         get() = prefs.getString("last_redeem_notified", null)

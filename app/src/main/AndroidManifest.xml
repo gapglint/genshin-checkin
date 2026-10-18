@@ -33,6 +33,10 @@
             android:name=".LoginActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".RewardHistoryActivity"
+            android:exported="false" />
+
         <receiver
             android:name=".DailyAlarmReceiver"
             android:exported="false" />

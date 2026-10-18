@@ -100,6 +100,11 @@ class CheckInClient(private val cookie: String) {
     fun resign(): JSONObject =
         request("POST", "$API/resign?lang=$LANG", JSONObject().put("act_id", ACT_ID).put("lang", LANG).toString())
 
+    /** 출석·보충으로 받은 보상 내역(최신순). page는 1부터. */
+    @Throws(IOException::class)
+    fun awardHistory(page: Int, size: Int): JSONObject =
+        request("GET", "$API/award?act_id=$ACT_ID&current_page=$page&page_size=$size&lang=$LANG")
+
     private fun taskBody(id: Int) =
         JSONObject().put("id", id).put("act_id", ACT_ID).put("lang", LANG).toString()
 
