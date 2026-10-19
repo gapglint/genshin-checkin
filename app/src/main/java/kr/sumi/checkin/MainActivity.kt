@@ -217,9 +217,7 @@ class MainActivity : Activity() {
                 makeUpMissed = store?.makeUpMissed?.takeIf { store.makeUpDay == today.toString() },
                 notificationsSummary = notificationsSummary(),
                 redeemEnabled = settings.redeemEnabled,
-                redeemRole = store?.redeemRoles?.takeIf { it.isNotEmpty() }?.let { r ->
-                    if (r.size == 1) r[0].label() else "${r.size}명 · " + r.joinToString(", ") { it.shortLabel() }
-                },
+                redeemRole = store?.redeemRole?.label(),
                 redeemSummary = store?.lastRedeemSummary?.let { summary ->
                     val at = DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt))
                     "$at · $summary"
@@ -344,23 +342,16 @@ class MainActivity : Activity() {
                 .show()
             return
         }
-        val chosen = store.redeemRoles.map { it.uid }.toSet()
-        val checked = BooleanArray(roles.size) { roles[it].uid in chosen || (chosen.isEmpty() && roles.size == 1) }
+        val current = roles.indexOfFirst { it.uid == store.redeemRole?.uid }
         AppDialog(this)
             .setTitle("보상 받을 캐릭터")
-            .setMultiChoiceItems(roles.map { it.label() }.toTypedArray(), checked)
-            .setFooter("리딤 코드는 서버마다 따로 받을 수 있어요. 고른 캐릭터마다 새 코드를 입력하고, 서버 전용 코드는 맞는 서버에만 넣어요.")
-            .setNegativeButton("취소")
-            .setPositiveButton("저장") {
-                val selected = roles.filterIndexed { i, _ -> checked[i] }
-                if (selected.isEmpty()) {
-                    android.widget.Toast.makeText(this, "캐릭터를 한 명 이상 골라 주세요", android.widget.Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                store.redeemRoles = selected
-                store.accountRole = GameRole.representative(roles, selected.first())
+            .setSingleChoiceItems(roles.map { it.label() }.toTypedArray(), current) { dialog, which ->
+                store.redeemRoles = listOf(roles[which])
+                store.accountRole = roles[which]
+                dialog.dismiss()
                 refresh()
             }
+            .setNegativeButton("취소")
             .show()
     }
 

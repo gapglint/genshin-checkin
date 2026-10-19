@@ -96,7 +96,8 @@ object Redeem {
     @Throws(IOException::class)
     fun run(store: Store): RedeemReport = synchronized(this) {
         val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
-        val roles = store.redeemRoles.ifEmpty { listOfNotNull(chooseOnlyRole(client, store)) }
+        // 리딤 코드는 HoYoverse 계정 전체에 한 번이라, 고른 캐릭터 하나로만 입력한다.
+        val roles = listOfNotNull(store.redeemRole ?: chooseOnlyRole(client, store))
         if (roles.isEmpty()) return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
 
         // 코드 찾기는 한 번만 하고, 위키 코드는 캐릭터의 서버에 맞는 것만 고른다.
