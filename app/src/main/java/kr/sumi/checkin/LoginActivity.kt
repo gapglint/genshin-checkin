@@ -8,7 +8,6 @@ import android.os.Handler
 import android.os.Looper
 import android.net.Uri
 import android.webkit.RenderProcessGoneDetail
-import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.view.LayoutInflater
 import android.view.View
@@ -44,33 +43,8 @@ class LoginActivity : Activity() {
     private var checkedTokens: String? = null
     private var loginPopupOpened = false
 
-    /**
-     * 로그인이 안 될 때 보내 받을 기록: 열린 페이지(주소는 경로까지만, 질의 문자열은 버린다), 새 창, 오류, 웹뷰 엔진 종료.
-     * 쿠키·아이디·비밀번호는 남기지 않는다. 화면의 '기록 복사'로 기기 정보와 함께 복사한다.
-     */
-    private val trail = ArrayDeque<String>()
     /** 웹뷰 엔진이 죽어 웹뷰를 치웠으면 true. 그 뒤로는 웹뷰를 건드리지 않는다. */
     private var engineGone = false
-    private val started = System.currentTimeMillis()
-
-    private fun note(event: String, url: String? = null) {
-        val path = url?.let { Uri.parse(it).let { u -> "${u.host ?: u.scheme}${u.path ?: ""}${if (u.fragment != null) "#" + u.fragment!!.substringBefore("?") else ""}" } }
-        trail.addLast("+${(System.currentTimeMillis() - started) / 1000}s $event${path?.let { " $it" } ?: ""}")
-        while (trail.size > 60) trail.removeFirst()
-    }
-
-    private fun copyTrail() {
-        val webView = WebView.getCurrentWebViewPackage()
-        val text = buildString {
-            appendLine("원신 출첵 ${packageManager.getPackageInfo(packageName, 0).versionName} 로그인 기록")
-            appendLine("기기 ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
-            appendLine("웹뷰 ${webView?.packageName} ${webView?.versionName}")
-            trail.forEach { appendLine(it) }
-        }
-        getSystemService(android.content.ClipboardManager::class.java)
-            .setPrimaryClip(android.content.ClipData.newPlainText("로그인 기록", text))
-        Toast.makeText(this, "기록을 복사했어요. 메신저나 메일에 붙여 넣어 보내 주세요.", Toast.LENGTH_LONG).show()
-    }
 
     /** 로그인 페이지를 띄운 뒤, 사람이 로그인해서 토큰이 생기는지 1초마다 본다. */
     private val pollCookie = object : Runnable {
@@ -82,7 +56,6 @@ class LoginActivity : Activity() {
             }
             checkedTokens = loginTokens(cookie)
             validate(cookie) { valid ->
-                note("로그인 토큰 확인: " + when (valid) { true -> "유효"; false -> "무효"; null -> "네트워크 오류" })
                 when (valid) {
                     true -> onLoggedIn(cookie)
                     false -> handler.postDelayed(this, 1000)
@@ -112,8 +85,6 @@ class LoginActivity : Activity() {
         }
         webView = newWebView().apply {
             webViewClient = object : WebViewClient() {
-                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) = note("페이지", url)
-
                 /**
                  * 웹 주소가 아닌 링크(호요랩 페이지의 '앱으로 보기'가 여는 intent://, market:// 등)는 웹뷰가 못 연다.
                  * 그런 링크는 휴대폰에 넘겨 해당 앱(없으면 플레이 스토어)을 연다.
@@ -121,27 +92,21 @@ class LoginActivity : Activity() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val url = request.url.toString()
                     if (url.startsWith("http://") || url.startsWith("https://")) return false
-                    note("외부 링크", url)
                     openOutside(url)
                     return true
                 }
 
-                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                    if (request.isForMainFrame) note("불러오기 오류 ${error.errorCode} ${error.description}", request.url.toString())
-                }
-
                 /**
                  * 웹뷰 엔진이 죽으면 기본으로는 앱이 꺼진다. 다시 열면 같은 이유로 또 죽으며 깜빡일 수 있어
-                 * 자동으로 다시 열지 않고, 기록을 남긴 뒤 안내만 띄운다(기록 복사 버튼은 그대로 있다).
+                 * 자동으로 다시 열지 않고 안내만 띄운다.
                  */
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                    note("웹뷰 엔진 종료 crash=${detail.didCrash()}")
                     engineGone = true
                     handler.removeCallbacks(pollCookie)
                     frame.removeView(view)
                     view.destroy()
                     frame.addView(TextView(this@LoginActivity).apply {
-                        text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도하거나, 위의 '기록 복사'로 보내 주세요."
+                        text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도해 주세요."
                         textSize = 15f
                         gravity = android.view.Gravity.CENTER
                         setTextColor(getColor(R.color.ink))
@@ -167,7 +132,6 @@ class LoginActivity : Activity() {
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             if (loginMode) {
                 addView(otherWayButton(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-                addView(trailButton(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             }
             addView(frame, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
@@ -218,24 +182,10 @@ class LoginActivity : Activity() {
         setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
         setBackgroundResource(android.R.drawable.list_selector_background)
         setOnClickListener {
-            note("호요랩 사이트로 전환")
             status.text = "가운데 「로그인」을 눌러 로그인해 주세요. 로그인되면 자동으로 닫혀요."
             visibility = View.GONE
             webView.loadUrl(HOYOLAB_MOBILE)
         }
-    }
-
-    /** 로그인이 끝내 안 될 때 기록을 복사해 보내는 버튼(작게). */
-    private fun trailButton() = TextView(this).apply {
-        val density = resources.displayMetrics.density
-        text = "그래도 안 되면 → 기록 복사해서 보내기"
-        textSize = 13f
-        setTextColor(getColor(R.color.ink_muted))
-        minHeight = (40 * density).toInt()
-        gravity = android.view.Gravity.CENTER_VERTICAL
-        setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
-        setBackgroundResource(android.R.drawable.list_selector_background)
-        setOnClickListener { copyTrail() }
     }
 
     /** intent:// 링크는 그 앱을, 안 깔렸으면 링크에 적힌 대체 주소나 플레이 스토어를 연다. 열 수 없으면 조용히 무시한다. */

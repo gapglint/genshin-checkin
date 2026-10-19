@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
 import java.io.IOException
-import kotlin.random.Random
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * 서버 기준으로 출석 날짜가 바뀐 직후(UTC+8 자정 = 한국 시간 새벽 1시)에 출석하도록 알람을 건다.
@@ -23,7 +23,7 @@ object DailyAlarm {
 
     fun schedule(context: Context) {
         val serverNow = ServerClock.now()
-        val runAt = ServerClock.nextReset(serverNow) + MIN_DELAY_AFTER_RESET_MS + Random.nextLong(SPREAD_MS)
+        val runAt = ServerClock.nextReset(serverNow) + MIN_DELAY_AFTER_RESET_MS + ThreadLocalRandom.current().nextLong(SPREAD_MS)
         val trigger = SystemClock.elapsedRealtime() + (runAt - serverNow)
         val alarms = context.getSystemService(AlarmManager::class.java)
         if (canRunExactly(context)) {

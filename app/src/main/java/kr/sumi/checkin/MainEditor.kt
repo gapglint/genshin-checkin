@@ -21,7 +21,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import kotlin.math.abs
-import kotlin.random.Random
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * 메인 화면을 그 자리에서 편집한다(홈 화면 아이콘 정리처럼).
@@ -97,10 +97,10 @@ class MainEditor(
     private fun wiggle(card: String) {
         stopWiggle(card)
         wiggles[card] = ObjectAnimator.ofFloat(screen.slot(card), View.ROTATION, -0.45f, 0.45f).apply {
-            duration = 260L + Random.nextLong(80)
+            duration = 260L + ThreadLocalRandom.current().nextLong(80)
             repeatMode = ValueAnimator.REVERSE
             repeatCount = ValueAnimator.INFINITE
-            startDelay = Random.nextLong(200)
+            startDelay = ThreadLocalRandom.current().nextLong(200)
             start()
         }
     }

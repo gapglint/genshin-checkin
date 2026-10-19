@@ -9,7 +9,7 @@ import android.os.SystemClock
 import org.json.JSONObject
 import java.io.IOException
 import java.security.MessageDigest
-import kotlin.random.Random
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * 호요랩 실시간 메모 한 번. 남은 시간은 받은 시각(at, 서버 기준 ms)부터 센 초.
@@ -185,7 +185,7 @@ object Notes {
 
     private fun randomLetters() = buildString {
         val letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        repeat(6) { append(letters[Random.nextInt(letters.length)]) }
+        repeat(6) { append(letters[ThreadLocalRandom.current().nextInt(letters.length)]) }
     }
 
     private fun headers() = mapOf(
