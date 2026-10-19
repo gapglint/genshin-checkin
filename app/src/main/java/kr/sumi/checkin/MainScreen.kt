@@ -123,6 +123,7 @@ class MainScreen(val root: View) {
         tileRedeem.clipToOutline = true
         tileHistory.clipToOutline = true
         setupBanner.clipToOutline = true
+        makeUpCard.clipToOutline = true
         settingsPanel.findViewById<TextView>(R.id.headerTitle).text = "설정"
         settingsPanel.findViewById<View>(R.id.headerStatus).visibility = View.GONE
         // Material 3 버튼 모양: 큰 버튼은 모서리 16dp로 채우고, 보충하기는 글자 버튼.
@@ -175,7 +176,7 @@ class MainScreen(val root: View) {
         }
 
         makeUpCard.visibility = if (s.loggedIn && s.makeUpMissed != null) View.VISIBLE else View.GONE
-        makeUpText.text = "이번 달에 놓친 날 ${s.makeUpMissed ?: 0}일을 보충권으로 채워요"
+        makeUpText.text = "놓친 날 ${s.makeUpMissed ?: 0}일 · 보충권은 앱이 대신 받아 와요 ⓘ"
         makeUpButton.isEnabled = s.busy == null
 
         notificationsSub.text = s.notificationsSummary
@@ -265,7 +266,7 @@ class MainScreen(val root: View) {
             val whenText = if (days == 0) "오늘" else "${days}일 뒤"
             "다음 원석: $whenText ×${s.calendar[it - 1].count}"
         }
-        val missedText = if (s.calendarMissed > 0) "놓친 날 ${s.calendarMissed}일 · 보충하면 흐린 칸도 받을 수 있어요" else null
+        val missedText = if (s.calendarMissed > 0) "놓친 날 ${s.calendarMissed}일 · '보충하기'를 누르면 흐린 칸도 받을 수 있어요" else null
         val note = listOfNotNull(primoText, missedText).joinToString("\n")
         calendarNote.text = note
         calendarNote.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE

@@ -67,6 +67,7 @@ class MainActivity : Activity() {
             if (store == null) startActivity(LoginActivity.loginIntent(this)) else checkInNow()
         }
         screen.makeUpButton.setOnClickListener { makeUpNow() }
+        screen.makeUpCard.setOnClickListener { explainMakeUp() }
         screen.rowNotifications.setOnClickListener { chooseNotifications() }
         screen.rowOpenPage.setOnClickListener {
             store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) }
@@ -410,6 +411,21 @@ class MainActivity : Activity() {
         )
         val what = if (kinds.isEmpty()) "문제가 있을 때만" else kinds.joinToString(" · ")
         return if (settings.quietNight) "$what · 밤에는 소리 없이" else what
+    }
+
+    /** 보충권이 무엇이고 어떻게 받는지. 보충 카드를 누르면 보여 준다. */
+    private fun explainMakeUp() {
+        AppDialog(this)
+            .setTitle("보충 출석")
+            .setMessage(
+                "보충권 하나로 놓친 출석 하루를 채우고, 그 칸의 보상(원석 등)도 받아요.\n\n" +
+                    "보충권은 호요랩 출석 이벤트의 간단한 임무(링크 방문 등)로 받아요. " +
+                    "'보충하기'를 누르면 앱이 받을 수 있는 임무를 대신 끝내고, 보충권을 받아 바로 채워요.\n\n" +
+                    "하루·한 달에 보충할 수 있는 횟수는 호요랩이 정해요. 다 쓰면 다음에 다시 할 수 있어요."
+            )
+            .setNegativeButton("닫기")
+            .setPositiveButton("보충하기") { makeUpNow() }
+            .show()
     }
 
     private fun makeUpNow() {
