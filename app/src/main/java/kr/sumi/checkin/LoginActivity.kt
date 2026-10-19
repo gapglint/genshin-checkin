@@ -7,12 +7,17 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
+import android.net.Uri
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -43,6 +48,34 @@ class LoginActivity : Activity() {
     private var checkedTokens: String? = null
     private var loginPopupOpened = false
 
+    /**
+     * 로그인이 안 될 때 보내 받을 기록: 열린 페이지(주소는 경로까지만, 질의 문자열은 버린다), 새 창, 오류, 웹뷰 엔진 종료.
+     * 쿠키·아이디·비밀번호는 남기지 않는다. 화면의 '기록 복사'로 기기 정보와 함께 복사한다.
+     */
+    private val trail = ArrayDeque<String>()
+    /** 웹뷰 엔진이 죽어 웹뷰를 치웠으면 true. 그 뒤로는 웹뷰를 건드리지 않는다. */
+    private var engineGone = false
+    private val started = System.currentTimeMillis()
+
+    private fun note(event: String, url: String? = null) {
+        val path = url?.let { Uri.parse(it).let { u -> "${u.host ?: u.scheme}${u.path ?: ""}${if (u.fragment != null) "#" + u.fragment!!.substringBefore("?") else ""}" } }
+        trail.addLast("+${(System.currentTimeMillis() - started) / 1000}s $event${path?.let { " $it" } ?: ""}")
+        while (trail.size > 60) trail.removeFirst()
+    }
+
+    private fun copyTrail() {
+        val webView = WebView.getCurrentWebViewPackage()
+        val text = buildString {
+            appendLine("원신 출첵 ${packageManager.getPackageInfo(packageName, 0).versionName} 로그인 기록")
+            appendLine("기기 ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+            appendLine("웹뷰 ${webView?.packageName} ${webView?.versionName}")
+            trail.forEach { appendLine(it) }
+        }
+        getSystemService(android.content.ClipboardManager::class.java)
+            .setPrimaryClip(android.content.ClipData.newPlainText("로그인 기록", text))
+        Toast.makeText(this, "기록을 복사했어요. 메신저나 메일에 붙여 넣어 보내 주세요.", Toast.LENGTH_LONG).show()
+    }
+
     /** 로그인 페이지를 띄운 뒤, 사람이 로그인해서 토큰이 생기는지 1초마다 본다. */
     private val pollCookie = object : Runnable {
         override fun run() {
@@ -53,6 +86,7 @@ class LoginActivity : Activity() {
             }
             checkedTokens = loginTokens(cookie)
             validate(cookie) { valid ->
+                note("로그인 토큰 확인: " + when (valid) { true -> "유효"; false -> "무효"; null -> "네트워크 오류" })
                 when (valid) {
                     true -> onLoggedIn(cookie)
                     false -> handler.postDelayed(this, 1000)
@@ -76,7 +110,7 @@ class LoginActivity : Activity() {
         header.findViewById<View>(R.id.headerBack).setOnClickListener { goBack() }
         status = header.findViewById(R.id.headerStatus)
         status.text = if (loginMode) {
-            "호요랩 계정이나 구글·애플 등으로 로그인하고 캡차를 풀어 주세요. 로그인되면 자동으로 닫혀요.\n로그인 창이 안 뜨면 페이지 왼쪽 위 「로그인」을 누르세요.\n호요랩 앱이나 브라우저 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
+            "호요랩 계정이나 구글·애플 등으로 로그인해 주세요. 로그인되면 자동으로 닫혀요.\n호요랩 앱 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
         } else {
             "오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요."
         }
@@ -86,11 +120,23 @@ class LoginActivity : Activity() {
             settings.javaScriptCanOpenWindowsAutomatically = true
             webChromeClient = object : WebChromeClient() {
                 override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+                    note("새 창 열림")
                     closePopup()
                     val child = newWebView().apply {
-                        webViewClient = WebViewClient()
+                        // 불러오기 전 잠깐 까만 바탕이 비치지 않게.
+                        setBackgroundColor(0xFFFFFFFF.toInt())
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                                note("새 창 페이지", url)
+                                // 소셜 로그인을 마치고 호요랩 보안 페이지로 돌아오면 창 할 일은 끝났다.
+                                if (url.contains("hoyolab.com/security.html") || url.contains("/account-system-sea/security.html")) closePopup()
+                            }
+                        }
                         webChromeClient = object : WebChromeClient() {
-                            override fun onCloseWindow(window: WebView) = closePopup()
+                            override fun onCloseWindow(window: WebView) {
+                                note("새 창 닫힘")
+                                closePopup()
+                            }
                         }
                     }
                     popup = child
@@ -101,6 +147,32 @@ class LoginActivity : Activity() {
                 }
             }
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) = note("페이지", url)
+
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    if (request.isForMainFrame) note("불러오기 오류 ${error.errorCode} ${error.description}", request.url.toString())
+                }
+
+                /**
+                 * 웹뷰 엔진이 죽으면 기본으로는 앱이 꺼진다. 다시 열면 같은 이유로 또 죽으며 깜빡일 수 있어
+                 * 자동으로 다시 열지 않고, 기록을 남긴 뒤 안내만 띄운다(기록 복사 버튼은 그대로 있다).
+                 */
+                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    note("웹뷰 엔진 종료 crash=${detail.didCrash()}")
+                    engineGone = true
+                    handler.removeCallbacks(pollCookie)
+                    closePopup()
+                    frame.removeView(view)
+                    view.destroy()
+                    frame.addView(TextView(this@LoginActivity).apply {
+                        text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도하거나, 위의 '기록 복사'로 보내 주세요."
+                        textSize = 15f
+                        gravity = android.view.Gravity.CENTER
+                        setTextColor(getColor(R.color.ink))
+                    })
+                    return true
+                }
+
                 override fun onPageFinished(view: WebView, url: String) {
                     if (loginMode && !loginPopupOpened && url.startsWith("https://act.hoyolab.com/")) {
                         loginPopupOpened = true
@@ -117,6 +189,10 @@ class LoginActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.color.bg)
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            if (loginMode) {
+                addView(otherWayButton(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+                addView(trailButton(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            }
             addView(frame, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
         setContentView(root)
@@ -147,6 +223,7 @@ class LoginActivity : Activity() {
     override fun onBackPressed() = goBack()
 
     private fun goBack() {
+        if (engineGone) return finish()
         val open = popup
         when {
             open != null -> if (open.canGoBack()) open.goBack() else closePopup()
@@ -155,13 +232,50 @@ class LoginActivity : Activity() {
         }
     }
 
+    /**
+     * 출석 페이지의 작은 로그인 창이 안 될 때: 호요랩 모바일 사이트를 열어 그 사이트의 로그인으로 들어간다.
+     * 로그인 쿠키는 같은 hoyolab.com이라 똑같이 감지돼 저장된다.
+     */
+    private fun otherWayButton() = TextView(this).apply {
+        val density = resources.displayMetrics.density
+        text = "로그인 창이 안 되면 → 호요랩 사이트에서 로그인"
+        textSize = 14f
+        setTextColor(getColor(R.color.accent))
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        minHeight = (44 * density).toInt()
+        gravity = android.view.Gravity.CENTER_VERTICAL
+        setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
+        setBackgroundResource(android.R.drawable.list_selector_background)
+        setOnClickListener {
+            closePopup()
+            note("호요랩 사이트로 전환")
+            status.text = "가운데 「로그인」을 눌러 로그인해 주세요. 로그인되면 자동으로 닫혀요."
+            visibility = View.GONE
+            webView.loadUrl(HOYOLAB_MOBILE)
+        }
+    }
+
+    /** 로그인이 끝내 안 될 때 기록을 복사해 보내는 버튼(작게). */
+    private fun trailButton() = TextView(this).apply {
+        val density = resources.displayMetrics.density
+        text = "그래도 안 되면 → 기록 복사해서 보내기"
+        textSize = 13f
+        setTextColor(getColor(R.color.ink_muted))
+        minHeight = (40 * density).toInt()
+        gravity = android.view.Gravity.CENTER_VERTICAL
+        setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
+        setBackgroundResource(android.R.drawable.list_selector_background)
+        setOnClickListener { copyTrail() }
+    }
+
     /** 로그인 화면용 웹뷰. 로그인 창은 다른 도메인 iframe이라 서드파티 쿠키가 필요하다. */
     @SuppressLint("SetJavaScriptEnabled")
     private fun newWebView() = WebView(this).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
-        // 일부 로그인 화면은 WebView 표시(wv)를 보고 막기 때문에 일반 모바일 크롬처럼 보이게 한다.
-        settings.userAgentString = CheckInClient.USER_AGENT
+        // 구글 등 일부 로그인은 웹뷰 표시(wv)를 보고 막는다. 이 폰의 실제 브라우저 정보에서 그 표시만 빼서 쓴다
+        // (버전을 고정해 두면 최신 폰의 실제 엔진과 어긋나 오히려 막힐 수 있다).
+        settings.userAgentString = WebSettings.getDefaultUserAgent(this@LoginActivity).replace("; wv", "")
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
     }
 
@@ -182,7 +296,7 @@ class LoginActivity : Activity() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         closePopup()
-        webView.destroy()
+        if (!engineGone) webView.destroy()
         super.onDestroy()
     }
 
@@ -238,6 +352,8 @@ class LoginActivity : Activity() {
 
     companion object {
         private const val EXTRA_ACCOUNT = "account"
+        /** 로그인하지 않았으면 가운데에 「로그인」 버튼이 크게 보이는 호요랩 모바일 페이지. */
+        private const val HOYOLAB_MOBILE = "https://m.hoyolab.com/#/timeline"
 
         /** 출첵 페이지의 「로그인」 버튼을 찾아 누른다. 페이지가 늦게 그려지므로 몇 번 다시 찾는다. */
         private const val OPEN_LOGIN_JS = """

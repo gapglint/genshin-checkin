@@ -160,11 +160,6 @@ class MainActivity : Activity() {
         editing = on
         refresh()
         if (on) screen.root.findViewById<View>(R.id.scroll).scrollTo(0, 0)
-        // 처음 한 번은 손가락 그림으로 '꾹 눌러 끌기'를 보여 준다.
-        if (on && !settings.editCoachShown) {
-            settings.editCoachShown = true
-            editor.coach()
-        }
         updateBackCallback()
     }
 
