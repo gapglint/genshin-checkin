@@ -6,13 +6,16 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -29,6 +32,9 @@ import java.io.IOException
  */
 class LoginActivity : Activity() {
     private lateinit var webView: WebView
+    private lateinit var frame: FrameLayout
+    /** 구글·애플 같은 소셜 로그인이 window.open으로 띄우는 창. 본 웹뷰 위에 겹쳐 보인다. */
+    private var popup: WebView? = null
     private lateinit var status: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val pageAccountId by lazy { intent.getStringExtra(EXTRA_ACCOUNT) }
@@ -70,15 +76,30 @@ class LoginActivity : Activity() {
         header.findViewById<View>(R.id.headerBack).setOnClickListener { goBack() }
         status = header.findViewById(R.id.headerStatus)
         status.text = if (loginMode) {
-            "아이디·비밀번호로 로그인하고 캡차를 풀어 주세요. 로그인되면 자동으로 닫혀요.\n로그인 창이 안 뜨면 페이지 왼쪽 위 「로그인」을 누르세요.\n호요랩 앱이나 브라우저 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
+            "호요랩 계정이나 구글·애플 등으로 로그인하고 캡차를 풀어 주세요. 로그인되면 자동으로 닫혀요.\n로그인 창이 안 뜨면 페이지 왼쪽 위 「로그인」을 누르세요.\n호요랩 앱이나 브라우저 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
         } else {
             "오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요."
         }
-        webView = WebView(this).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            // 일부 로그인 화면은 WebView 표시(wv)를 보고 막기 때문에 일반 모바일 크롬처럼 보이게 한다.
-            settings.userAgentString = CheckInClient.USER_AGENT
+        webView = newWebView().apply {
+            // 소셜 로그인은 새 창을 띄운다. 지원하지 않으면 창이 열렸다 닫히며 깜빡이기만 한다.
+            settings.setSupportMultipleWindows(true)
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+                    closePopup()
+                    val child = newWebView().apply {
+                        webViewClient = WebViewClient()
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onCloseWindow(window: WebView) = closePopup()
+                        }
+                    }
+                    popup = child
+                    frame.addView(child, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                    (resultMsg.obj as WebView.WebViewTransport).webView = child
+                    resultMsg.sendToTarget()
+                    return true
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String) {
                     if (loginMode && !loginPopupOpened && url.startsWith("https://act.hoyolab.com/")) {
@@ -88,16 +109,15 @@ class LoginActivity : Activity() {
                 }
             }
         }
-        // 로그인 창은 다른 도메인(account.hoyolab.com) iframe이라 서드파티 쿠키가 필요하다.
         val cookies = CookieManager.getInstance()
         cookies.setAcceptCookie(true)
-        cookies.setAcceptThirdPartyCookies(webView, true)
 
+        frame = FrameLayout(this).apply { addView(webView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)) }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.color.bg)
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-            addView(webView, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+            addView(frame, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
@@ -127,7 +147,29 @@ class LoginActivity : Activity() {
     override fun onBackPressed() = goBack()
 
     private fun goBack() {
-        if (webView.canGoBack()) webView.goBack() else finish()
+        val open = popup
+        when {
+            open != null -> if (open.canGoBack()) open.goBack() else closePopup()
+            webView.canGoBack() -> webView.goBack()
+            else -> finish()
+        }
+    }
+
+    /** 로그인 화면용 웹뷰. 로그인 창은 다른 도메인 iframe이라 서드파티 쿠키가 필요하다. */
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun newWebView() = WebView(this).apply {
+        settings.javaScriptEnabled = true
+        settings.domStorageEnabled = true
+        // 일부 로그인 화면은 WebView 표시(wv)를 보고 막기 때문에 일반 모바일 크롬처럼 보이게 한다.
+        settings.userAgentString = CheckInClient.USER_AGENT
+        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+    }
+
+    private fun closePopup() {
+        val open = popup ?: return
+        popup = null
+        frame.removeView(open)
+        open.destroy()
     }
 
     override fun onPause() {
@@ -139,6 +181,7 @@ class LoginActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        closePopup()
         webView.destroy()
         super.onDestroy()
     }
