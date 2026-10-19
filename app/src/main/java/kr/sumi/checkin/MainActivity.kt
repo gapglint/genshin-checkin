@@ -135,9 +135,19 @@ class MainActivity : Activity() {
         // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
         if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
+        checkInIfNewLogin()
         loadNicknamesIfMissing()
         loadCalendarIfStale()
         loadNotes()
+    }
+
+    /**
+     * 방금 로그인한 계정은 출석 상태를 아직 모른다(0일로 보인다). 예약 작업은 시스템이 늦게 돌릴 수 있어서,
+     * 화면에 돌아오면 바로 한 번 출석해 상태를 가져온다. 이미 출석했으면 서버가 그렇다고 알려 줄 뿐이다.
+     */
+    private fun checkInIfNewLogin() {
+        val store = store ?: return
+        if (busy == null && !store.signedToday && store.lastRunAt < store.loginAt) checkInNow()
     }
 
     override fun onPause() {
