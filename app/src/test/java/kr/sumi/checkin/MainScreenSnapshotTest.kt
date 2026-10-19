@@ -30,9 +30,9 @@ class MainScreenSnapshotTest {
         redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력", redeemWhen = "10월 18일 01:04", historyUnseen = 3,
         calendar = sampleCalendar, calendarReachable = 30, calendarMissed = 1,
         notes = NotesUi(
-            resin = 142, maxResin = 200, resinSub = "가득 차기까지 7시간 44분 · 오후 3:20", alert = "180개에 알림",
+            resin = 142, maxResin = 200, fullLabel = "7시간 44분 뒤 가득", fullTime = "오후 3:20",
             expeditions = "2/5 완료", expeditionsSub = "2시간 뒤 모두 끝나요", coin = "1,840", coinSub = "/ 2,400",
-            commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준 · 눌러서 새로고침",
+            commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준 · 누르면 접혀요",
         ),
     )
     private val waiting = MainUiState(
@@ -53,6 +53,7 @@ class MainScreenSnapshotTest {
 
     @Test fun signedLight() = snap(signed, night = false)
     @Test fun signedDark() = snap(signed, night = true)
+    @Test fun notesExpanded() = snap(signed.copy(notesExpanded = true), night = false)
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 

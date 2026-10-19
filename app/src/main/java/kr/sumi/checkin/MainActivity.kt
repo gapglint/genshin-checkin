@@ -84,7 +84,14 @@ class MainActivity : Activity() {
         screen.rowRedeemNow.setOnClickListener { redeemNow() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
-        screen.notesCard.setOnClickListener { loadNotes(force = true) }
+        screen.notesCard.setOnClickListener {
+            // 못 받았으면 다시 받고, 받았으면 펼치거나 접는다(펼칠 때 오래된 값이면 새로 받는다).
+            if (store?.note == null) loadNotes(force = true) else {
+                settings.notesExpanded = !settings.notesExpanded
+                refresh()
+                if (settings.notesExpanded) loadNotes()
+            }
+        }
         screen.rowMainDisplay.setOnClickListener { chooseMainDisplay() }
         screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
 
@@ -195,12 +202,11 @@ class MainActivity : Activity() {
 
     /** 메인 화면에 보일 카드를 고른다. 출석 카드는 항상 보인다. */
     private fun chooseMainDisplay() {
-        val checked = booleanArrayOf(settings.showNotes, settings.showNoteStats, settings.showTiles, settings.showCalendar)
+        val checked = booleanArrayOf(settings.showNotes, settings.showTiles, settings.showCalendar)
         AppDialog(this)
             .setTitle("메인 화면")
             .setMultiChoiceItems(arrayOf(
-                "레진",
-                "탐사 파견·주전자 동전·일일 의뢰",
+                "레진 (누르면 파견·주전자·일일 의뢰)",
                 "리딤 코드·보상 내역 바로가기",
                 "이번 달 출석 보상 달력",
             ), checked)
@@ -208,9 +214,8 @@ class MainActivity : Activity() {
             .setNegativeButton("취소")
             .setPositiveButton("저장") {
                 settings.showNotes = checked[0]
-                settings.showNoteStats = checked[1]
-                settings.showTiles = checked[2]
-                settings.showCalendar = checked[3]
+                settings.showTiles = checked[1]
+                settings.showCalendar = checked[2]
                 refresh()
                 loadNotes()
             }
@@ -220,7 +225,6 @@ class MainActivity : Activity() {
     private fun mainDisplaySummary(): String {
         val parts = listOfNotNull(
             "레진".takeIf { settings.showNotes },
-            "파견·주전자·의뢰".takeIf { settings.showNotes && settings.showNoteStats },
             "바로가기".takeIf { settings.showTiles },
             "달력".takeIf { settings.showCalendar },
         )
@@ -248,20 +252,14 @@ class MainActivity : Activity() {
     private fun notesUi(n: DailyNote): NotesUi {
         val now = ServerClock.now()
         val resin = n.resinAt(now)
-        val target = Notes.target(n, settings.resinThreshold)
         val allBack = n.expeditionsTotal > 0 && (n.expeditionsDone >= n.expeditionsTotal || now >= n.expeditionsDoneAt)
         val coinFull = n.maxHomeCoin > 0 && (n.homeCoin >= n.maxHomeCoin || now >= n.homeCoinFullAt)
         val commissionsDone = n.commissionsTotal > 0 && n.commissionsDone >= n.commissionsTotal
         return NotesUi(
             resin = resin,
             maxResin = n.maxResin,
-            resinSub = if (resin >= n.maxResin) "가득 찼어요 · 더 쌓이지 않으니 써 주세요"
-                else "가득 차기까지 ${Notes.duration(n.resinFullAt - now)} · ${Notes.clock(n.resinFullAt)}",
-            alert = when {
-                !settings.resinAlert -> null
-                target >= n.maxResin -> "가득 차면 알림"
-                else -> "${target}개에 알림"
-            },
+            fullLabel = if (resin >= n.maxResin) "" else "${Notes.duration(n.resinFullAt - now)} 뒤 가득",
+            fullTime = if (resin >= n.maxResin) "가득 찼어요" else Notes.clock(n.resinFullAt),
             expeditions = when {
                 n.expeditionsTotal == 0 -> "없음"
                 allBack -> "${n.expeditionsTotal}/${n.expeditionsTotal} 완료"
@@ -284,7 +282,7 @@ class MainActivity : Activity() {
                 n.commissionRewardClaimed -> "보상 받음"
                 else -> "보상을 받아 주세요"
             },
-            updated = "${Notes.clock(n.at)} 기준 · 눌러서 새로고침",
+            updated = "${Notes.clock(n.at)} 기준 · 누르면 접혀요",
         )
     }
 
@@ -368,7 +366,7 @@ class MainActivity : Activity() {
                 resinAlert = settings.resinAlert,
                 resinThreshold = settings.resinThreshold,
                 showNotes = settings.showNotes,
-                showNoteStats = settings.showNoteStats,
+                notesExpanded = settings.notesExpanded,
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
                 mainDisplaySummary = mainDisplaySummary(),

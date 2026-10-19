@@ -26,8 +26,8 @@ android {
         applicationId = "kr.sumi.checkin"
         minSdk = 26
         targetSdk = 36
-        versionCode = 36
-        versionName = "0.10.1"
+        versionCode = 37
+        versionName = "0.10.2"
     }
 
     signingConfigs {

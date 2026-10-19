@@ -306,9 +306,10 @@ class AppSettings(private val context: Context) {
     var showNotes: Boolean
         get() = prefs.getBoolean("show_notes", true)
         set(value) = prefs.edit { putBoolean("show_notes", value) }
-    var showNoteStats: Boolean
-        get() = prefs.getBoolean("show_note_stats", true)
-        set(value) = prefs.edit { putBoolean("show_note_stats", value) }
+    /** 레진 카드를 펼쳐 둘지(파견·주전자·일일 의뢰까지). 처음에는 접혀 있다. */
+    var notesExpanded: Boolean
+        get() = prefs.getBoolean("notes_expanded", false)
+        set(value) = prefs.edit { putBoolean("notes_expanded", value) }
     var showTiles: Boolean
         get() = prefs.getBoolean("show_tiles", true)
         set(value) = prefs.edit { putBoolean("show_tiles", value) }
