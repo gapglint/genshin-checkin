@@ -32,8 +32,8 @@ class HistorySnapshotTest {
         total = 412,
         loaded = true,
         codes = listOf(
-            RedeemedCode("GA7TQLBCNS9V", at(18, 21), "Primogem*60;Mora*10000;Hero's Wit*2"),
-            RedeemedCode("5T8B9KQW2RJM", at(18, 21), null),
+            RedeemedCode("VesnaOnPatrol", at(18, 21), "Primogem*40;Mora*20000;Hero's Wit*3"),
+            RedeemedCode("GENSHINGIFT", at(18, 21), null),
             RedeemedCode("OPERACOLLAB", at(2, 12), "Primogem*30;Mora*20000;Hero's Wit*2"),
         ),
         newAwardKeys = setOf("18"),

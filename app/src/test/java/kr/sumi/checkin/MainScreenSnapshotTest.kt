@@ -27,7 +27,7 @@ class MainScreenSnapshotTest {
         loggedIn = true, accounts = listOf(AccountChip("100000000", "여행자", true), AccountChip("100000001", "부계정", false)),
         currentId = "100000000", uid = "100000000", nickname = "여행자", server = "아시아 서버", signedToday = true, totalDays = 17, month = 10,
         reward = "원석 x20", lastChecked = "10월 18일 21:04", nextRun = "내일 01:03", makeUpMissed = 2,
-        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: OKTCV81F9H8D", redeemShort = "새 코드 1개 입력", redeemWhen = "10월 18일 01:04", historyUnseen = 3,
+        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력", redeemWhen = "10월 18일 01:04", historyUnseen = 3,
         calendar = sampleCalendar, calendarReachable = 30, calendarMissed = 1,
     )
     private val waiting = MainUiState(

@@ -93,15 +93,15 @@ class StoreAssetsTest {
         currentId = "100000000", uid = "100000000", nickname = "여행자", server = "아시아 서버", signedToday = true,
         totalDays = 17, month = 10, reward = "원석 x20", lastChecked = "10월 18일 01:03", nextRun = "내일 01:02",
         makeUpMissed = 2, redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000",
-        redeemSummary = "10월 18일 01:05 · 새 코드 1개 입력: OKTCV81F9H8D", redeemShort = "새 코드 1개 입력",
+        redeemSummary = "10월 18일 01:05 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력",
         redeemWhen = "10월 18일 01:05", historyUnseen = 3,
         calendar = sampleCalendar, calendarReachable = 31,
     )
 
     /** 방송 직후처럼 새 코드 여러 개를 넣은 상태. 리딤 장면 스크린샷용. */
     private val redeemed = signed.copy(
-        redeemSummary = "10월 18일 21:12 · 새 코드 3개 입력: 5T8B9KQW2RJM, GA7TQLBCNS9V, VAPTVN8B2R5H",
-        redeemShort = "새 코드 3개 입력", redeemWhen = "10월 18일 21:12",
+        redeemSummary = "10월 18일 21:12 · 새 코드 2개 입력: VesnaOnPatrol, EPIC2026",
+        redeemShort = "새 코드 2개 입력", redeemWhen = "10월 18일 21:12",
     )
 
     /**
@@ -238,7 +238,7 @@ class StoreAssetsTest {
             addView(section("알림"))
             addView(notification("오전 9:00", "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 2일 있어요. 누르면 바로 보충해요."))
             addView(section("무음 · 밤에 온 알림"))
-            addView(notification("오전 1:05", "리딤 코드 3개를 받았어요", "GA7TQLBCNS9V, VAPTVN8B2R5H, 5T8B9KQW2RJM · 게임 우편함에서 받으세요."))
+            addView(notification("오전 1:05", "리딤 코드 2개를 받았어요", "VesnaOnPatrol, EPIC2026 · 게임 우편함에서 받으세요."))
             addView(notification("오전 1:03", "원신 출첵 완료", "출첵 완료! (17일째)\n보상: 원석 x20"),
                 LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(8) })
         }
@@ -314,8 +314,8 @@ class StoreAssetsTest {
             title = "보상 내역 · 여행자", status = "출석·보충 보상 총 412번 받았어요", month = "2026-10",
             entries = entries, total = 412, loaded = true,
             codes = listOf(
-                RedeemedCode("GA7TQLBCNS9V", at(18), "Primogem*60;Mora*10000;Hero's Wit*2"),
-                RedeemedCode("VAPTVN8B2R5H", at(18), "Primogem*60;Mora*5000;Mystic Enhancement Ore*5"),
+                RedeemedCode("VesnaOnPatrol", at(18), "Primogem*40;Mora*20000;Hero's Wit*3"),
+                RedeemedCode("EPIC2026", at(18), "Primogem*40;Mora*20000;Hero's Wit*5"),
                 RedeemedCode("OPERACOLLAB", at(2), "Primogem*30;Mora*20000;Hero's Wit*2"),
             ),
             newAwardKeys = setOf("18"), seenRedeemAt = at(10),
