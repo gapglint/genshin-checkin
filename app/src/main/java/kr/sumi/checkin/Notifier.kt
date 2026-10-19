@@ -19,6 +19,7 @@ object Notifier {
     private const val ID_REDEEM = 3
     private const val ID_CHECK_IN = 1
     private const val ID_MAKE_UP = 2
+    private const val ID_LOGIN_EXPIRY = 4
 
     fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -123,6 +124,29 @@ object Notifier {
             .build()
         context.getSystemService(NotificationManager::class.java).notify(id, notification)
         store.lastRedeemNotified = key
+    }
+
+    /** 로그인 만료 2주 전 예고. 누르면 로그인 화면이 열린다. 로그인 한 번에 한 번. */
+    @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
+    fun notifyLoginExpiry(context: Context, store: Store) {
+        val expiresAt = store.loginExpiresAt ?: return
+        if (!canNotify(context)) return
+        val id = idFor(ID_LOGIN_EXPIRY, store)
+        val pending = PendingIntent.getActivity(
+            context, id, LoginActivity.loginIntent(context), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val day = java.text.SimpleDateFormat("M월 d일", java.util.Locale.KOREA).format(java.util.Date(expiresAt))
+        val text = "${day}에 로그인한 지 1년이 돼서 출석과 리딤 코드 입력이 멈춰요. 누르면 지금 다시 로그인할 수 있어요."
+        val notification = Notification.Builder(context, channel(context, CHANNEL))
+            .setSmallIcon(R.drawable.ic_notify)
+            .setContentTitle(who(context, store) + "호요랩 로그인이 곧 만료돼요")
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        context.getSystemService(NotificationManager::class.java).notify(id, notification)
+        store.loginExpiryNotifiedFor = store.loginAt
     }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */

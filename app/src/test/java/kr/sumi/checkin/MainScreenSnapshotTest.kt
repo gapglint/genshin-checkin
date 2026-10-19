@@ -54,7 +54,7 @@ class MainScreenSnapshotTest {
     @Test fun settingsLight() {
         paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 4200))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
-        MainScreen(view).apply { render(waiting.copy(redeemRole = signed.redeemRole, redeemSummary = signed.redeemSummary)) }
+        MainScreen(view).apply { render(waiting.copy(redeemRole = signed.redeemRole, redeemSummary = signed.redeemSummary, loginExpiry = "2027년 10월 18일")) }
             .settingsPanel.visibility = android.view.View.VISIBLE
         paparazzi.snapshot(view)
     }

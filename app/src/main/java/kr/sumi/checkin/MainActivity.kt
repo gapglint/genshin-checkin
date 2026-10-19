@@ -208,6 +208,7 @@ class MainActivity : Activity() {
                 reward = if (signedToday) store?.lastReward else null,
                 lastChecked = store?.lastRunAt?.takeIf { it > 0 }
                     ?.let { DateFormat.format("M월 d일 HH:mm", Date(it)).toString() },
+                loginExpiry = store?.loginExpiresAt?.let { DateFormat.format("yyyy년 M월 d일", Date(it)).toString() },
                 nextRun = settings.nextRunAt.takeIf { store != null && it > 0 }?.let { describeNextRun(it) },
                 needsExactAlarm = !DailyAlarm.canRunExactly(this),
                 needsBatteryExemption = !getSystemService(PowerManager::class.java)

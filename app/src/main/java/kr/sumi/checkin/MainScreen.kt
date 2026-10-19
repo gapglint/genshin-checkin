@@ -22,6 +22,8 @@ data class MainUiState(
     val month: Int,
     val reward: String? = null,
     val lastChecked: String? = null,
+    /** 로그인 만료 예정일(문장). 0.9.6 전에 로그인해서 모르면 null. */
+    val loginExpiry: String? = null,
     /** 다음 자동 출석 예정 시각(이미 폰 시간대로 바꾼 문장). */
     val nextRun: String? = null,
     val needsExactAlarm: Boolean = false,
@@ -190,7 +192,8 @@ class MainScreen(val root: View) {
         heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
         // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
         accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else "로그인 상태 확인"
-        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 마지막 확인 ${s.lastChecked ?: "아직 없음"}"
+        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 마지막 확인 ${s.lastChecked ?: "아직 없음"}" +
+            (s.loginExpiry?.let { "\n로그인 만료 예정 $it" } ?: "")
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE

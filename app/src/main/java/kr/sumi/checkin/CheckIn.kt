@@ -37,6 +37,9 @@ object CheckIn {
     @Throws(IOException::class)
     fun run(context: Context, store: Store): Outcome? {
         val cookie = store.cookie ?: return null
+        if (Store.loginExpiryDue(store.loginAt, store.loginExpiryNotifiedFor, ServerClock.now())) {
+            Notifier.notifyLoginExpiry(context, store)
+        }
         // 오늘 출첵을 이미 확인했으면 서버에 묻지 않는다.
         if (store.signedToday) return Outcome.AlreadySigned(store.signedTotal)
 
@@ -98,7 +101,7 @@ object CheckIn {
     fun describe(outcome: Outcome): String = when (outcome) {
         is Outcome.Signed -> "출첵 완료! (${outcome.day}일째)" + (outcome.reward?.let { "\n보상: $it" } ?: "")
         is Outcome.AlreadySigned -> "오늘은 이미 출첵했어요. (${outcome.day}일째)"
-        Outcome.LoginExpired -> "로그인이 풀렸어요. 다른 출첵 앱이나 브라우저에서 호요랩에 로그인하면 풀릴 수 있어요. 다시 로그인하면 바로 출석해요."
+        Outcome.LoginExpired -> "로그인이 풀려서 출석과 리딤 코드 입력이 모두 멈췄어요. 다시 로그인하면 바로 출석해요."
         Outcome.CaptchaRequired -> "호요랩이 캡차를 요구해요. 출첵 페이지에서 직접 눌러 주세요."
         Outcome.NotConfirmed -> "출석 응답은 성공이었지만 확인해 보니 반영되지 않았어요. 출첵 페이지에서 직접 확인해 주세요."
         is Outcome.RateLimited -> "호요랩이 요청이 너무 잦다고 해요(${outcome.step} 단계). 잠시 뒤 자동으로 다시 시도해요."

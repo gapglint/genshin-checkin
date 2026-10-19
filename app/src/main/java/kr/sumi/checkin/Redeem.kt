@@ -121,7 +121,7 @@ object Redeem {
                     }
                     attempts += attempt
                     if (attempt.status == RedeemStatus.NOT_LOGGED_IN) {
-                        stop = "리딤 코드 입력용 로그인 정보가 없어요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
+                        stop = "로그인이 풀려서 리딤 코드를 입력하지 못했어요. 출석도 같이 멈춰요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
                         break@roles
                     }
                     if (attempt.status == RedeemStatus.TOO_FAST) continue

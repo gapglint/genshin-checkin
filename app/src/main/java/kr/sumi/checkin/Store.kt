@@ -171,6 +171,19 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getString("last_redeem_notified", null)
         set(value) = prefs.edit { putString("last_redeem_notified", value) }
 
+    /** 이 앱에서 마지막으로 로그인한 시각. 0.9.6 전에 로그인했으면 0(모름). */
+    var loginAt: Long
+        get() = prefs.getLong("login_at", 0)
+        set(value) = prefs.edit { putLong("login_at", value) }
+
+    /** 로그인 만료 예정 시각. 로그인 시각을 모르면 null. */
+    val loginExpiresAt: Long? get() = loginAt.takeIf { it > 0 }?.plus(LOGIN_LIFETIME_MS)
+
+    /** 만료 예고 알림을 보낸 로그인(그때의 loginAt). 같은 로그인에는 한 번만 알린다. */
+    var loginExpiryNotifiedFor: Long
+        get() = prefs.getLong("login_expiry_notified", 0)
+        set(value) = prefs.edit { putLong("login_expiry_notified", value) }
+
     /** 화면·알림에 쓸 이름: 닉네임, 없으면 UID. */
     val displayName get() = accountRole?.nickname ?: "UID $accountId"
 
@@ -195,6 +208,19 @@ class Store(private val context: Context, val accountId: String) {
 
     companion object {
         private fun fileName(id: String) = "hoyo_acc_$id"
+
+        /**
+         * 호요랩 로그인 토큰(ltoken_v2)의 수명. 로그인한 때부터 1년이고, 페이지를 열어도 늘어나지 않는다(2026-10 실측).
+         * 리딤 코드 입력도 같은 토큰을 쓰므로 만료되면 출석과 리딤이 함께 멈춘다.
+         */
+        const val LOGIN_LIFETIME_MS = 365L * 24 * 3600 * 1000
+
+        /** 만료 며칠 전에 다시 로그인하라고 알릴지. */
+        const val LOGIN_EXPIRY_WARN_MS = 14L * 24 * 3600 * 1000
+
+        /** 지금 만료 예고 알림을 보낼 때인지. 로그인 시각을 모르거나 이 로그인에 이미 알렸으면 false. */
+        internal fun loginExpiryDue(loginAt: Long, notifiedFor: Long, now: Long): Boolean =
+            loginAt > 0 && notifiedFor != loginAt && now >= loginAt + LOGIN_LIFETIME_MS - LOGIN_EXPIRY_WARN_MS
 
         /** 서버 기준 출석 날짜. 호요랩 출첵 하루는 UTC+8 자정(한국 시간 새벽 1시)에 바뀐다. */
         fun checkInDay(): LocalDate = ServerClock.today()
@@ -268,6 +294,7 @@ class AppSettings(private val context: Context) {
         if (id !in accountIds) accountIds = accountIds + id
         val store = Store(context, id)
         store.cookie = cookie
+        store.loginAt = ServerClock.now()
         currentId = id
         return store
     }
