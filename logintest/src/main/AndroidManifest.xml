@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="원신 출첵 로그인 테스트"
+        android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+
+        <activity
+            android:name=".TestListActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".TestActivity" />
+
+        <!-- 창 전체를 GPU 없이 그리는 시험. 그래픽칩 문제인지 가르는 용도. -->
+        <activity
+            android:name=".NoGpuTestActivity"
+            android:hardwareAccelerated="false" />
+    </application>
+</manifest>

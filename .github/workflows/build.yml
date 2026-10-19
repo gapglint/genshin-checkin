@@ -52,7 +52,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          ./gradlew assembleRelease bundleRelease
+          ./gradlew :app:assembleRelease :app:bundleRelease
           mv app/build/outputs/apk/release/app-release.apk genshin-checkin.apk
           mv app/build/outputs/bundle/release/app-release.aab genshin-checkin.aab
 
