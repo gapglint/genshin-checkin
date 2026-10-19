@@ -698,54 +698,57 @@
         </LinearLayout>
         </LinearLayout>
 
-        <!-- 편집하는 동안만 보이는 서랍: 숨긴 카드가 타일로 담기고, 누르면 다시 꺼낸다 -->
-        <LinearLayout
-            android:id="@+id/editDrawer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_drawer"
-            android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingTop="10dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="16dp"
-            android:visibility="gone">
-
-            <View
-                android:layout_width="36dp"
-                android:layout_height="4dp"
-                android:layout_gravity="center_horizontal"
-                android:background="@drawable/bg_grabber" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="서랍"
-                android:textColor="@color/ink"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/editDrawerEmpty"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="카드의 − 를 누르면 여기로 들어가요"
-                android:textColor="@color/ink_muted"
-                android:textSize="13sp" />
-
-            <LinearLayout
-                android:id="@+id/editDrawerItems"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:animateLayoutChanges="true"
-                android:orientation="horizontal" />
-        </LinearLayout>
         </kr.sumi.checkin.MaxWidthLinearLayout>
     </ScrollView>
+
+    <!-- 편집하는 동안만 화면 아래에 떠 있는 서랍: 카드를 들고 와서 놓으면 들어가고, 꾹 눌러 들고 나가면 꺼내진다 -->
+    <LinearLayout
+        android:id="@+id/editDrawer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="12dp"
+        android:elevation="12dp"
+        android:background="@drawable/bg_drawer"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_grabber" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="서랍"
+            android:textColor="@color/ink"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/editDrawerEmpty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="카드의 − 를 누르면 여기로 들어가요"
+            android:textColor="@color/ink_muted"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:id="@+id/editDrawerItems"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:animateLayoutChanges="true"
+            android:orientation="horizontal" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/settingsPanel"

@@ -46,9 +46,18 @@ class MainActivity : Activity() {
         applySystemBarInsets(screen.settingsPanel)
         editor = MainEditor(
             screen,
-            onOptions = { openCardOptions(it) },
+            onOptions = { card, anchor -> openCardOptions(card, anchor) },
             onHide = { settings.setShown(it, false); cardOptionsChanged() },
-            onShow = { settings.setShown(it, true); cardOptionsChanged(); loadNotes() },
+            onShow = { card, index ->
+                // 놓은 자리(보이는 카드 중 index번째)에 끼워 넣는다. 서랍의 다른 카드는 원래 자리를 지킨다.
+                val visible = settings.cardOrder.filter { settings.isShown(it) }.toMutableList()
+                visible.add((index ?: visible.size).coerceIn(0, visible.size), card)
+                settings.setShown(card, true)
+                val queue = ArrayDeque(visible)
+                settings.cardOrder = settings.cardOrder.map { if (settings.isShown(it)) queue.removeFirst() else it }
+                cardOptionsChanged()
+                loadNotes()
+            },
             onOrder = { visible ->
                 // 보이는 카드만 새 순서로, 서랍의 카드는 원래 자리를 지킨다.
                 val queue = ArrayDeque(visible)
@@ -258,12 +267,12 @@ class MainActivity : Activity() {
         refresh()
     }
 
-    /** 편집 화면에서 카드를 누르면 그 카드의 옵션만 작은 창으로 띄운다. 바꾸면 바로 저장된다. */
-    private fun openCardOptions(card: String) {
+    /** 편집 중에 카드(또는 '⚙ 옵션')를 누르면 그 카드 바로 위에 말풍선으로 옵션을 띄운다. 바꾸면 바로 저장된다. */
+    private fun openCardOptions(card: String, anchor: View) {
         val density = resources.displayMetrics.density
         fun dp(v: Int) = (v * density).toInt()
         val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        var dialog: android.app.Dialog? = null
+        var popup: android.widget.PopupWindow? = null
 
         fun label(text: String, top: Int = 0) = body.addView(TextView(this).apply {
             this.text = text
@@ -351,7 +360,7 @@ class MainActivity : Activity() {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = android.view.Gravity.CENTER_VERTICAL
                     minimumHeight = dp(52)
-                    setOnClickListener { dialog?.dismiss(); chooseRedeemRole() }
+                    setOnClickListener { popup?.dismiss(); chooseRedeemRole() }
                     addView(LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.VERTICAL
                         addView(TextView(this@MainActivity).apply {
@@ -375,14 +384,19 @@ class MainActivity : Activity() {
                 "출석 보상 달력"
             }
         }
-        val builder = AppDialog(this).setTitle(title).setView(body)
-        if (card != MainEditor.CARD_CHECK_IN && settings.isShown(card)) {
-            builder.setNegativeButton("서랍에 넣기") {
+        if (card != MainEditor.CARD_CHECK_IN) body.addView(TextView(this).apply {
+            text = "서랍에 넣기"
+            textSize = 14f
+            setTextColor(getColor(R.color.warn))
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            minHeight = dp(48)
+            setOnClickListener {
+                popup?.dismiss()
                 settings.setShown(card, false)
                 cardOptionsChanged()
             }
-        }
-        dialog = builder.setPositiveButton("닫기").show()
+        })
+        popup = Popover.show(anchor, title, body)
     }
 
     /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */

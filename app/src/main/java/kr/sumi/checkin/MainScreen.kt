@@ -158,6 +158,14 @@ class MainScreen(val root: View) {
     /** 카드마다 감싸는 틀. 편집할 때 그 위에 편집 층을 겹친다(MainEditor). 태그는 카드 이름. */
     private val slots = mutableMapOf<String, android.widget.FrameLayout>()
     fun slot(card: String): android.widget.FrameLayout = slots.getValue(card)
+
+    /** 편집 중 그림자를 줄 카드 바탕들(리딤·보상 타일은 두 장). */
+    fun surfaces(card: String): List<View> = when (card) {
+        CARD_NOTES -> listOf(notesCard)
+        CARD_TILES -> listOf(tileRedeem, tileHistory)
+        CARD_CALENDAR -> listOf(calendarCard)
+        else -> listOf(root.findViewById(R.id.heroCard))
+    }
     val rowGameApp: View = root.findViewById(R.id.rowGameApp)
     private val gameAppSub: TextView = root.findViewById(R.id.gameAppSub)
     val rowAccount: View = root.findViewById(R.id.rowAccount)

@@ -71,7 +71,7 @@ class MainScreenSnapshotTest {
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         val screen = MainScreen(view)
         screen.render(signed.copy(editing = true, showCalendar = false))
-        MainEditor(screen, {}, {}, {}, {}).show(true, listOf(CARD_CALENDAR))
+        MainEditor(screen, { _, _ -> }, {}, { _, _ -> }, {}).show(true, listOf(CARD_CALENDAR))
         paparazzi.snapshot(view)
     }
 
