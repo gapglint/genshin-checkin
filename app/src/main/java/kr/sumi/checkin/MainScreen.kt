@@ -83,6 +83,9 @@ data class MainUiState(
     val notesExpanded: Boolean = false,
     /** 원신이 깔려 있으면 레진 카드에 '원신 켜기'를 보인다. */
     val gameInstalled: Boolean = false,
+    /** '원신 켜기'로 열 앱 이름과 깔린 원신 수(둘 이상이면 설정에서 고른다). */
+    val gameApp: String? = null,
+    val gameAppCount: Int = 0,
     val showTiles: Boolean = true,
     val showCalendar: Boolean = true,
     /** 메인 화면 설정 요약, 예: "출석 · 레진 · 바로가기 · 달력". */
@@ -118,7 +121,6 @@ class MainScreen(val root: View) {
     val makeUpButton: Button = root.findViewById(R.id.makeUpButton)
     val rowNotifications: View = root.findViewById(R.id.rowNotifications)
     private val notificationsSub: TextView = root.findViewById(R.id.notificationsSub)
-    val rowOpenPage: View = root.findViewById(R.id.rowOpenPage)
     val settingsButton: View = root.findViewById(R.id.settingsButton)
     val settingsPanel: View = root.findViewById(R.id.settingsPanel)
     val settingsBack: View = settingsPanel.findViewById(R.id.headerBack)
@@ -150,6 +152,8 @@ class MainScreen(val root: View) {
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     private val mainDisplaySub: TextView = root.findViewById(R.id.mainDisplaySub)
     val rowResinThreshold: View = root.findViewById(R.id.rowResinThreshold)
+    val rowGameApp: View = root.findViewById(R.id.rowGameApp)
+    private val gameAppSub: TextView = root.findViewById(R.id.gameAppSub)
     private val resinThresholdSub: TextView = root.findViewById(R.id.resinThresholdSub)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
@@ -162,7 +166,6 @@ class MainScreen(val root: View) {
     val redeemSwitch: StarSwitch = root.findViewById(R.id.redeemSwitch)
     val rowRedeemRole: View = root.findViewById(R.id.rowRedeemRole)
     private val redeemRoleSub: TextView = root.findViewById(R.id.redeemRoleSub)
-    val rowRedeemNow: View = root.findViewById(R.id.rowRedeemNow)
     private val redeemSummary: TextView = root.findViewById(R.id.redeemSummary)
 
     init {
@@ -236,9 +239,8 @@ class MainScreen(val root: View) {
         redeemSwitch.isChecked = s.redeemEnabled
         redeemRoleSub.text = s.redeemRole ?: if (s.loggedIn) "눌러서 골라 주세요" else "로그인하면 고를 수 있어요"
         redeemRoleSub.setTextColor(context.getColor(if (s.redeemRole == null && s.loggedIn) R.color.accent else R.color.ink_muted))
-        redeemSummary.text = s.redeemSummary ?: "아직 확인하지 않았어요"
+        redeemSummary.text = s.redeemSummary?.let { "마지막 확인 $it" } ?: "새 코드를 찾아 하루 한 번 입력해요"
         rowRedeemRole.isEnabled = s.loggedIn && s.busy == null
-        rowRedeemNow.isEnabled = s.loggedIn && s.busy == null
 
         heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
         // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
@@ -266,8 +268,10 @@ class MainScreen(val root: View) {
             s.resinThreshold <= 0 -> "가득 찼을 때"
             else -> "${s.resinThreshold}개"
         }
-        rowResinThreshold.isEnabled = s.resinAlert
-        rowResinThreshold.alpha = if (s.resinAlert) 1f else 0.5f
+        // 레진 알림을 끄면 기준도 필요 없으니 숨긴다. 원신이 둘 이상 깔렸을 때만 어느 걸 켤지 고르게 한다.
+        rowResinThreshold.visibility = if (s.resinAlert) View.VISIBLE else View.GONE
+        rowGameApp.visibility = if (s.gameApp != null && s.gameAppCount > 1) View.VISIBLE else View.GONE
+        gameAppSub.text = s.gameApp
 
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()

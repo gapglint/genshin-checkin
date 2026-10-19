@@ -302,6 +302,11 @@ class AppSettings(private val context: Context) {
     /** 실시간 메모 알림 설정을 한 번에. */
     val noteAlerts get() = NoteAlertSettings(resinAlert, resinThreshold, expeditionAlert, coinAlert)
 
+    /** '원신 켜기'로 열 원신(패키지 이름). 원신이 둘 이상 깔렸을 때만 고른다. */
+    var gamePackage: String?
+        get() = prefs.getString("game_package", null)
+        set(value) = prefs.edit { putString("game_package", value) }
+
     /** 메인 화면에 보일 것. 출석 카드는 항상 보인다. */
     var showNotes: Boolean
         get() = prefs.getBoolean("show_notes", true)

@@ -698,6 +698,73 @@
                 android:paddingEnd="16dp"
                 android:paddingBottom="24dp">
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp"
+            android:text="계정"
+            android:textColor="@color/ink_muted"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/settingsGroup"
+            android:background="@drawable/bg_group"
+            android:divider="@drawable/divider_inset"
+            android:orientation="vertical"
+            android:showDividers="middle">
+
+            <LinearLayout
+                android:id="@+id/rowAccount"
+                style="@style/Row">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/accountTitle"
+                        style="@style/Text.RowTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                    <TextView
+                        android:id="@+id/accountSub"
+                        style="@style/Text.RowSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFeatureSettings="tnum" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_chevron" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/rowLogout"
+                style="@style/Row"
+                android:minHeight="56dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="이 계정 로그아웃"
+                    android:textColor="@color/warn"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+
         <LinearLayout
             android:id="@+id/timingSection"
             android:layout_width="match_parent"
@@ -866,11 +933,11 @@
                         android:text="리딤 코드 자동 입력" />
 
                     <TextView
+                        android:id="@+id/redeemSummary"
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="호요랩 공식 목록과 커뮤니티 글에서 새 코드를 찾아 하루 한 번 입력해요" />
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
 
                 <kr.sumi.checkin.StarSwitch
@@ -911,36 +978,6 @@
                     android:src="@drawable/ic_chevron" />
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/rowRedeemNow"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="지금 코드 확인" />
-
-                    <TextView
-                        android:id="@+id/redeemSummary"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
-                </LinearLayout>
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_chevron" />
-            </LinearLayout>
         </LinearLayout>
 
         <TextView
@@ -949,7 +986,7 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="28dp"
             android:layout_marginBottom="8dp"
-            android:text="화면·알림"
+            android:text="알림·화면"
             android:textColor="@color/ink_muted"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -962,37 +999,6 @@
             android:divider="@drawable/divider_inset"
             android:orientation="vertical"
             android:showDividers="middle">
-
-            <LinearLayout
-                android:id="@+id/rowMainDisplay"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="메인 화면" />
-
-                    <TextView
-                        android:id="@+id/mainDisplaySub"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
-                </LinearLayout>
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_chevron" />
-            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/rowNotifications"
@@ -1056,41 +1062,8 @@
                     android:src="@drawable/ic_chevron" />
             </LinearLayout>
 
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp"
-            android:lineSpacingExtra="2dp"
-            android:text="레진·파견은 호요랩 '실시간 메모'를 써요. 꺼져 있으면 앱이 켜 드려요."
-            android:textColor="@color/ink_muted"
-            android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="28dp"
-            android:layout_marginBottom="8dp"
-            android:text="계정"
-            android:textColor="@color/ink_muted"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/settingsGroup"
-            android:background="@drawable/bg_group"
-            android:divider="@drawable/divider_inset"
-            android:orientation="vertical"
-            android:showDividers="middle">
-
             <LinearLayout
-                android:id="@+id/rowOpenPage"
+                android:id="@+id/rowMainDisplay"
                 style="@style/Row">
 
                 <LinearLayout
@@ -1103,14 +1076,14 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="출석 페이지 열기" />
+                        android:text="메인 화면" />
 
                     <TextView
+                        android:id="@+id/mainDisplaySub"
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="캡차 때문에 자동 출첵이 막혔을 때 직접 눌러요" />
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
 
                 <ImageView
@@ -1121,50 +1094,39 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/rowAccount"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/accountTitle"
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-
-                    <TextView
-                        android:id="@+id/accountSub"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:fontFeatureSettings="tnum" />
-                </LinearLayout>
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_chevron" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/rowLogout"
+                android:id="@+id/rowGameApp"
                 style="@style/Row"
-                android:minHeight="56dp">
+                android:visibility="gone">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="이 계정 로그아웃"
-                    android:textColor="@color/warn"
-                    android:textSize="16sp" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.RowTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="원신 켜기에 쓸 앱" />
+
+                    <TextView
+                        android:id="@+id/gameAppSub"
+                        style="@style/Text.RowSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_chevron" />
             </LinearLayout>
+
         </LinearLayout>
+
 
         <TextView
             android:layout_width="match_parent"

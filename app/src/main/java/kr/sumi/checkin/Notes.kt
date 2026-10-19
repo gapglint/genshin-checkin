@@ -288,7 +288,7 @@ object Notes {
                 ResinWidget.updateAll(context)
                 val (alerts, flags) = evaluate(result.note, store.noteFlags, settings.noteAlerts)
                 store.noteFlags = flags
-                if (alerts.any) Notifier.notifyNote(context, store, result.note, alerts, target(result.note, settings.resinThreshold))
+                if (alerts.any) Notifier.notifyNote(context, store, result.note, alerts)
             }
             NoteResult.NoCharacter -> store.noteProblem = "원신 캐릭터를 찾지 못했어요"
             NoteResult.LoginExpired -> store.noteProblem = "로그인이 풀렸어요. 다시 로그인해 주세요"

@@ -69,9 +69,6 @@ class MainActivity : Activity() {
         screen.makeUpButton.setOnClickListener { makeUpNow() }
         screen.makeUpCard.setOnClickListener { explainMakeUp() }
         screen.rowNotifications.setOnClickListener { chooseNotifications() }
-        screen.rowOpenPage.setOnClickListener {
-            store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) }
-        }
         screen.rowAccount.setOnClickListener { checkLogin() }
         screen.rowLogout.setOnClickListener { confirmLogout() }
         for (link in listOf(screen.privacyLink, screen.sourceLink)) link.paintFlags = link.paintFlags or Paint.UNDERLINE_TEXT_FLAG
@@ -81,7 +78,6 @@ class MainActivity : Activity() {
         screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }
         screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> settings.redeemEnabled = checked }
         screen.rowRedeemRole.setOnClickListener { chooseRedeemRole() }
-        screen.rowRedeemNow.setOnClickListener { redeemNow() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
         screen.notesCard.setOnClickListener {
@@ -94,6 +90,7 @@ class MainActivity : Activity() {
         }
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
         screen.rowMainDisplay.setOnClickListener { chooseMainDisplay() }
+        screen.rowGameApp.setOnClickListener { chooseGameApp() }
         screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
 
         if (Build.VERSION.SDK_INT >= 33) {
@@ -205,6 +202,20 @@ class MainActivity : Activity() {
         Notes.schedule(this)
         refresh()
         if (store?.note == null) loadNotes(force = true)
+    }
+
+    /** 원신이 둘 이상 깔렸을 때 '원신 켜기'로 열 쪽을 고른다. */
+    private fun chooseGameApp() {
+        val apps = Game.installed(this)
+        AppDialog(this)
+            .setTitle("원신 켜기에 쓸 앱")
+            .setSingleChoiceItems(apps.map { it.label }.toTypedArray(), apps.indexOf(Game.chosen(this))) { dialog, which ->
+                settings.gamePackage = apps[which].packageName
+                dialog.dismiss()
+                refresh()
+            }
+            .setNegativeButton("취소")
+            .show()
     }
 
     /** 메인 화면에 보일 카드를 고른다. 출석 카드는 항상 보인다. */
@@ -337,6 +348,8 @@ class MainActivity : Activity() {
                 showNotes = settings.showNotes,
                 notesExpanded = settings.notesExpanded,
                 gameInstalled = Game.launchIntent(this) != null,
+                gameApp = Game.chosen(this)?.label,
+                gameAppCount = Game.installed(this).size,
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
                 mainDisplaySummary = mainDisplaySummary(),
@@ -371,13 +384,20 @@ class MainActivity : Activity() {
                 AppDialog(this)
                     .setTitle(if (valid) "로그인돼 있어요" else "로그인이 풀렸어요")
                     .setMessage(
-                        if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요."
+                        if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요.\n\n캡차 때문에 자동 출석이 막히면 '출석 페이지'에서 직접 누를 수 있어요."
                         else "${who}HoYoLAB UID ${store.accountId} 계정을 다시 로그인해 주세요."
                     )
                     .setPositiveButton(if (valid) "확인" else "다시 로그인") {
                         if (!valid) startActivity(LoginActivity.loginIntent(this))
                     }
-                    .apply { if (valid) setNeutralButton("다시 로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) } }
+                    .apply {
+                        if (valid) {
+                            setNeutralButton("다시 로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
+                            setNegativeButton("출석 페이지") {
+                                startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId))
+                            }
+                        }
+                    }
                     .show()
             }
             null
@@ -507,7 +527,7 @@ class MainActivity : Activity() {
                 "주전자 동전이 가득 찼을 때",
                 "밤(오후 10시~오전 8시)에는 소리·진동 없이",
             ), checked)
-            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요. 레진 기준은 '레진 알림 기준'에서 바꿔요.")
+            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요.\n레진·파견은 호요랩 '실시간 메모'를 써요. 꺼져 있으면 앱이 켜요.")
             .setNegativeButton("취소")
             .setPositiveButton("저장") {
                 settings.notifyCheckIn = checked[0]

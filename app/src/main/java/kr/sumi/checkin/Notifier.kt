@@ -156,7 +156,7 @@ object Notifier {
 
     /** 레진이 기준만큼 찼을 때, 파견이 모두 끝났을 때, 주전자 동전이 가득 찼을 때. 누르면 앱을 연다. */
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
-    fun notifyNote(context: Context, store: Store, note: DailyNote, alerts: NoteAlerts, target: Int) {
+    fun notifyNote(context: Context, store: Store, note: DailyNote, alerts: NoteAlerts) {
         if (!canNotify(context)) return
         fun post(kind: Int, title: String, text: String) {
             val id = idFor(kind, store)
@@ -182,13 +182,14 @@ object Notifier {
                 .build()
             context.getSystemService(NotificationManager::class.java).notify(id, notification)
         }
+        // 제목은 기준이 아니라 지금 실제 개수로 쓴다(처음 받았을 때 이미 기준을 넘어 있을 수 있다).
         if (alerts.resin) {
-            if (target >= note.maxResin) {
+            if (note.resin >= note.maxResin) {
                 post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.")
             } else {
                 val left = note.resinFullAt - note.at
-                post(ID_RESIN, "레진이 ${target}개 찼어요",
-                    "지금 ${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})")
+                post(ID_RESIN, "레진이 ${note.resin}개 찼어요",
+                    "${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})")
             }
         }
         if (alerts.expeditions) {
