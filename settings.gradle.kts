@@ -15,4 +15,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "hoyo-checkin"
 include(":app")
-include(":logintest")

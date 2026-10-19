@@ -1,4 +1,4 @@
-package kr.sumi.logintest
+package kr.sumi.checkin.logintest
 
 /**
  * 시험해 볼 로그인 방식들. 하나씩 바꿔 보며 어느 쪽에서 로그인이 되는지 본다.

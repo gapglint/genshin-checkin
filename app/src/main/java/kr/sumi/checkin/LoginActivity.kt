@@ -46,7 +46,7 @@ class LoginActivity : Activity() {
 
     /**
      * 로그인이 안 될 때 보내 받을 기록: 열린 페이지(주소는 경로까지만, 질의 문자열은 버린다), 새 창, 오류, 웹뷰 엔진 종료.
-     * 쿠키·아이디·비밀번호는 남기지 않는다. 화면의 '기록 복사'로 기기 정보와 함께 복사한다.
+     * 쿠키·아이디·비밀번호는 남기지 않는다. '다른 방법 시험하기'의 결과에 함께 담긴다.
      */
     private val trail = ArrayDeque<String>()
     /** 웹뷰 엔진이 죽어 웹뷰를 치웠으면 true. 그 뒤로는 웹뷰를 건드리지 않는다. */
@@ -57,19 +57,6 @@ class LoginActivity : Activity() {
         val path = url?.let { Uri.parse(it).let { u -> "${u.host ?: u.scheme}${u.path ?: ""}${if (u.fragment != null) "#" + u.fragment!!.substringBefore("?") else ""}" } }
         trail.addLast("+${(System.currentTimeMillis() - started) / 1000}s $event${path?.let { " $it" } ?: ""}")
         while (trail.size > 60) trail.removeFirst()
-    }
-
-    private fun copyTrail() {
-        val webView = WebView.getCurrentWebViewPackage()
-        val text = buildString {
-            appendLine("원신 출첵 ${packageManager.getPackageInfo(packageName, 0).versionName} 로그인 기록")
-            appendLine("기기 ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
-            appendLine("웹뷰 ${webView?.packageName} ${webView?.versionName}")
-            trail.forEach { appendLine(it) }
-        }
-        getSystemService(android.content.ClipboardManager::class.java)
-            .setPrimaryClip(android.content.ClipData.newPlainText("로그인 기록", text))
-        Toast.makeText(this, "기록을 복사했어요. 메신저나 메일에 붙여 넣어 보내 주세요.", Toast.LENGTH_LONG).show()
     }
 
     /** 로그인 페이지를 띄운 뒤, 사람이 로그인해서 토큰이 생기는지 1초마다 본다. */
@@ -120,16 +107,16 @@ class LoginActivity : Activity() {
 
                 /**
                  * 웹뷰 엔진이 죽으면 기본으로는 앱이 꺼진다. 다시 열면 같은 이유로 또 죽으며 깜빡일 수 있어
-                 * 자동으로 다시 열지 않고, 기록을 남긴 뒤 안내만 띄운다(기록 복사 버튼은 그대로 있다).
+                 * 자동으로 다시 열지 않고, 기록을 남긴 뒤 안내만 띄운다('다른 방법 시험하기' 버튼은 그대로 있다).
                  */
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                     note("웹뷰 엔진 종료 crash=${detail.didCrash()}")
                     engineGone = true
                     handler.removeCallbacks(pollCookie)
-                            frame.removeView(view)
+                    frame.removeView(view)
                     view.destroy()
                     frame.addView(TextView(this@LoginActivity).apply {
-                        text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도하거나, 위의 '기록 복사'로 보내 주세요."
+                        text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도하거나, 위의 '다른 방법 시험하기'를 눌러 주세요."
                         textSize = 15f
                         gravity = android.view.Gravity.CENTER
                         setTextColor(getColor(R.color.ink))
@@ -213,17 +200,22 @@ class LoginActivity : Activity() {
         }
     }
 
-    /** 로그인이 끝내 안 될 때 기록을 복사해 보내는 버튼(작게). */
+    /** 로그인이 끝내 안 될 때 여러 방식을 시험해 보는 화면으로 가는 버튼(작게). 시험 결과에 기기 정보와 기록이 함께 담긴다. */
     private fun trailButton() = TextView(this).apply {
         val density = resources.displayMetrics.density
-        text = "그래도 안 되면 → 기록 복사해서 보내기"
+        text = "그래도 안 되면 → 다른 방법 시험하기"
         textSize = 13f
         setTextColor(getColor(R.color.ink_muted))
         minHeight = (40 * density).toInt()
         gravity = android.view.Gravity.CENTER_VERTICAL
         setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
         setBackgroundResource(android.R.drawable.list_selector_background)
-        setOnClickListener { copyTrail() }
+        setOnClickListener {
+            // 이 화면의 기록도 시험 결과에 같이 담는다.
+            kr.sumi.checkin.logintest.Results(this@LoginActivity).saveLoginTrail(trail.joinToString("") { "  $it\n" })
+            startActivity(Intent(this@LoginActivity, kr.sumi.checkin.logintest.TestListActivity::class.java))
+            finish()
+        }
     }
 
     /** 로그인 화면용 웹뷰. 로그인 창은 다른 도메인 iframe이라 서드파티 쿠키가 필요하다. */

@@ -1,4 +1,4 @@
-package kr.sumi.logintest
+package kr.sumi.checkin.logintest
 
 import android.app.Activity
 import android.app.AlertDialog
