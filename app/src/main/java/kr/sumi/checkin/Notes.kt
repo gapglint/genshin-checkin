@@ -276,9 +276,12 @@ object Notes {
         }
     }
 
-    /** 받아 와서 저장하고, 지금 알릴 게 있으면 알린다. 화면 표시용 문제 안내도 남긴다. */
+    /**
+     * 받아 와서 저장하고, 지금 알릴 게 있으면 알린다. 화면 표시용 문제 안내도 남긴다.
+     * 앱 화면과 알람이 동시에 확인해도 같은 알림이 두 번 울리지 않게 한 번에 하나씩만 돈다.
+     */
     @Throws(IOException::class)
-    fun refresh(context: Context, store: Store): NoteResult {
+    fun refresh(context: Context, store: Store): NoteResult = synchronized(this) {
         val result = fetch(store)
         val settings = AppSettings(context)
         when (result) {
@@ -294,7 +297,7 @@ object Notes {
             NoteResult.LoginExpired -> store.noteProblem = "로그인이 풀렸어요. 다시 로그인해 주세요"
             is NoteResult.Failed -> store.noteProblem = result.message
         }
-        return result
+        result
     }
 
     fun enabled(settings: AppSettings) = settings.noteAlerts.any
