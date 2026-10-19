@@ -15,6 +15,7 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
 import android.widget.CompoundButton
+import android.widget.LinearLayout
 import android.widget.TextView
 
 private fun Context.dp(value: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics)
@@ -155,4 +156,18 @@ fun buttonBackground(context: Context, fill: Int, radiusDp: Float, stroke: Int? 
     val rippleColor = if (fill == 0) context.color(R.color.accent) and 0x1FFFFFFF else 0x33FFFFFF
     val inset = context.dp(insetDp).toInt()
     return InsetDrawable(RippleDrawable(ColorStateList.valueOf(rippleColor), states, mask), 0, inset, 0, inset)
+}
+
+/**
+ * 넓은 화면(큰 폰 가로, 폴더블, 태블릿)에서 내용이 끝까지 늘어나지 않게 폭을 600dp까지로 막는 LinearLayout.
+ * 부모(ScrollView 등)에서 layout_gravity="center_horizontal"을 주면 가운데에 모인다.
+ */
+class MaxWidthLinearLayout(context: Context, attrs: AttributeSet? = null) : LinearLayout(context, attrs) {
+    private val maxWidthPx = (600 * resources.displayMetrics.density).toInt()
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val size = MeasureSpec.getSize(widthMeasureSpec)
+        val spec = if (size > maxWidthPx) MeasureSpec.makeMeasureSpec(maxWidthPx, MeasureSpec.EXACTLY) else widthMeasureSpec
+        super.onMeasure(spec, heightMeasureSpec)
+    }
 }

@@ -38,8 +38,22 @@ class MainActivity : Activity() {
         drawBehindSystemBars(window)
         setContentView(R.layout.activity_main)
         settings = AppSettings(this)
-        screen = MainScreen(findViewById(R.id.scroll))
+        screen = MainScreen(findViewById(R.id.root))
         applySystemBarInsets(findViewById(R.id.content))
+        applySystemBarInsets(screen.settingsPanel)
+        screen.settingsButton.setOnClickListener { showSettings(true) }
+        screen.settingsBack.setOnClickListener { showSettings(false) }
+        screen.setupBanner.setOnClickListener { showSettings(true) }
+        screen.tileHistory.setOnClickListener {
+            store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
+        }
+        screen.tileRedeem.setOnClickListener {
+            when {
+                !settings.redeemEnabled -> showSettings(true)
+                store?.redeemRole == null -> chooseRedeemRole()
+                else -> redeemNow()
+            }
+        }
 
         screen.onAccountChip = { id ->
             if (id == null) {
@@ -58,9 +72,6 @@ class MainActivity : Activity() {
             store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) }
         }
         screen.rowAccount.setOnClickListener { checkLogin() }
-        screen.rowHistory.setOnClickListener {
-            store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
-        }
         screen.rowLogout.setOnClickListener { confirmLogout() }
         for (link in listOf(screen.privacyLink, screen.sourceLink)) link.paintFlags = link.paintFlags or Paint.UNDERLINE_TEXT_FLAG
         screen.privacyLink.setOnClickListener { openWeb(PRIVACY_URL) }
@@ -92,6 +103,35 @@ class MainActivity : Activity() {
         if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
         loadNicknamesIfMissing()
+    }
+
+    private var closeSettings: Any? = null
+
+    /** 설정은 같은 화면 위에 연다. 열려 있으면 뒤로 가기로 닫는다. */
+    private fun showSettings(show: Boolean) {
+        screen.settingsPanel.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) screen.settingsPanel.findViewById<View>(R.id.settingsScroll).scrollTo(0, 0)
+        if (Build.VERSION.SDK_INT >= 33) setCloseSettingsOnBack(show)
+    }
+
+    @TargetApi(33)
+    private fun setCloseSettingsOnBack(on: Boolean) {
+        val current = closeSettings as android.window.OnBackInvokedCallback?
+        if (on && current == null) {
+            val callback = android.window.OnBackInvokedCallback { showSettings(false) }
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+            closeSettings = callback
+        } else if (!on && current != null) {
+            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(current)
+            closeSettings = null
+        }
+    }
+
+    /** Android 12 이하용. 13 이상은 OnBackInvokedCallback이 처리한다(매니페스트에서 켜 둠). */
+    @SuppressLint("GestureBackNavigation")
+    @Deprecated("Android 13 미만용")
+    override fun onBackPressed() {
+        if (screen.settingsPanel.visibility == View.VISIBLE) showSettings(false) else super.onBackPressed()
     }
 
     /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */
@@ -159,6 +199,8 @@ class MainActivity : Activity() {
                     val at = DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt))
                     "$at · $summary"
                 },
+                redeemShort = store?.lastRedeemSummary?.substringBefore(":")?.trim(),
+                redeemWhen = store?.lastRedeemSummary?.let { DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() },
                 busy = busy,
                 historyUnseen = store?.historyUnseen ?: 0,
             )

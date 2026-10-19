@@ -38,6 +38,9 @@ data class MainUiState(
     /** 리딤 보상을 받을 캐릭터 설명. 아직 안 골랐으면 null. */
     val redeemRole: String? = null,
     val redeemSummary: String? = null,
+    /** 리딤 바로가기 타일용 짧은 결과('새 코드 3개 입력')와 그 시각. */
+    val redeemShort: String? = null,
+    val redeemWhen: String? = null,
     /** 출첵·보충이 진행 중이면 그 안내. */
     val busy: String? = null,
     /** 아직 확인하지 않은 보상 수. */
@@ -58,9 +61,8 @@ class MainScreen(val root: View) {
     private val heroStats: View = root.findViewById(R.id.heroStats)
     private val heroMonth: TextView = root.findViewById(R.id.heroMonth)
     private val heroReward: TextView = root.findViewById(R.id.heroReward)
-    private val heroChecked: TextView = root.findViewById(R.id.heroChecked)
+    private val heroRewardIcon: android.widget.ImageView = root.findViewById(R.id.heroRewardIcon)
     private val heroNote: TextView = root.findViewById(R.id.heroNote)
-    private val heroNextRow: View = root.findViewById(R.id.heroNextRow)
     private val heroNext: TextView = root.findViewById(R.id.heroNext)
     private val timingSection: View = root.findViewById(R.id.timingSection)
     val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
@@ -74,8 +76,19 @@ class MainScreen(val root: View) {
     val rowNotifications: View = root.findViewById(R.id.rowNotifications)
     private val notificationsSub: TextView = root.findViewById(R.id.notificationsSub)
     val rowOpenPage: View = root.findViewById(R.id.rowOpenPage)
-    val rowHistory: View = root.findViewById(R.id.rowHistory)
-    private val historySub: TextView = root.findViewById(R.id.historySub)
+    val settingsButton: View = root.findViewById(R.id.settingsButton)
+    val settingsPanel: View = root.findViewById(R.id.settingsPanel)
+    val settingsBack: View = settingsPanel.findViewById(R.id.headerBack)
+    val setupBanner: View = root.findViewById(R.id.setupBanner)
+    private val setupText: TextView = root.findViewById(R.id.setupText)
+    private val tiles: View = root.findViewById(R.id.tiles)
+    val tileRedeem: View = root.findViewById(R.id.tileRedeem)
+    private val tileRedeemValue: TextView = root.findViewById(R.id.tileRedeemValue)
+    private val tileRedeemSub: TextView = root.findViewById(R.id.tileRedeemSub)
+    val tileHistory: View = root.findViewById(R.id.tileHistory)
+    private val tileHistoryValue: TextView = root.findViewById(R.id.tileHistoryValue)
+    private val tileHistorySub: TextView = root.findViewById(R.id.tileHistorySub)
+    private val tileHistoryDot: View = root.findViewById(R.id.tileHistoryDot)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
@@ -96,6 +109,11 @@ class MainScreen(val root: View) {
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
         root.findViewById<View>(R.id.timingGroup).clipToOutline = true
         redeemSection.clipToOutline = true
+        tileRedeem.clipToOutline = true
+        tileHistory.clipToOutline = true
+        setupBanner.clipToOutline = true
+        settingsPanel.findViewById<TextView>(R.id.headerTitle).text = "설정"
+        settingsPanel.findViewById<View>(R.id.headerStatus).visibility = View.GONE
         // Material 3 버튼 모양: 큰 버튼은 모서리 16dp로 채우고, 보충하기는 글자 버튼.
         primaryButton.background = buttonBackground(context, context.getColor(R.color.action), 16f)
         makeUpButton.background = buttonBackground(context, fill = 0, radiusDp = 20f)
@@ -120,15 +138,18 @@ class MainScreen(val root: View) {
             s.signedToday -> "출석 완료"
             else -> "출석하면 표시돼요"
         }
-        heroChecked.text = s.lastChecked ?: "아직 없음"
-        heroNextRow.visibility = if (s.nextRun != null) View.VISIBLE else View.GONE
-        heroNext.text = s.nextRun
+        heroRewardIcon.setImageResource(itemIcon(s.reward))
+        heroNext.visibility = if (s.nextRun != null) View.VISIBLE else View.GONE
+        heroNext.text = "다음 자동 출석 · ${s.nextRun}"
 
         rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
         rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE
         rowHibernation.visibility = if (s.loggedIn && s.needsHibernationExemption) View.VISIBLE else View.GONE
-        timingSection.visibility =
-            if (s.loggedIn && (s.needsExactAlarm || s.needsBatteryExemption || s.needsHibernationExemption)) View.VISIBLE else View.GONE
+        val setupNeeded = if (!s.loggedIn) 0 else listOf(s.needsExactAlarm, s.needsBatteryExemption, s.needsHibernationExemption).count { it }
+        timingSection.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
+        // 메인에는 한 줄 안내만 두고, 자세한 항목은 설정 안에서 보여 준다.
+        setupBanner.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
+        setupText.text = "제때 출석하려면 설정 ${setupNeeded}개가 필요해요"
         heroNote.text = s.note
         heroNote.visibility = if (s.note != null && s.busy == null) View.VISIBLE else View.GONE
 
@@ -157,17 +178,42 @@ class MainScreen(val root: View) {
         heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
         // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
         accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else "로그인 상태 확인"
-        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 자동 출석 켜짐"
+        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 마지막 확인 ${s.lastChecked ?: "아직 없음"}"
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
-        rowHistory.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
-        historySub.text = if (s.historyUnseen > 0) {
-            "새 보상 ${if (s.historyUnseen >= RewardHistory.PAGE_SIZE) "${RewardHistory.PAGE_SIZE}개 이상" else "${s.historyUnseen}개"} · 눌러서 확인"
-        } else {
-            "출석·보충·리딤 코드로 받은 보상을 날짜별로 봐요"
+        renderTiles(s)
+    }
+
+    /** 보상 이름에 맞는 아이콘. 모르는 아이템은 선물 상자. */
+    private fun itemIcon(reward: String?) = when {
+        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
+        reward.contains("모라") -> R.drawable.ic_item_mora
+        reward.contains("경험") -> R.drawable.ic_item_book
+        reward.contains("광석") -> R.drawable.ic_item_ore
+        else -> R.drawable.ic_item_gift
+    }
+
+    /** 바로가기 타일: 리딤 코드(누르면 지금 확인), 보상 내역(누르면 열기). */
+    private fun renderTiles(s: MainUiState) {
+        tiles.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+        tileRedeemValue.text = when {
+            !s.redeemEnabled -> "자동 입력 꺼짐"
+            s.redeemRole == null -> "캐릭터를 골라 주세요"
+            else -> s.redeemShort ?: "자동 입력 켜짐"
         }
-        historySub.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink_muted))
+        tileRedeemValue.setTextColor(context.getColor(if (s.redeemEnabled && s.redeemRole == null) R.color.accent else R.color.ink))
+        tileRedeemSub.text = when {
+            !s.redeemEnabled || s.redeemRole == null -> "눌러서 설정"
+            s.redeemWhen != null -> s.redeemWhen
+            else -> "눌러서 지금 확인"
+        }
+        tileRedeem.isEnabled = s.busy == null
+        val unseen = if (s.historyUnseen >= RewardHistory.PAGE_SIZE) "${RewardHistory.PAGE_SIZE}개 이상" else "${s.historyUnseen}개"
+        tileHistoryValue.text = if (s.historyUnseen > 0) "새 보상 $unseen" else "받은 보상 보기"
+        tileHistoryValue.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink))
+        tileHistorySub.text = "이번 달 원석·모라 합계"
+        tileHistoryDot.visibility = if (s.historyUnseen > 0) View.VISIBLE else View.GONE
     }
 
     private fun renderAccounts(s: MainUiState) {

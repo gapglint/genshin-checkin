@@ -52,12 +52,16 @@ class RewardHistoryScreen(private val context: Context) {
         orientation = LinearLayout.VERTICAL
         setBackgroundResource(R.color.bg)
         addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        val content = LinearLayout(context).apply {
+        // 넓은 화면에서는 가운데 600dp 폭으로 모은다.
+        val content = MaxWidthLinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             addView(list)
             addView(more, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(8), dp(16), dp(24)) })
         }
-        addView(ScrollView(context).apply { isVerticalScrollBarEnabled = false; addView(content) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+        addView(ScrollView(context).apply {
+            isVerticalScrollBarEnabled = false
+            addView(content, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL))
+        }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
     }
 
     fun render(s: HistoryUiState) {

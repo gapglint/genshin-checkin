@@ -18,7 +18,7 @@ class MainScreenSnapshotTest {
         loggedIn = true, accounts = listOf(AccountChip("181234567", "여행자", true), AccountChip("192345678", "부계정", false)),
         currentId = "181234567", uid = "181234567", nickname = "여행자", server = "아시아 서버", signedToday = true, totalDays = 17, month = 10,
         reward = "원석 x20", lastChecked = "10월 18일 21:04", nextRun = "내일 01:03", makeUpMissed = 2,
-        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 812345678", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: OKTCV81F9H8D", historyUnseen = 3,
+        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 812345678", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: OKTCV81F9H8D", redeemShort = "새 코드 1개 입력", redeemWhen = "10월 18일 01:04", historyUnseen = 3,
     )
     private val waiting = MainUiState(
         loggedIn = true, uid = "812345678", totalDays = 16, month = 10, lastChecked = "10월 18일 03:00",
@@ -40,6 +40,32 @@ class MainScreenSnapshotTest {
     @Test fun signedDark() = snap(signed, night = true)
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
+
+    @Test fun settingsLight() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 4200))
+        val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
+        MainScreen(view).apply { render(waiting.copy(redeemRole = signed.redeemRole, redeemSummary = signed.redeemSummary)) }
+            .settingsPanel.visibility = android.view.View.VISIBLE
+        paparazzi.snapshot(view)
+    }
+
+    // 여러 기기·조건: 화면이 잘리거나 겹치지 않는지 본다(실제 화면 높이 그대로).
+    private fun device(config: DeviceConfig, state: MainUiState = signed) {
+        paparazzi.unsafeUpdateConfig(config)
+        val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
+        MainScreen(view).render(state)
+        paparazzi.snapshot(view)
+    }
+
+    @Test fun deviceSmallPhone() = device(DeviceConfig.NEXUS_5)
+    @Test fun deviceBigPhone() = device(DeviceConfig.PIXEL_6_PRO)
+    @Test fun deviceFontLarge() = device(DeviceConfig.PIXEL_6.copy(fontScale = 1.3f))
+    @Test fun deviceFontHuge() = device(DeviceConfig.PIXEL_6.copy(fontScale = 2.0f))
+    @Test fun deviceSplitScreen() = device(DeviceConfig.PIXEL_6.copy(screenHeight = 1100))
+    @Test fun deviceFoldableOpen() = device(DeviceConfig.PIXEL_6.copy(screenWidth = 2208, screenHeight = 1840,
+        orientation = com.android.resources.ScreenOrientation.LANDSCAPE))
+    @Test fun deviceTabletLandscape() = device(DeviceConfig.PIXEL_C)
+    @Test fun deviceSetupNeeded() = device(DeviceConfig.PIXEL_6, waiting)
 
     /** 런처 아이콘(적응형 아이콘 원본 108dp)을 크게 그려 본다. */
     @Test fun launcherIcon() {
