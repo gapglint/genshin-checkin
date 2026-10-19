@@ -79,6 +79,15 @@ class StoreAssetsTest {
         })
     }
 
+    private val sampleCalendar = List(31) { i ->
+        when {
+            i % 7 == 6 -> CalendarSlot("원석", 20)
+            i % 7 == 2 -> CalendarSlot("모라", 5000)
+            i % 7 == 4 -> CalendarSlot("영웅의 경험", 3)
+            i % 7 == 0 -> CalendarSlot("정제용 양질 광석", 3)
+            else -> CalendarSlot("모라", 1000 * (i % 3 + 1))
+        }
+    }
     private val signed = MainUiState(
         loggedIn = true, accounts = listOf(AccountChip("181234567", "여행자", true), AccountChip("192345678", "부계정", false)),
         currentId = "181234567", uid = "181234567", nickname = "여행자", server = "아시아 서버", signedToday = true,
@@ -86,6 +95,7 @@ class StoreAssetsTest {
         makeUpMissed = 2, redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 812345678",
         redeemSummary = "10월 18일 01:05 · 새 코드 1개 입력: OKTCV81F9H8D", redeemShort = "새 코드 1개 입력",
         redeemWhen = "10월 18일 01:05", historyUnseen = 3,
+        calendar = sampleCalendar, calendarReachable = 31,
     )
 
     /** 방송 직후처럼 새 코드 여러 개를 넣은 상태. 리딤 장면 스크린샷용. */
@@ -318,8 +328,8 @@ class StoreAssetsTest {
     )
 
     @Test fun screenshot2CheckIn() = screenshot(
-        signed, night = false,
-        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "놓친 날은 보충 출석까지 알려 드려요",
+        signed.copy(makeUpMissed = null), night = false, scrollTo = R.id.heroCard, aboveDp = 8,
+        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "이번 달 출석 보상이 한눈에, 보충 출석까지",
     )
 
     @Test fun screenshot3History() = screenshot(
@@ -348,8 +358,8 @@ class StoreAssetsTest {
     )
 
     @Test fun tablet2CheckIn() = screenshot(
-        signed, night = false, tablet = true,
-        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "놓친 날은 보충 출석까지 알려 드려요",
+        signed.copy(makeUpMissed = null), night = false, scrollTo = R.id.heroCard, aboveDp = 8, tablet = true,
+        title = "새벽 1시, 서버 시각에\n자동 출석", sub = "이번 달 출석 보상이 한눈에, 보충 출석까지",
     )
 
     @Test fun tablet3History() = screenshot(

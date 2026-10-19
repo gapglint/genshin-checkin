@@ -81,6 +81,14 @@ class CheckInClient(private val cookie: String) {
     fun isLoggedIn(): Boolean =
         infoError(request("GET", "$API/info?lang=$LANG&act_id=$ACT_ID")) != Outcome.LoginExpired
 
+    /** 오늘 출석 여부·누적 출석·놓친 날. */
+    @Throws(IOException::class)
+    fun info(): JSONObject = fetchInfo()
+
+    /** 이번 달 출석 보상 목록(출석 횟수 순서). */
+    @Throws(IOException::class)
+    fun home(): JSONObject = request("GET", "$API/home?lang=$LANG&act_id=$ACT_ID")
+
     @Throws(IOException::class)
     fun resignInfo(): JSONObject = request("GET", "$API/resign_info?lang=$LANG&act_id=$ACT_ID")
 

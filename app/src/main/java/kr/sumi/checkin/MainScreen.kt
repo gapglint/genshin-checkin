@@ -45,10 +45,16 @@ data class MainUiState(
     val busy: String? = null,
     /** 아직 확인하지 않은 보상 수. */
     val historyUnseen: Int = 0,
+    /** 이번 달 출석 보상(출석 횟수 순서). 아직 못 받아 왔으면 비어 있다. */
+    val calendar: List<CalendarSlot> = emptyList(),
+    /** 이번 달 안에 받을 수 있는 마지막 칸 번호(놓친 날을 보충하지 않으면 그 뒤 칸은 못 받는다). */
+    val calendarReachable: Int = Int.MAX_VALUE,
+    val calendarMissed: Int = 0,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
 class MainScreen(val root: View) {
+    private val MATCH = android.view.ViewGroup.LayoutParams.MATCH_PARENT
     private val context = root.context
     private val statusChip: TextView = root.findViewById(R.id.statusChip)
     private val accountBar: View = root.findViewById(R.id.accountBar)
@@ -89,6 +95,11 @@ class MainScreen(val root: View) {
     private val tileHistoryValue: TextView = root.findViewById(R.id.tileHistoryValue)
     private val tileHistorySub: TextView = root.findViewById(R.id.tileHistorySub)
     private val tileHistoryDot: View = root.findViewById(R.id.tileHistoryDot)
+    private val calendarCard: View = root.findViewById(R.id.calendarCard)
+    private val calendarTitle: TextView = root.findViewById(R.id.calendarTitle)
+    private val calendarCount: TextView = root.findViewById(R.id.calendarCount)
+    private val calendarGrid: LinearLayout = root.findViewById(R.id.calendarGrid)
+    private val calendarNote: TextView = root.findViewById(R.id.calendarNote)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
@@ -183,6 +194,81 @@ class MainScreen(val root: View) {
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         renderTiles(s)
+        renderCalendar(s)
+    }
+
+    /**
+     * 출석 보상 달력. 7칸씩 줄을 만들고, 칸마다 그 번째 출석의 보상 아이콘과 개수를 넣는다.
+     * 받은 칸은 흐리게 하고 체크, 다음에 받을 칸은 금색 테두리, 이번 달 안에 못 받는 칸은 더 흐리게.
+     */
+    private fun renderCalendar(s: MainUiState) {
+        calendarCard.visibility = if (s.loggedIn && s.calendar.isNotEmpty()) View.VISIBLE else View.GONE
+        if (s.calendar.isEmpty()) return
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        calendarTitle.text = "${s.month}월 출석 보상"
+        calendarCount.text = "${s.totalDays} / ${s.calendar.size}"
+        calendarGrid.removeAllViews()
+        val next = s.totalDays + 1
+        for (rowStart in s.calendar.indices step 7) {
+            val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            for (col in 0 until 7) {
+                val index = rowStart + col
+                val cell = android.widget.FrameLayout(context)
+                if (index < s.calendar.size) {
+                    val slot = s.calendar[index]
+                    val number = index + 1
+                    val done = number <= s.totalDays
+                    cell.background = android.graphics.drawable.GradientDrawable().apply {
+                        cornerRadius = dp(12).toFloat()
+                        setColor(context.getColor(R.color.item_tile))
+                        if (number == next) setStroke(dp(2), context.getColor(R.color.accent))
+                    }
+                    cell.alpha = when {
+                        done -> 0.55f
+                        number > s.calendarReachable -> 0.35f
+                        else -> 1f
+                    }
+                    cell.contentDescription = "${number}번째 출석, ${slot.name} ${slot.count}개" + if (done) ", 받음" else ""
+                    cell.addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = android.view.Gravity.CENTER
+                        addView(android.widget.ImageView(context).apply { setImageResource(itemIcon(slot.name)) },
+                            LinearLayout.LayoutParams(dp(22), dp(22)))
+                        addView(TextView(context).apply {
+                            text = CheckInCalendar.compact(slot.count)
+                            textSize = 11f
+                            setTextColor(context.getColor(R.color.ink))
+                            gravity = android.view.Gravity.CENTER
+                            maxLines = 1
+                        })
+                    }, android.widget.FrameLayout.LayoutParams(MATCH, MATCH))
+                    cell.addView(TextView(context).apply {
+                        text = "$number"
+                        textSize = 9f
+                        setTextColor(context.getColor(R.color.ink_muted))
+                        setPadding(dp(5), dp(2), 0, 0)
+                    })
+                    if (done) cell.addView(android.widget.ImageView(context).apply { setImageResource(R.drawable.ic_check_badge) },
+                        android.widget.FrameLayout.LayoutParams(dp(14), dp(14), android.view.Gravity.END or android.view.Gravity.TOP).apply {
+                            topMargin = dp(3); marginEnd = dp(3)
+                        })
+                }
+                row.addView(cell, LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+            }
+            calendarGrid.addView(row)
+        }
+        // 다음 원석이 언제인지, 놓친 날이 있으면 보충 안내.
+        val nextPrimo = (next..s.calendar.size).firstOrNull { s.calendar[it - 1].name.contains("원석") && it <= s.calendarReachable }
+        val primoText = nextPrimo?.let {
+            val days = it - next + (if (s.signedToday) 1 else 0)
+            val whenText = if (days == 0) "오늘" else "${days}일 뒤"
+            "다음 원석: $whenText ×${s.calendar[it - 1].count}"
+        }
+        val missedText = if (s.calendarMissed > 0) "놓친 날 ${s.calendarMissed}일 · 보충하면 흐린 칸도 받을 수 있어요" else null
+        val note = listOfNotNull(primoText, missedText).joinToString("\n")
+        calendarNote.text = note
+        calendarNote.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
     }
 
     /** 보상 이름에 맞는 아이콘. 모르는 아이템은 선물 상자. */

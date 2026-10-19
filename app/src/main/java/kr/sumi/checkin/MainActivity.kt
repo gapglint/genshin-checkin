@@ -103,6 +103,7 @@ class MainActivity : Activity() {
         if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
         loadNicknamesIfMissing()
+        loadCalendarIfStale()
     }
 
     private var closeSettings: Any? = null
@@ -132,6 +133,27 @@ class MainActivity : Activity() {
     @Deprecated("Android 13 미만용")
     override fun onBackPressed() {
         if (screen.settingsPanel.visibility == View.VISIBLE) showSettings(false) else super.onBackPressed()
+    }
+
+    private var loadingCalendar = false
+    /** 출석·보충을 했으면 달력(받은 칸, 놓친 날)을 다시 받아 온다. */
+    @Volatile private var calendarDirty = false
+
+    /** 지금 계정의 출석 보상 달력을 하루 한 번 조용히 받아 온다(화면을 막지 않는다). */
+    private fun loadCalendarIfStale(force: Boolean = false) {
+        val store = store ?: return
+        if (loadingCalendar || (!force && CheckInCalendar.isFresh(store))) return
+        loadingCalendar = true
+        Thread {
+            try {
+                CheckInCalendar.refresh(store)
+            } catch (e: Exception) {
+            }
+            runOnUiThread {
+                loadingCalendar = false
+                refresh()
+            }
+        }.start()
     }
 
     /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */
@@ -203,6 +225,10 @@ class MainActivity : Activity() {
                 redeemWhen = store?.lastRedeemSummary?.let { DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() },
                 busy = busy,
                 historyUnseen = store?.historyUnseen ?: 0,
+                calendar = store?.takeIf { it.calendarDay?.take(7) == today.toString().take(7) }?.calendarAwards.orEmpty(),
+                calendarMissed = store?.calendarMissed ?: 0,
+                // 남은 날(오늘 아직 출석 전이면 오늘 포함)만큼 더 받을 수 있다.
+                calendarReachable = (store?.signedTotal ?: 0) + today.lengthOfMonth() - today.dayOfMonth + (if (signedToday) 0 else 1),
             )
         )
         store?.let { countUnseenRewards(it) }
@@ -347,7 +373,10 @@ class MainActivity : Activity() {
 
     private fun checkInNow() {
         val store = store ?: return
-        runInBackground("출석하는 중...") { CheckIn.run(this, store)?.let { CheckIn.describe(it) } }
+        runInBackground("출석하는 중...") {
+            calendarDirty = true
+            CheckIn.run(this, store)?.let { CheckIn.describe(it) }
+        }
     }
 
     /** 알림 종류를 고른다. 로그인·캡차 같은 문제는 항상 알린다. */
@@ -387,6 +416,7 @@ class MainActivity : Activity() {
         val store = store ?: return
         runInBackground("보충 출석 준비 중...") {
             val result = MakeUp.perform(store) { step -> runOnUiThread { busy = step; refresh() } }
+            calendarDirty = true
             runOnUiThread { showMakeUpResult(result) }
             null
         }
@@ -409,6 +439,10 @@ class MainActivity : Activity() {
             runOnUiThread {
                 busy = null
                 refresh()
+                if (calendarDirty) {
+                    calendarDirty = false
+                    loadCalendarIfStale(force = true)
+                }
                 if (message != null) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             }
         }.start()

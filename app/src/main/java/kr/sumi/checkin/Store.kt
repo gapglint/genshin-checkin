@@ -62,6 +62,17 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getString("make_up_day", null)
         set(value) = prefs.edit { putString("make_up_day", value) }
 
+    /** 출석 보상 달력: 이번 달 보상 목록, 놓친 날 수, 받아 온 날(서버 날짜). */
+    var calendarAwards: List<CalendarSlot>
+        get() = prefs.getString("calendar_awards", null)?.let { CheckInCalendar.fromJson(it) } ?: emptyList()
+        set(value) = prefs.edit { putString("calendar_awards", CheckInCalendar.toJson(value)) }
+    var calendarMissed: Int
+        get() = prefs.getInt("calendar_missed", 0)
+        set(value) = prefs.edit { putInt("calendar_missed", value) }
+    var calendarDay: String?
+        get() = prefs.getString("calendar_day", null)
+        set(value) = prefs.edit { putString("calendar_day", value) }
+
     var makeUpMissed: Int
         get() = prefs.getInt("make_up_missed", 0)
         set(value) = prefs.edit { putInt("make_up_missed", value) }

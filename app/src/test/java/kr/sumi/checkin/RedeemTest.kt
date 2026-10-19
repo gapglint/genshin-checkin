@@ -118,3 +118,19 @@ class RewardHistoryTest {
         assertEquals(null, RewardHistory.formatTotals(emptyList()))
     }
 }
+
+class CheckInCalendarTest {
+    @Test fun compactCounts() {
+        assertEquals("20", CheckInCalendar.compact(20))
+        assertEquals("5천", CheckInCalendar.compact(5000))
+        assertEquals("1만", CheckInCalendar.compact(10000))
+        assertEquals("1.5만", CheckInCalendar.compact(15000))
+    }
+
+    @Test fun parsesAwardsAndRoundTrips() {
+        val home = JSONObject("""{"retcode":0,"data":{"month":10,"awards":[{"name":"원석","cnt":20},{"name":"모라","cnt":5000}]}}""")
+        val slots = CheckInCalendar.parseAwards(home)
+        assertEquals(listOf(CalendarSlot("원석", 20), CalendarSlot("모라", 5000)), slots)
+        assertEquals(slots, CheckInCalendar.fromJson(CheckInCalendar.toJson(slots)))
+    }
+}
