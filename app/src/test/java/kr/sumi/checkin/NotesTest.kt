@@ -50,34 +50,41 @@ class NotesTest {
 
     @Test fun alertsOnceUntilResinIsSpent() {
         val reached = note().copy(resin = 181)
-        val (first, flags) = Notes.evaluate(reached, NoteFlags(), resinAlert = true, threshold = 180, extra = false)
+        val (first, flags) = Notes.evaluate(reached, NoteFlags(), NoteAlertSettings(resin = true, threshold = 180, expeditions = false, coin = false))
         assertTrue(first.resin)
         assertTrue(flags.resin)
         // 같은 상태로 다시 보면 알리지 않는다
-        val (again, _) = Notes.evaluate(reached.copy(resin = 190), flags, resinAlert = true, threshold = 180, extra = false)
+        val (again, _) = Notes.evaluate(reached.copy(resin = 190), flags, NoteAlertSettings(resin = true, threshold = 180, expeditions = false, coin = false))
         assertFalse(again.any)
         // 레진을 쓰면 풀리고, 다시 차면 또 알린다
-        val (_, spent) = Notes.evaluate(reached.copy(resin = 40), flags, resinAlert = true, threshold = 180, extra = false)
+        val (_, spent) = Notes.evaluate(reached.copy(resin = 40), flags, NoteAlertSettings(resin = true, threshold = 180, expeditions = false, coin = false))
         assertFalse(spent.resin)
-        assertTrue(Notes.evaluate(reached, spent, resinAlert = true, threshold = 180, extra = false).first.resin)
+        assertTrue(Notes.evaluate(reached, spent, NoteAlertSettings(resin = true, threshold = 180, expeditions = false, coin = false)).first.resin)
         // 꺼져 있으면 알리지 않는다
-        assertFalse(Notes.evaluate(reached, NoteFlags(), resinAlert = false, threshold = 180, extra = false).first.any)
+        assertFalse(Notes.evaluate(reached, NoteFlags(), NoteAlertSettings(resin = false, threshold = 180, expeditions = false, coin = false)).first.any)
     }
 
     @Test fun expeditionsAndCoinOnlyWhenExtraIsOn() {
         val done = note().copy(expeditionsDone = 5, expeditionsLeftSec = 0, homeCoin = 2400)
-        assertFalse(Notes.evaluate(done, NoteFlags(), resinAlert = false, threshold = 180, extra = false).first.any)
-        val alerts = Notes.evaluate(done, NoteFlags(), resinAlert = false, threshold = 180, extra = true).first
+        assertFalse(Notes.evaluate(done, NoteFlags(), NoteAlertSettings(resin = false, threshold = 180, expeditions = false, coin = false)).first.any)
+        val alerts = Notes.evaluate(done, NoteFlags(), NoteAlertSettings(resin = false, threshold = 180, expeditions = true, coin = true)).first
         assertTrue(alerts.expeditions)
         assertTrue(alerts.coin)
     }
 
+    @Test fun expeditionAndCoinToggleSeparately() {
+        val done = note().copy(expeditionsDone = 5, expeditionsLeftSec = 0, homeCoin = 2400)
+        val onlyCoin = Notes.evaluate(done, NoteFlags(), NoteAlertSettings(resin = false, threshold = 180, expeditions = false, coin = true)).first
+        assertFalse(onlyCoin.expeditions)
+        assertTrue(onlyCoin.coin)
+    }
+
     @Test fun nextAlertIsTheEarliestPending() {
         val n = note()
-        assertEquals(n.resinReachAt(180), Notes.nextAlertAt(n, NoteFlags(), resinAlert = true, threshold = 180, extra = false))
+        assertEquals(n.resinReachAt(180), Notes.nextAlertAt(n, NoteFlags(), NoteAlertSettings(resin = true, threshold = 180, expeditions = false, coin = false)))
         // 파견(2시간 뒤)이 레진 180개(약 5시간 뒤)보다 먼저
-        assertEquals(n.expeditionsDoneAt, Notes.nextAlertAt(n, NoteFlags(), resinAlert = true, threshold = 180, extra = true))
-        assertNull(Notes.nextAlertAt(n, NoteFlags(resin = true), resinAlert = true, threshold = 180, extra = false))
+        assertEquals(n.expeditionsDoneAt, Notes.nextAlertAt(n, NoteFlags(), NoteAlertSettings(resin = true, threshold = 180, expeditions = true, coin = true)))
+        assertNull(Notes.nextAlertAt(n, NoteFlags(resin = true), NoteAlertSettings(resin = true, threshold = 180, expeditions = false, coin = false)))
     }
 
     @Test fun durations() {

@@ -908,7 +908,7 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="28dp"
             android:layout_marginBottom="8dp"
-            android:text="레진·실시간 메모"
+            android:text="화면·알림"
             android:textColor="@color/ink_muted"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -923,7 +923,7 @@
             android:showDividers="middle">
 
             <LinearLayout
-                android:id="@+id/rowResinAlert"
+                android:id="@+id/rowMainDisplay"
                 style="@style/Row">
 
                 <LinearLayout
@@ -936,41 +936,10 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="레진 알림" />
+                        android:text="메인 화면" />
 
                     <TextView
-                        android:id="@+id/resinAlertSub"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
-                </LinearLayout>
-
-                <kr.sumi.checkin.StarSwitch
-                    android:id="@+id/resinSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/rowResinThreshold"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="알림 기준" />
-
-                    <TextView
-                        android:id="@+id/resinThresholdSub"
+                        android:id="@+id/mainDisplaySub"
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -983,70 +952,6 @@
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_chevron" />
             </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/rowNotesExtra"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="탐사 파견·주전자 알림" />
-
-                    <TextView
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="파견이 끝나거나 동전이 가득 차면 알려요" />
-                </LinearLayout>
-
-                <kr.sumi.checkin.StarSwitch
-                    android:id="@+id/notesExtraSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="4dp"
-            android:lineSpacingExtra="2dp"
-            android:text="호요랩 전적 기록의 '실시간 메모'를 써요. 꺼져 있으면 앱이 켜 드려요."
-            android:textColor="@color/ink_muted"
-            android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="28dp"
-            android:layout_marginBottom="8dp"
-            android:text="알림·계정"
-            android:textColor="@color/ink_muted"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/settingsGroup"
-            android:background="@drawable/bg_group"
-            android:divider="@drawable/divider_inset"
-            android:orientation="vertical"
-            android:showDividers="middle">
 
             <LinearLayout
                 android:id="@+id/rowNotifications"
@@ -1078,6 +983,70 @@
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_chevron" />
             </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/rowResinThreshold"
+                style="@style/Row">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.RowTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="레진 알림 기준" />
+
+                    <TextView
+                        android:id="@+id/resinThresholdSub"
+                        style="@style/Text.RowSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_chevron" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="4dp"
+            android:lineSpacingExtra="2dp"
+            android:text="레진·파견은 호요랩 '실시간 메모'를 써요. 꺼져 있으면 앱이 켜 드려요."
+            android:textColor="@color/ink_muted"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="28dp"
+            android:layout_marginBottom="8dp"
+            android:text="계정"
+            android:textColor="@color/ink_muted"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/settingsGroup"
+            android:background="@drawable/bg_group"
+            android:divider="@drawable/divider_inset"
+            android:orientation="vertical"
+            android:showDividers="middle">
 
             <LinearLayout
                 android:id="@+id/rowOpenPage"

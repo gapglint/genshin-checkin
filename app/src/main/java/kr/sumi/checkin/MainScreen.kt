@@ -78,7 +78,13 @@ data class MainUiState(
     val resinAlert: Boolean = true,
     /** 레진 알림 기준 개수. 0이면 가득 찼을 때. */
     val resinThreshold: Int = 180,
-    val notesExtra: Boolean = false,
+    /** 메인 화면에 보일 것(출석 카드는 항상). */
+    val showNotes: Boolean = true,
+    val showNoteStats: Boolean = true,
+    val showTiles: Boolean = true,
+    val showCalendar: Boolean = true,
+    /** 메인 화면 설정 요약, 예: "레진 · 파견·주전자·의뢰 · 바로가기 · 달력". */
+    val mainDisplaySummary: String = "",
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -137,13 +143,10 @@ class MainScreen(val root: View) {
     private val notesDivider: View = root.findViewById(R.id.notesDivider)
     private val notesStats: LinearLayout = root.findViewById(R.id.notesStats)
     private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
-    val rowResinAlert: View = root.findViewById(R.id.rowResinAlert)
-    val resinSwitch: StarSwitch = root.findViewById(R.id.resinSwitch)
-    private val resinAlertSub: TextView = root.findViewById(R.id.resinAlertSub)
+    val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
+    private val mainDisplaySub: TextView = root.findViewById(R.id.mainDisplaySub)
     val rowResinThreshold: View = root.findViewById(R.id.rowResinThreshold)
     private val resinThresholdSub: TextView = root.findViewById(R.id.resinThresholdSub)
-    val rowNotesExtra: View = root.findViewById(R.id.rowNotesExtra)
-    val notesExtraSwitch: StarSwitch = root.findViewById(R.id.notesExtraSwitch)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
@@ -256,23 +259,22 @@ class MainScreen(val root: View) {
      */
     private fun renderNotes(s: MainUiState) {
         val n = s.notes
-        notesCard.visibility = if (s.loggedIn && (n != null || s.notesProblem != null || s.notesLoading)) View.VISIBLE else View.GONE
-        resinSwitch.isChecked = s.resinAlert
-        notesExtraSwitch.isChecked = s.notesExtra
-        resinAlertSub.text = when {
-            !s.resinAlert -> "꺼져 있어요"
-            s.resinThreshold <= 0 -> "레진이 가득 차면 알려요"
-            else -> "레진이 ${s.resinThreshold}개가 되면 알려요"
+        notesCard.visibility = if (s.loggedIn && s.showNotes && (n != null || s.notesProblem != null || s.notesLoading)) View.VISIBLE else View.GONE
+        mainDisplaySub.text = s.mainDisplaySummary
+        resinThresholdSub.text = when {
+            !s.resinAlert -> "레진 알림이 꺼져 있어요"
+            s.resinThreshold <= 0 -> "가득 찼을 때"
+            else -> "${s.resinThreshold}개"
         }
-        resinThresholdSub.text = if (s.resinThreshold <= 0) "가득 찼을 때" else "${s.resinThreshold}개"
         rowResinThreshold.isEnabled = s.resinAlert
         rowResinThreshold.alpha = if (s.resinAlert) 1f else 0.5f
 
         val shown = if (n != null) View.VISIBLE else View.GONE
         notesBar.visibility = shown
-        notesDivider.visibility = shown
-        notesStats.visibility = shown
         notesAlertChip.visibility = shown
+        val stats = if (n != null && s.showNoteStats) View.VISIBLE else View.GONE
+        notesDivider.visibility = stats
+        notesStats.visibility = stats
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         if (n == null) {
@@ -357,7 +359,7 @@ class MainScreen(val root: View) {
      * 받은 칸은 흐리게 하고 체크, 다음에 받을 칸은 금색 테두리, 이번 달 안에 못 받는 칸은 더 흐리게.
      */
     private fun renderCalendar(s: MainUiState) {
-        calendarCard.visibility = if (s.loggedIn && s.calendar.isNotEmpty()) View.VISIBLE else View.GONE
+        calendarCard.visibility = if (s.loggedIn && s.showCalendar && s.calendar.isNotEmpty()) View.VISIBLE else View.GONE
         if (s.calendar.isEmpty()) return
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
@@ -437,7 +439,7 @@ class MainScreen(val root: View) {
 
     /** 바로가기 타일: 리딤 코드(누르면 지금 확인), 보상 내역(누르면 열기). */
     private fun renderTiles(s: MainUiState) {
-        tiles.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+        tiles.visibility = if (s.loggedIn && s.showTiles) View.VISIBLE else View.GONE
         tileRedeemValue.text = when {
             !s.redeemEnabled -> "자동 입력 꺼짐"
             s.redeemRole == null -> "캐릭터를 골라 주세요"

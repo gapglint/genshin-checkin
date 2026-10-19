@@ -74,6 +74,11 @@ data class DailyNote(
 /** 이미 알린 상태. 레진을 쓰거나 파견을 다시 보내면 풀린다(같은 일을 두 번 알리지 않는다). */
 data class NoteFlags(val resin: Boolean = false, val expeditions: Boolean = false, val coin: Boolean = false)
 
+/** 실시간 메모 알림 설정. threshold는 레진 알림 기준(0이면 가득 찼을 때). */
+data class NoteAlertSettings(val resin: Boolean, val threshold: Int, val expeditions: Boolean, val coin: Boolean) {
+    val any get() = resin || expeditions || coin
+}
+
 /** 이번에 알릴 것. */
 data class NoteAlerts(val resin: Boolean, val expeditions: Boolean, val coin: Boolean) {
     val any get() = resin || expeditions || coin
@@ -181,14 +186,14 @@ object Notes {
         if (threshold <= 0 || threshold >= note.maxResin) note.maxResin else threshold
 
     /** 지금 알릴 것과, 알린 뒤의 상태. 기준 아래로 내려가면(레진을 썼으면) 다시 알릴 수 있게 푼다. */
-    internal fun evaluate(note: DailyNote, flags: NoteFlags, resinAlert: Boolean, threshold: Int, extra: Boolean): Pair<NoteAlerts, NoteFlags> {
-        val resinDue = note.resin >= target(note, threshold)
+    internal fun evaluate(note: DailyNote, flags: NoteFlags, on: NoteAlertSettings): Pair<NoteAlerts, NoteFlags> {
+        val resinDue = note.resin >= target(note, on.threshold)
         val expeditionsDue = note.expeditionsTotal > 0 && note.expeditionsDone >= note.expeditionsTotal
         val coinDue = note.maxHomeCoin > 0 && note.homeCoin >= note.maxHomeCoin
         val alerts = NoteAlerts(
-            resin = resinAlert && resinDue && !flags.resin,
-            expeditions = extra && expeditionsDue && !flags.expeditions,
-            coin = extra && coinDue && !flags.coin,
+            resin = on.resin && resinDue && !flags.resin,
+            expeditions = on.expeditions && expeditionsDue && !flags.expeditions,
+            coin = on.coin && coinDue && !flags.coin,
         )
         val next = NoteFlags(
             resin = resinDue && (flags.resin || alerts.resin),
@@ -199,10 +204,10 @@ object Notes {
     }
 
     /** 다음에 다시 받아 볼 시각. 알릴 일이 생길 가장 이른 때, 없으면 null. */
-    internal fun nextAlertAt(note: DailyNote, flags: NoteFlags, resinAlert: Boolean, threshold: Int, extra: Boolean): Long? = listOfNotNull(
-        note.resinReachAt(target(note, threshold)).takeIf { resinAlert && !flags.resin },
-        note.expeditionsDoneAt.takeIf { extra && !flags.expeditions && note.expeditionsTotal > note.expeditionsDone },
-        note.homeCoinFullAt.takeIf { extra && !flags.coin && note.maxHomeCoin > 0 && note.homeCoin < note.maxHomeCoin },
+    internal fun nextAlertAt(note: DailyNote, flags: NoteFlags, on: NoteAlertSettings): Long? = listOfNotNull(
+        note.resinReachAt(target(note, on.threshold)).takeIf { on.resin && !flags.resin },
+        note.expeditionsDoneAt.takeIf { on.expeditions && !flags.expeditions && note.expeditionsTotal > note.expeditionsDone },
+        note.homeCoinFullAt.takeIf { on.coin && !flags.coin && note.maxHomeCoin > 0 && note.homeCoin < note.maxHomeCoin },
     ).minOrNull()
 
     /** 실시간 메모를 볼 캐릭터: 리딤 캐릭터, 없으면 대표 캐릭터. 둘 다 아직 모르면 불러와 대표 캐릭터로 저장한다. */
@@ -243,7 +248,7 @@ object Notes {
             is NoteResult.Ok -> {
                 store.note = result.note
                 store.noteProblem = null
-                val (alerts, flags) = evaluate(result.note, store.noteFlags, settings.resinAlert, settings.resinThreshold, settings.notesExtra)
+                val (alerts, flags) = evaluate(result.note, store.noteFlags, settings.noteAlerts)
                 store.noteFlags = flags
                 if (alerts.any) Notifier.notifyNote(context, store, result.note, alerts, target(result.note, settings.resinThreshold))
             }
@@ -254,7 +259,7 @@ object Notes {
         return result
     }
 
-    fun enabled(settings: AppSettings) = settings.resinAlert || settings.notesExtra
+    fun enabled(settings: AppSettings) = settings.noteAlerts.any
 
     /** 모든 계정을 받아 보고 다음 알람을 건다. 알림이 모두 꺼져 있으면 알람만 지운다. */
     fun checkAll(context: Context) {
@@ -279,7 +284,7 @@ object Notes {
         if (!enabled(settings) || !settings.hasAccounts) return cancel(context)
         val now = ServerClock.now()
         val next = settings.accounts().mapNotNull { store ->
-            store.note?.let { nextAlertAt(it, store.noteFlags, settings.resinAlert, settings.resinThreshold, settings.notesExtra) }
+            store.note?.let { nextAlertAt(it, store.noteFlags, settings.noteAlerts) }
         }.minOrNull()
         var at = minOf(next ?: (now + IDLE_RECHECK_MS), now + IDLE_RECHECK_MS)
         if (retrySoon) at = minOf(at, now + 15 * 60_000L)

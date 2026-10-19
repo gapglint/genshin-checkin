@@ -85,17 +85,8 @@ class MainActivity : Activity() {
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
         screen.notesCard.setOnClickListener { loadNotes(force = true) }
-        screen.rowResinAlert.setOnClickListener { screen.resinSwitch.toggle() }
-        screen.resinSwitch.setOnCheckedChangeListener { _, checked ->
-            settings.resinAlert = checked
-            notesSettingsChanged()
-        }
+        screen.rowMainDisplay.setOnClickListener { chooseMainDisplay() }
         screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
-        screen.rowNotesExtra.setOnClickListener { screen.notesExtraSwitch.toggle() }
-        screen.notesExtraSwitch.setOnCheckedChangeListener { _, checked ->
-            settings.notesExtra = checked
-            notesSettingsChanged()
-        }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -175,6 +166,8 @@ class MainActivity : Activity() {
     /** 실시간 메모를 조용히 받아 온다. 5분 안에 받은 값이 있으면 그대로 쓴다. 받은 뒤 다음 알림 시각을 다시 건다. */
     private fun loadNotes(force: Boolean = false) {
         val store = store ?: return
+        // 메인에 안 보이고 알림도 다 꺼져 있으면 받을 필요가 없다.
+        if (!settings.showNotes && !Notes.enabled(settings)) return
         val note = store.note
         if (loadingNotes || (!force && note != null && ServerClock.now() - note.at < 5 * 60_000)) return
         loadingNotes = true
@@ -193,10 +186,45 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** 레진 알림을 켜고 끄거나 기준을 바꾸면 다음 알림 시각을 다시 건다. */
+    /** 레진 알림을 켜고 끄거나 기준을 바꾸면 다음 알림 시각을 다시 건다. 처음 켰으면 메모를 받아 온다. */
     private fun notesSettingsChanged() {
         Notes.schedule(this)
         refresh()
+        if (store?.note == null) loadNotes(force = true)
+    }
+
+    /** 메인 화면에 보일 카드를 고른다. 출석 카드는 항상 보인다. */
+    private fun chooseMainDisplay() {
+        val checked = booleanArrayOf(settings.showNotes, settings.showNoteStats, settings.showTiles, settings.showCalendar)
+        AppDialog(this)
+            .setTitle("메인 화면")
+            .setMultiChoiceItems(arrayOf(
+                "레진",
+                "탐사 파견·주전자 동전·일일 의뢰",
+                "리딤 코드·보상 내역 바로가기",
+                "이번 달 출석 보상 달력",
+            ), checked)
+            .setFooter("출석 카드는 항상 보여요. 꺼도 알림과 자동 출석은 그대로예요.")
+            .setNegativeButton("취소")
+            .setPositiveButton("저장") {
+                settings.showNotes = checked[0]
+                settings.showNoteStats = checked[1]
+                settings.showTiles = checked[2]
+                settings.showCalendar = checked[3]
+                refresh()
+                loadNotes()
+            }
+            .show()
+    }
+
+    private fun mainDisplaySummary(): String {
+        val parts = listOfNotNull(
+            "레진".takeIf { settings.showNotes },
+            "파견·주전자·의뢰".takeIf { settings.showNotes && settings.showNoteStats },
+            "바로가기".takeIf { settings.showTiles },
+            "달력".takeIf { settings.showCalendar },
+        )
+        return if (parts.isEmpty()) "출석 카드만" else "출석 · " + parts.joinToString(" · ")
     }
 
     /** 레진 알림 기준을 고른다. */
@@ -339,7 +367,11 @@ class MainActivity : Activity() {
                 notesLoading = loadingNotes && store?.note == null,
                 resinAlert = settings.resinAlert,
                 resinThreshold = settings.resinThreshold,
-                notesExtra = settings.notesExtra,
+                showNotes = settings.showNotes,
+                showNoteStats = settings.showNoteStats,
+                showTiles = settings.showTiles,
+                showCalendar = settings.showCalendar,
+                mainDisplaySummary = mainDisplaySummary(),
             )
         )
         store?.let { countUnseenRewards(it) }
@@ -492,23 +524,32 @@ class MainActivity : Activity() {
 
     /** 알림 종류를 고른다. 로그인·캡차 같은 문제는 항상 알린다. */
     private fun chooseNotifications() {
-        val checked = booleanArrayOf(settings.notifyCheckIn, settings.makeUpAlerts, settings.notifyRedeem, settings.quietNight)
+        val checked = booleanArrayOf(
+            settings.notifyCheckIn, settings.makeUpAlerts, settings.notifyRedeem,
+            settings.resinAlert, settings.expeditionAlert, settings.coinAlert, settings.quietNight,
+        )
         AppDialog(this)
             .setTitle("알림")
             .setMultiChoiceItems(arrayOf(
                 "매일 출석했을 때",
                 "보충 출석을 할 수 있을 때",
                 "리딤 코드를 받았을 때",
+                "레진이 기준만큼 찼을 때",
+                "탐사 파견이 모두 끝났을 때",
+                "주전자 동전이 가득 찼을 때",
                 "밤(오후 10시~오전 8시)에는 소리·진동 없이",
             ), checked)
-            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요.")
+            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요. 레진 기준은 '레진 알림 기준'에서 바꿔요.")
             .setNegativeButton("취소")
             .setPositiveButton("저장") {
                 settings.notifyCheckIn = checked[0]
                 settings.makeUpAlerts = checked[1]
                 settings.notifyRedeem = checked[2]
-                settings.quietNight = checked[3]
-                refresh()
+                settings.resinAlert = checked[3]
+                settings.expeditionAlert = checked[4]
+                settings.coinAlert = checked[5]
+                settings.quietNight = checked[6]
+                notesSettingsChanged()
             }
             .show()
     }
@@ -518,6 +559,9 @@ class MainActivity : Activity() {
             "출석 완료".takeIf { settings.notifyCheckIn },
             "보충 출석".takeIf { settings.makeUpAlerts },
             "리딤 코드".takeIf { settings.notifyRedeem },
+            (if (settings.resinThreshold <= 0) "레진 가득" else "레진 ${settings.resinThreshold}개").takeIf { settings.resinAlert },
+            "탐사 파견".takeIf { settings.expeditionAlert },
+            "주전자".takeIf { settings.coinAlert },
         )
         val what = if (kinds.isEmpty()) "문제가 있을 때만" else kinds.joinToString(" · ")
         return if (settings.quietNight) "$what · 밤에는 소리 없이" else what

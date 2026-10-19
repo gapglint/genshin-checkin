@@ -30,6 +30,8 @@
         <item name="android:textSize">13sp</item>
         <item name="android:textColor">@color/ink_muted</item>
         <item name="android:lineSpacingExtra">2dp</item>
+        <!-- 안드로이드 13부터는 한국어를 낱말 단위로 줄바꿈한다(그 전 버전은 무시). -->
+        <item name="android:lineBreakWordStyle" tools:targetApi="33">phrase</item>
     </style>
 
     <style name="Text.HeroLabel" parent="">

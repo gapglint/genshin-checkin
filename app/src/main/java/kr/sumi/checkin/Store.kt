@@ -289,10 +289,32 @@ class AppSettings(private val context: Context) {
         get() = prefs.getInt("resin_threshold", 180)
         set(value) = prefs.edit { putInt("resin_threshold", value) }
 
-    /** 탐사 파견이 모두 끝나거나 주전자 동전이 가득 차면 알릴지. */
-    var notesExtra: Boolean
-        get() = prefs.getBoolean("notes_extra", false)
-        set(value) = prefs.edit { putBoolean("notes_extra", value) }
+    /** 탐사 파견이 모두 끝나면 알릴지. */
+    var expeditionAlert: Boolean
+        get() = prefs.getBoolean("expedition_alert", false)
+        set(value) = prefs.edit { putBoolean("expedition_alert", value) }
+
+    /** 주전자 동전이 가득 차면 알릴지. */
+    var coinAlert: Boolean
+        get() = prefs.getBoolean("coin_alert", false)
+        set(value) = prefs.edit { putBoolean("coin_alert", value) }
+
+    /** 실시간 메모 알림 설정을 한 번에. */
+    val noteAlerts get() = NoteAlertSettings(resinAlert, resinThreshold, expeditionAlert, coinAlert)
+
+    /** 메인 화면에 보일 것. 출석 카드는 항상 보인다. */
+    var showNotes: Boolean
+        get() = prefs.getBoolean("show_notes", true)
+        set(value) = prefs.edit { putBoolean("show_notes", value) }
+    var showNoteStats: Boolean
+        get() = prefs.getBoolean("show_note_stats", true)
+        set(value) = prefs.edit { putBoolean("show_note_stats", value) }
+    var showTiles: Boolean
+        get() = prefs.getBoolean("show_tiles", true)
+        set(value) = prefs.edit { putBoolean("show_tiles", value) }
+    var showCalendar: Boolean
+        get() = prefs.getBoolean("show_calendar", true)
+        set(value) = prefs.edit { putBoolean("show_calendar", value) }
 
     /** 서버 시각 - 폰 시각(ms). 앱을 다시 켜도 서버 기준으로 계산하려고 남겨 둔다. */
     var clockOffset: Long
