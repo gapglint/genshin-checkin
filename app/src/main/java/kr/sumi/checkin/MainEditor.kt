@@ -61,6 +61,8 @@ class MainEditor(
         content.clipChildren = false
         // 리딤·보상 타일 두 장의 그림자도 잘리지 않게.
         (screen.slot(CARD_TILES).getChildAt(0) as ViewGroup).clipChildren = false
+        // 서랍 안내를 누르면 손가락 안내를 다시 본다.
+        drawerHint.setOnClickListener { coach() }
     }
 
     /** 편집 상태를 맞춘다. 켜고 끌 때만 움직임을 넣고, 서랍은 매번 다시 채운다. */
@@ -91,6 +93,107 @@ class MainEditor(
         paintDrawer(hover = false)
         drawerItems.removeAllViews()
         hidden.forEach { drawerItems.addView(drawerTile(it)) }
+    }
+
+    /**
+     * 손가락 안내: 화면을 살짝 어둡게 하고 첫 카드 위에서 손가락이 꾹 누르고(동그라미가 퍼짐) 카드 윤곽을 아래로 끌고 가는 모습을
+     * 세 번 보여 준 뒤 사라진다. 아무 데나 누르면 바로 닫힌다. 진짜 카드는 움직이지 않는다.
+     */
+    fun coach() {
+        root.post {
+            val target = (0 until screen.cards.childCount).map { screen.cards.getChildAt(it) }
+                .firstOrNull { it.visibility == View.VISIBLE } ?: return@post
+            val cardTop = (screen.slot(target.tag as String).getChildAt(0).layoutParams as ViewGroup.MarginLayoutParams).topMargin
+            val rootAt = IntArray(2).also { root.getLocationOnScreen(it) }
+            val at = IntArray(2).also { target.getLocationOnScreen(it) }
+            val left = (at[0] - rootAt[0]).toFloat()
+            val top = (at[1] - rootAt[1] + cardTop * target.scaleY).toFloat()
+            val cardWidth = (target.width * target.scaleX).toInt()
+            val cardHeight = ((target.height - cardTop) * target.scaleY).toInt()
+            val tipX = left + cardWidth / 2f
+            val tipY = top + cardHeight / 2f
+            val travel = dp(150).toFloat()
+
+            val layer = FrameLayout(context).apply {
+                setBackgroundColor(0x73000000)
+                elevation = dp(30).toFloat()
+                alpha = 0f
+                contentDescription = "안내 닫기"
+            }
+            val ghost = View(context).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(20).toFloat()
+                    setColor(0x33FFFFFF)
+                    setStroke(dp(2), 0xFFFFFFFF.toInt(), dp(7).toFloat(), dp(5).toFloat())
+                }
+                x = left; y = top; alpha = 0f
+            }
+            val ring = View(context).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setStroke(dp(3), 0xFFFFFFFF.toInt())
+                }
+                x = tipX - dp(28); y = tipY - dp(28); alpha = 0f
+            }
+            // 손가락 끝(그림의 위쪽 가운데)이 카드 가운데에 오게 놓는다.
+            val hand = ImageView(context).apply {
+                setImageResource(R.drawable.ic_hand)
+                x = tipX - dp(36); y = tipY - dp(14)
+                pivotX = dp(36).toFloat(); pivotY = dp(14).toFloat()
+                elevation = dp(4).toFloat()
+            }
+            val label = TextView(context).apply {
+                text = "꾹 눌러서 끌어요"
+                textSize = 14f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(context.getColor(R.color.ink))
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(16).toFloat()
+                    setColor(0xFFFFFFFF.toInt())
+                }
+                setPadding(dp(14), dp(7), dp(14), dp(7))
+            }
+            layer.addView(ghost, FrameLayout.LayoutParams(cardWidth, cardHeight))
+            layer.addView(ring, FrameLayout.LayoutParams(dp(56), dp(56)))
+            layer.addView(hand, FrameLayout.LayoutParams(dp(72), dp(72)))
+            layer.addView(label, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL).apply {
+                topMargin = (top - dp(48)).toInt().coerceAtLeast(dp(16))
+            })
+            root.addView(layer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+
+            var closed = false
+            fun close() {
+                if (closed) return
+                closed = true
+                layer.animate().alpha(0f).setDuration(200).withEndAction { root.removeView(layer) }.start()
+            }
+            layer.setOnClickListener { close() }
+
+            fun play(round: Int) {
+                if (closed) return
+                hand.translationY = 0f; ghost.translationY = 0f; ring.translationY = 0f
+                hand.scaleX = 1f; hand.scaleY = 1f
+                ghost.alpha = 0f; ring.alpha = 0f; ring.scaleX = 0.5f; ring.scaleY = 0.5f
+                // 1) 꾹 누르기: 손가락이 눌리고 동그라미가 퍼진다.
+                hand.animate().scaleX(0.85f).scaleY(0.85f).setStartDelay(250).setDuration(160).withEndAction {
+                    ring.alpha = 1f
+                    ring.animate().scaleX(1.5f).scaleY(1.5f).alpha(0f).setStartDelay(0).setDuration(450).withEndAction {
+                        if (closed) return@withEndAction
+                        // 2) 들린 카드 윤곽이 나타나 손가락을 따라 아래로.
+                        ghost.animate().alpha(1f).setStartDelay(0).setDuration(120).start()
+                        ghost.animate().translationY(travel).setStartDelay(120).setDuration(700).start()
+                        hand.animate().translationY(travel).setStartDelay(120).setDuration(700).withEndAction {
+                            // 3) 놓기.
+                            hand.animate().scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(150).start()
+                            ghost.animate().alpha(0f).setStartDelay(0).setDuration(250).withEndAction {
+                                if (round < 2) play(round + 1) else close()
+                            }.start()
+                        }.start()
+                    }.start()
+                }.start()
+            }
+            layer.animate().alpha(1f).setDuration(200).withEndAction { play(0) }.start()
+        }
     }
 
     /** 아주 살짝 좌우로 흔든다. 카드마다 시작을 달리해 함께 흔들리지 않게. */

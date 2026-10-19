@@ -313,6 +313,11 @@ class AppSettings(private val context: Context) {
         get() = prefs.getString("game_package", null)
         set(value) = prefs.edit { putString("game_package", value) }
 
+    /** 편집을 처음 켰을 때 손가락 안내를 보여 줬는지. */
+    var editCoachShown: Boolean
+        get() = prefs.getBoolean("edit_coach_shown", false)
+        set(value) = prefs.edit { putBoolean("edit_coach_shown", value) }
+
     /** 메인 카드 순서(출석 카드 아래). 모르는 이름은 버리고 빠진 카드는 뒤에 붙인다. */
     var cardOrder: List<String>
         get() {
