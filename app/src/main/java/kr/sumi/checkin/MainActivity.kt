@@ -118,6 +118,12 @@ class MainActivity : Activity() {
         loadNotes()
     }
 
+    override fun onPause() {
+        super.onPause()
+        // 계정을 바꿨거나 메모를 새로 받았을 수 있으니 홈 화면 위젯도 맞춘다.
+        ResinWidget.updateAll(this)
+    }
+
     private var closeSettings: Any? = null
 
     /** 설정은 같은 화면 위에 연다. 열려 있으면 뒤로 가기로 닫는다. */
@@ -248,44 +254,6 @@ class MainActivity : Activity() {
             .show()
     }
 
-    /** 저장된 실시간 메모를 지금 시각 기준의 카드 문장으로. 레진·파견은 받은 뒤 흐른 시간만큼 앞당겨 보여 준다. */
-    private fun notesUi(n: DailyNote): NotesUi {
-        val now = ServerClock.now()
-        val resin = n.resinAt(now)
-        val allBack = n.expeditionsTotal > 0 && (n.expeditionsDone >= n.expeditionsTotal || now >= n.expeditionsDoneAt)
-        val coinFull = n.maxHomeCoin > 0 && (n.homeCoin >= n.maxHomeCoin || now >= n.homeCoinFullAt)
-        val commissionsDone = n.commissionsTotal > 0 && n.commissionsDone >= n.commissionsTotal
-        return NotesUi(
-            resin = resin,
-            maxResin = n.maxResin,
-            fullLabel = if (resin >= n.maxResin) "" else "${Notes.duration(n.resinFullAt - now)} 뒤 가득",
-            fullTime = if (resin >= n.maxResin) "가득 찼어요" else Notes.clock(n.resinFullAt),
-            expeditions = when {
-                n.expeditionsTotal == 0 -> "없음"
-                allBack -> "${n.expeditionsTotal}/${n.expeditionsTotal} 완료"
-                else -> "${n.expeditionsDone}/${n.expeditionsTotal} 완료"
-            },
-            expeditionsSub = when {
-                n.expeditionsTotal == 0 -> "보낸 파견이 없어요"
-                allBack -> "보상을 받아 주세요"
-                else -> "${Notes.duration(n.expeditionsDoneAt - now)} 뒤 모두 끝나요"
-            },
-            coin = if (n.maxHomeCoin == 0) "없음" else "%,d".format(if (coinFull) n.maxHomeCoin else n.homeCoin),
-            coinSub = when {
-                n.maxHomeCoin == 0 -> "주전자가 없어요"
-                coinFull -> "가득 찼어요"
-                else -> "/ %,d".format(n.maxHomeCoin)
-            },
-            commissions = "${n.commissionsDone}/${n.commissionsTotal}",
-            commissionsSub = when {
-                !commissionsDone -> "${n.commissionsTotal - n.commissionsDone}개 남았어요"
-                n.commissionRewardClaimed -> "보상 받음"
-                else -> "보상을 받아 주세요"
-            },
-            updated = "${Notes.clock(n.at)} 기준 · 누르면 접혀요",
-        )
-    }
-
     /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */
     private fun loadNicknamesIfMissing() {
         val missing = settings.accounts().filter { it.accountRole == null }
@@ -360,7 +328,7 @@ class MainActivity : Activity() {
                 calendarMissed = store?.calendarMissed ?: 0,
                 // 남은 날(오늘 아직 출석 전이면 오늘 포함)만큼 더 받을 수 있다.
                 calendarReachable = (store?.signedTotal ?: 0) + today.lengthOfMonth() - today.dayOfMonth + (if (signedToday) 0 else 1),
-                notes = store?.note?.let { notesUi(it) },
+                notes = store?.note?.let { Notes.ui(it) },
                 notesProblem = store?.noteProblem,
                 notesLoading = loadingNotes && store?.note == null,
                 resinAlert = settings.resinAlert,

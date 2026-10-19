@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 레진 위젯: 기본 2×1칸, 가로로 늘릴 수 있다. 레진 수는 30분마다 계산해서 바꾸고, 앱이 메모를 새로 받으면 바로 바꾼다. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_resin"
+    android:minWidth="110dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="110dp"
+    android:previewImage="@drawable/ic_item_resin"
+    android:previewLayout="@layout/widget_resin"
+    android:resizeMode="horizontal"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

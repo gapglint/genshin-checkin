@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">원신 출첵</string>
+    <string name="widget_label">레진</string>
+    <string name="widget_description">레진과 가득 차는 시각. 넓게 늘리면 탐사 파견·주전자·일일 의뢰도 보여요.</string>
 </resources>

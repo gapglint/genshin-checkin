@@ -140,6 +140,43 @@ object Notes {
         return "%s%s %d:%02d".format(day, half, hour, at.minute)
     }
 
+    /** 저장된 실시간 메모를 지금 시각 기준의 카드 문장으로. 레진·파견은 받은 뒤 흐른 시간만큼 앞당겨 보여 준다. */
+    fun ui(n: DailyNote, now: Long = ServerClock.now()): NotesUi {
+        val resin = n.resinAt(now)
+        val allBack = n.expeditionsTotal > 0 && (n.expeditionsDone >= n.expeditionsTotal || now >= n.expeditionsDoneAt)
+        val coinFull = n.maxHomeCoin > 0 && (n.homeCoin >= n.maxHomeCoin || now >= n.homeCoinFullAt)
+        val commissionsDone = n.commissionsTotal > 0 && n.commissionsDone >= n.commissionsTotal
+        return NotesUi(
+            resin = resin,
+            maxResin = n.maxResin,
+            fullLabel = if (resin >= n.maxResin) "" else "${duration(n.resinFullAt - now)} 뒤 가득",
+            fullTime = if (resin >= n.maxResin) "가득 찼어요" else clock(n.resinFullAt),
+            expeditions = when {
+                n.expeditionsTotal == 0 -> "없음"
+                allBack -> "${n.expeditionsTotal}/${n.expeditionsTotal} 완료"
+                else -> "${n.expeditionsDone}/${n.expeditionsTotal} 완료"
+            },
+            expeditionsSub = when {
+                n.expeditionsTotal == 0 -> "보낸 파견이 없어요"
+                allBack -> "보상을 받아 주세요"
+                else -> "${duration(n.expeditionsDoneAt - now)} 뒤 모두 끝나요"
+            },
+            coin = if (n.maxHomeCoin == 0) "없음" else "%,d".format(if (coinFull) n.maxHomeCoin else n.homeCoin),
+            coinSub = when {
+                n.maxHomeCoin == 0 -> "주전자가 없어요"
+                coinFull -> "가득 찼어요"
+                else -> "/ %,d".format(n.maxHomeCoin)
+            },
+            commissions = "${n.commissionsDone}/${n.commissionsTotal}",
+            commissionsSub = when {
+                !commissionsDone -> "${n.commissionsTotal - n.commissionsDone}개 남았어요"
+                n.commissionRewardClaimed -> "보상 받음"
+                else -> "보상을 받아 주세요"
+            },
+            updated = "${clock(n.at)} 기준 · 누르면 접혀요",
+        )
+    }
+
     /** 요청 서명: "시각,무작위 6글자,md5(salt=…&t=…&r=…)". */
     internal fun ds(t: Long = System.currentTimeMillis() / 1000, r: String = randomLetters()): String {
         val md5 = MessageDigest.getInstance("MD5").digest("salt=$DS_SALT&t=$t&r=$r".toByteArray())
@@ -248,6 +285,7 @@ object Notes {
             is NoteResult.Ok -> {
                 store.note = result.note
                 store.noteProblem = null
+                ResinWidget.updateAll(context)
                 val (alerts, flags) = evaluate(result.note, store.noteFlags, settings.noteAlerts)
                 store.noteFlags = flags
                 if (alerts.any) Notifier.notifyNote(context, store, result.note, alerts, target(result.note, settings.resinThreshold))
