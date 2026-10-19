@@ -250,6 +250,12 @@ class Store(private val context: Context, val accountId: String) {
 const val CARD_NOTES = "notes"
 const val CARD_TILES = "tiles"
 const val CARD_CALENDAR = "calendar"
+
+/** 레진 카드를 펼치면 보일 수 있는 항목. 사용자가 고른 것만 보인다. */
+const val NOTE_EXPEDITIONS = "expeditions"
+const val NOTE_COIN = "coin"
+const val NOTE_COMMISSIONS = "commissions"
+val NOTE_STATS = listOf(NOTE_EXPEDITIONS, NOTE_COIN, NOTE_COMMISSIONS)
 val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_CALENDAR)
 
 /** 모든 계정이 함께 쓰는 설정과 계정 목록. */
@@ -343,6 +349,10 @@ class AppSettings(private val context: Context) {
     var notesExpanded: Boolean
         get() = prefs.getBoolean("notes_expanded", false)
         set(value) = prefs.edit { putBoolean("notes_expanded", value) }
+    /** 레진 카드를 펼치면 보일 항목(순서는 NOTE_STATS 그대로). 처음에는 모두. 비우면 펼치지 않는다. */
+    var noteStats: List<String>
+        get() = prefs.getString("note_stats", null)?.split(",")?.let { saved -> NOTE_STATS.filter { it in saved } } ?: NOTE_STATS
+        set(value) = prefs.edit { putString("note_stats", NOTE_STATS.filter { it in value }.joinToString(",")) }
     var showTiles: Boolean
         get() = prefs.getBoolean("show_tiles", true)
         set(value) = prefs.edit { putBoolean("show_tiles", value) }

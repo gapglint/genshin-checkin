@@ -40,7 +40,7 @@ object Popover {
                 setTextColor(context.getColor(R.color.ink))
                 setPadding(0, 0, 0, dp(8))
             })
-            addView(content)
+            addView(android.widget.ScrollView(context).apply { addView(content) })
         }
         val tail = View(context).apply {
             background = GradientDrawable().apply { setColor(color) }
@@ -54,10 +54,21 @@ object Popover {
             addView(box, FrameLayout.LayoutParams(width, WRAP_CONTENT))
         }
         frame.measure(View.MeasureSpec.makeMeasureSpec(width + dp(8), View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
-        val height = frame.measuredHeight
+        var height = frame.measuredHeight
 
         val at = IntArray(2).also { anchor.getLocationOnScreen(it) }
-        val above = at[1] - height > dp(48)
+        val screenHeight = context.resources.displayMetrics.heightPixels
+        val roomAbove = at[1] - dp(48)
+        val roomBelow = screenHeight - (at[1] + anchor.height) - dp(48)
+        val above = height <= roomAbove || (height > roomBelow && roomAbove > roomBelow)
+        // 옵션이 많아 들어갈 자리가 모자라면 상자 안을 스크롤하게 줄인다.
+        val room = if (above) roomAbove else roomBelow
+        if (height > room) {
+            val scroll = box.getChildAt(1)
+            scroll.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (scroll.measuredHeight - (height - room)).coerceAtLeast(dp(120)))
+            frame.measure(View.MeasureSpec.makeMeasureSpec(width + dp(8), View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
+            height = frame.measuredHeight
+        }
         val x = at[0] + (anchor.width - width) / 2 - dp(4)
         val y = if (above) at[1] - height + dp(4) else at[1] + anchor.height - dp(4)
         // 꼬리: 상자 아래(또는 위) 가장자리에 중심을 두어 반쯤 튀어나오게. 안쪽 반은 상자에 가린다.

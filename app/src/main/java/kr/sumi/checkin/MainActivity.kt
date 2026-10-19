@@ -105,7 +105,7 @@ class MainActivity : Activity() {
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
         screen.notesCard.setOnClickListener {
             // 못 받았으면 다시 받고, 받았으면 펼치거나 접는다(펼칠 때 오래된 값이면 새로 받는다).
-            if (store?.note == null) loadNotes(force = true) else {
+            if (store?.note == null) loadNotes(force = true) else if (settings.noteStats.isNotEmpty()) {
                 settings.notesExpanded = !settings.notesExpanded
                 refresh()
                 if (settings.notesExpanded) loadNotes()
@@ -355,6 +355,12 @@ class MainActivity : Activity() {
                 label("", top = 8)
                 toggle("탐사 파견이 모두 끝나면 알림", settings.expeditionAlert) { settings.expeditionAlert = it }
                 toggle("주전자 동전이 가득 차면 알림", settings.coinAlert) { settings.coinAlert = it }
+                label("카드를 펼치면 보일 것", top = 12)
+                for ((key, text) in listOf(NOTE_EXPEDITIONS to "탐사 파견", NOTE_COIN to "주전자 동전", NOTE_COMMISSIONS to "일일 의뢰")) {
+                    toggle(text, key in settings.noteStats) { on ->
+                        settings.noteStats = if (on) settings.noteStats + key else settings.noteStats - key
+                    }
+                }
                 "레진"
             }
             CARD_TILES -> {
@@ -485,6 +491,7 @@ class MainActivity : Activity() {
                 resinThreshold = settings.resinThreshold,
                 showNotes = settings.showNotes,
                 notesExpanded = settings.notesExpanded,
+                noteStats = settings.noteStats,
                 gameInstalled = Game.launchIntent(this) != null,
                 gameApp = Game.chosen(this)?.label,
                 gameAppCount = Game.installed(this).size,

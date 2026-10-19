@@ -83,6 +83,8 @@ data class MainUiState(
     val showNotes: Boolean = true,
     /** 레진 카드를 펼쳐 파견·주전자·일일 의뢰까지 보이는지. */
     val notesExpanded: Boolean = false,
+    /** 펼치면 보일 항목(파견·주전자·일일 의뢰 중 고른 것). 비어 있으면 펼칠 게 없다. */
+    val noteStats: List<String> = NOTE_STATS,
     /** 원신이 깔려 있으면 레진 카드에 '원신 켜기'를 보인다. */
     val gameInstalled: Boolean = false,
     /** '원신 켜기'로 열 앱 이름과 깔린 원신 수(둘 이상이면 설정에서 고른다). */
@@ -316,8 +318,9 @@ class MainScreen(val root: View) {
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         notesBar.visibility = if (n != null) View.VISIBLE else View.GONE
-        notesChevron.visibility = if (n != null) View.VISIBLE else View.GONE
-        notesMore.visibility = if (n != null && s.notesExpanded) View.VISIBLE else View.GONE
+        val expandable = s.noteStats.isNotEmpty()
+        notesChevron.visibility = if (n != null && expandable) View.VISIBLE else View.GONE
+        notesMore.visibility = if (n != null && expandable && s.notesExpanded) View.VISIBLE else View.GONE
         notesChevron.rotation = if (s.notesExpanded) 270f else 90f
         if (n == null) {
             notesResin.textSize = 16f
@@ -359,14 +362,14 @@ class MainScreen(val root: View) {
         }, LinearLayout.LayoutParams(0, MATCH, filled.toFloat()))
         if (n.maxResin - filled > 0) notesBar.addView(View(context), LinearLayout.LayoutParams(0, MATCH, (n.maxResin - filled).toFloat()))
         notesBar.contentDescription = "레진 ${n.resin}개, 최대 ${n.maxResin}개"
-        if (!s.notesExpanded) return
+        if (!s.notesExpanded || !expandable) return
 
         notesStats.removeAllViews()
-        listOf(
-            Triple(R.drawable.ic_note_expedition, "탐사 파견", n.expeditions to n.expeditionsSub),
-            Triple(R.drawable.ic_note_teapot, "주전자 동전", n.coin to n.coinSub),
-            Triple(R.drawable.ic_note_commission, "일일 의뢰", n.commissions to n.commissionsSub),
-        ).forEach { (icon, label, values) ->
+        mapOf(
+            NOTE_EXPEDITIONS to Triple(R.drawable.ic_note_expedition, "탐사 파견", n.expeditions to n.expeditionsSub),
+            NOTE_COIN to Triple(R.drawable.ic_note_teapot, "주전자 동전", n.coin to n.coinSub),
+            NOTE_COMMISSIONS to Triple(R.drawable.ic_note_commission, "일일 의뢰", n.commissions to n.commissionsSub),
+        ).filterKeys { it in s.noteStats }.values.forEach { (icon, label, values) ->
             notesStats.addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(LinearLayout(context).apply {
