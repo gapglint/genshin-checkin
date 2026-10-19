@@ -7,10 +7,10 @@ import org.junit.Test
 class RedeemTest {
     @Test fun parsesRoles() {
         val roles = Redeem.parseRoles(JSONObject("""{"retcode":0,"data":{"list":[
-            {"game_biz":"hk4e_global","region":"os_asia","game_uid":"812345678","nickname":"여행자","level":60,"region_name":"Asia Server"},
-            {"game_biz":"hk4e_global","region":"os_usa","game_uid":"612345678","nickname":"Traveler","level":35,"region_name":"America Server"}]}}"""))
+            {"game_biz":"hk4e_global","region":"os_asia","game_uid":"800000000","nickname":"여행자","level":60,"region_name":"Asia Server"},
+            {"game_biz":"hk4e_global","region":"os_usa","game_uid":"600000000","nickname":"Traveler","level":35,"region_name":"America Server"}]}}"""))
         assertEquals(2, roles.size)
-        assertEquals("아시아 서버 · 여행자 (Lv.60) · UID 812345678", roles[0].label())
+        assertEquals("아시아 서버 · 여행자 (Lv.60) · UID 800000000", roles[0].label())
         assertEquals(roles[0], GameRole.representative(roles, chosen = null))
         assertEquals(roles[1], GameRole.representative(roles, chosen = roles[1]))
         assertEquals("os_usa", roles[1].region)
