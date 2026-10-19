@@ -87,19 +87,36 @@ class Store(private val context: Context, val accountId: String) {
         set(value) = prefs.edit { putString("last_make_up_notified", value) }
 
     /** 리딤 보상을 받을 캐릭터. */
-    var redeemRole: GameRole?
-        get() = getRole("redeem_role")
-        set(value) = putRole("redeem_role", value)
+    /**
+     * 리딤 보상을 받을 캐릭터들. 서버가 여러 개면 여러 명을 고를 수 있고, 새 코드는 캐릭터마다 입력한다.
+     * 예전 버전에서 하나만 골랐으면 그 캐릭터 하나로 시작한다.
+     */
+    var redeemRoles: List<GameRole>
+        get() = prefs.getString("redeem_roles", null)?.let { raw ->
+            val array = JSONArray(raw)
+            (0 until array.length()).map { roleOf(array.getJSONObject(it)) }
+        } ?: listOfNotNull(getRole("redeem_role"))
+        set(value) = prefs.edit { putString("redeem_roles", JSONArray(value.map { roleJson(it) }).toString()) }
+
+    /** 첫 번째로 고른 캐릭터(하나만 필요한 곳용). */
+    val redeemRole: GameRole? get() = redeemRoles.firstOrNull()
 
     /** 화면에 닉네임을 보여 줄 대표 캐릭터. */
     var accountRole: GameRole?
         get() = getRole("account_role")
         set(value) = putRole("account_role", value)
 
-    /** 한 번 입력해 본 코드. 다시 입력하지 않는다. */
-    var redeemTried: Set<String>
-        get() = prefs.getStringSet("redeem_tried", emptySet())!!.toSet()
-        set(value) = prefs.edit { putStringSet("redeem_tried", value) }
+    /**
+     * 그 캐릭터로 한 번 입력해 본 코드. 다시 입력하지 않는다. 코드는 서버(UID)마다 따로 쓸 수 있어 캐릭터별로 기억한다.
+     * 예전 버전은 계정 하나에 목록 하나였으므로, 그때 고른 캐릭터는 그 목록을 이어 쓴다.
+     */
+    fun redeemTried(role: GameRole): Set<String> {
+        val key = "redeem_tried_${role.uid}"
+        if (prefs.contains(key)) return prefs.getStringSet(key, emptySet())!!.toSet()
+        return if (role.uid == getRole("redeem_role")?.uid) prefs.getStringSet("redeem_tried", emptySet())!!.toSet() else emptySet()
+    }
+
+    fun setRedeemTried(role: GameRole, codes: Set<String>) = prefs.edit { putStringSet("redeem_tried_${role.uid}", codes) }
 
     /** 이미 코드를 찾아본 커뮤니티 글 ID. */
     var redeemScannedPosts: Set<String>
@@ -119,12 +136,15 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getString("redeem_log", null)?.let { raw ->
             val array = JSONArray(raw)
             (0 until array.length()).map { array.getJSONObject(it) }.map {
-                RedeemedCode(it.optString("code"), it.optLong("at"), it.optString("reward").ifEmpty { null })
+                RedeemedCode(it.optString("code"), it.optLong("at"), it.optString("reward").ifEmpty { null }, it.optString("role").ifEmpty { null })
             }
         } ?: emptyList()
         set(value) = prefs.edit {
             putString("redeem_log", JSONArray(value.map {
-                JSONObject().put("code", it.code).put("at", it.at).apply { it.reward?.let { r -> put("reward", r) } }
+                JSONObject().put("code", it.code).put("at", it.at).apply {
+                    it.reward?.let { r -> put("reward", r) }
+                    it.role?.let { r -> put("role", r) }
+                }
             }).toString())
         }
 
@@ -157,17 +177,15 @@ class Store(private val context: Context, val accountId: String) {
     /** 알림 ID가 계정끼리 겹치지 않게 하는 값. */
     val notificationSalt get() = (accountId.hashCode() and 0x7fffffff) % 10_000
 
-    private fun getRole(key: String) = prefs.getString(key, null)?.let {
-        val j = JSONObject(it)
-        GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
-    }
+    private fun getRole(key: String) = prefs.getString(key, null)?.let { roleOf(JSONObject(it)) }
 
-    private fun putRole(key: String, role: GameRole?) = prefs.edit {
-        putString(key, role?.let {
-            JSONObject().put("uid", it.uid).put("region", it.region).put("regionName", it.regionName)
-                .put("nickname", it.nickname).put("level", it.level).toString()
-        })
-    }
+    private fun putRole(key: String, role: GameRole?) = prefs.edit { putString(key, role?.let { roleJson(it).toString() }) }
+
+    private fun roleOf(j: JSONObject) =
+        GameRole(j.optString("uid"), j.optString("region"), j.optString("regionName"), j.optString("nickname"), j.optInt("level"))
+
+    private fun roleJson(role: GameRole) = JSONObject().put("uid", role.uid).put("region", role.region)
+        .put("regionName", role.regionName).put("nickname", role.nickname).put("level", role.level)
 
     /** 이 계정의 모든 기록을 지운다. */
     fun wipe() {
@@ -287,5 +305,8 @@ class AppSettings(private val context: Context) {
     }
 }
 
-/** 이 앱이 받은 리딤 코드. reward는 위키의 보상 표기('Primogem*60;Mora*10000'), 모르면 null. */
-data class RedeemedCode(val code: String, val at: Long, val reward: String?)
+/**
+ * 이 앱이 받은 리딤 코드. reward는 위키의 보상 표기('Primogem*60;Mora*10000'), 모르면 null.
+ * role은 받은 캐릭터('아시아 서버 · 여행자'). 예전 기록은 null.
+ */
+data class RedeemedCode(val code: String, val at: Long, val reward: String?, val role: String? = null)

@@ -59,6 +59,18 @@ class RedeemTest {
         assertEquals(12, groups.size)
     }
 
+    @Test fun codeGroupsAddExtraCodesOncePerServer() {
+        val today = java.time.LocalDate.of(2026, 10, 18)
+        val asia = Redeem.codeGroups(wiki(), listOf("VESNAONPATROL", "NEWCODE", "NEWCODE"), "os_asia", today)
+        assertEquals(13, asia.size)
+        assertEquals(listOf("NEWCODE"), asia.last())
+        // 서버마다 따로 구하므로 다른 서버도 같은 글로벌 코드와 추가 코드를 받는다
+        val usa = Redeem.codeGroups(wiki(), listOf("NEWCODE"), "os_usa", today).flatten()
+        assert("VESNAONPATROL" in usa && "NEWCODE" in usa && "YUANSHEN" !in usa)
+        // 위키를 못 받아도 추가 코드는 입력한다
+        assertEquals(listOf(listOf("NEWCODE")), Redeem.codeGroups(null, listOf("NEWCODE"), "os_asia", today))
+    }
+
     @Test fun wikiSkipsExpired() {
         // VesnaOnPatrol은 2026-10-22 만료
         val all = Redeem.parseWikiCodes(wiki(), "os_asia", java.time.LocalDate.of(2026, 10, 23)).flatten()

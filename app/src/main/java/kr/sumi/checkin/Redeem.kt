@@ -15,6 +15,9 @@ data class GameRole(val uid: String, val region: String, val regionName: String,
 
     fun label() = "$serverName · $nickname (Lv.$level) · UID $uid"
 
+    /** 짧은 이름: '아시아 서버 · 여행자'. */
+    fun shortLabel() = "$serverName · $nickname"
+
     companion object {
         private val SERVER_NAMES = mapOf(
             "os_asia" to "아시아 서버", "os_usa" to "미국 서버", "os_euro" to "유럽 서버", "os_cht" to "TW·HK·MO 서버",
@@ -29,10 +32,16 @@ data class GameRole(val uid: String, val region: String, val regionName: String,
 /** 코드 하나를 입력한 결과. */
 enum class RedeemStatus { REDEEMED, USED, EXPIRED, INVALID, NOT_LOGGED_IN, TOO_FAST, OTHER }
 
-data class RedeemAttempt(val code: String, val status: RedeemStatus, val message: String)
+/** 코드 하나를 한 캐릭터로 입력한 결과. role은 그 캐릭터의 짧은 이름. */
+data class RedeemAttempt(val code: String, val status: RedeemStatus, val message: String, val role: String? = null)
 
 data class RedeemReport(val found: Int, val attempts: List<RedeemAttempt>, val stopReason: String? = null) {
-    val redeemed get() = attempts.filter { it.status == RedeemStatus.REDEEMED }.map { it.code }
+    /** 받은 코드(여러 캐릭터가 같은 코드를 받았으면 한 번만). */
+    val redeemed get() = attempts.filter { it.status == RedeemStatus.REDEEMED }.map { it.code }.distinct()
+    /** 코드를 받은 캐릭터 수. */
+    val redeemedRoles get() = attempts.filter { it.status == RedeemStatus.REDEEMED }.mapNotNull { it.role }.distinct().size
+    /** 이번에 입력해 본 캐릭터 수. */
+    val roleCount get() = attempts.mapNotNull { it.role }.distinct().size
 }
 
 /**
@@ -80,43 +89,53 @@ object Redeem {
     fun roles(client: CheckInClient): List<GameRole> =
         parseRoles(client.get("https://api-account-os.hoyolab.com/binding/api/getUserGameRolesByCookie?game_biz=$GAME_BIZ"))
 
-    /** 새 코드를 찾아 고른 캐릭터로 입력한다. 수동 실행과 예약 실행이 겹치지 않게 한 번에 하나만. */
+    /**
+     * 새 코드를 찾아 고른 캐릭터마다 입력한다. 코드는 서버(UID)마다 따로 쓸 수 있어서 캐릭터별로 기억한다.
+     * 수동 실행과 예약 실행이 겹치지 않게 한 번에 하나만.
+     */
     @Throws(IOException::class)
     fun run(store: Store): RedeemReport = synchronized(this) {
         val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
-        val role = store.redeemRole ?: chooseOnlyRole(client, store)
-            ?: return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
+        val roles = store.redeemRoles.ifEmpty { listOfNotNull(chooseOnlyRole(client, store)) }
+        if (roles.isEmpty()) return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
 
-        val tried = store.redeemTried
-        // 묶음 코드는 하나만 쓸 수 있으니 묶음 단위로 다룬다. 묶음 안에서 하나라도 받았거나 이미 썼으면 나머지는 건너뛴다.
-        val groups = findCodes(client, store, role).map { group -> group.filter { it !in tried } }.filter { it.isNotEmpty() }
+        // 코드 찾기는 한 번만 하고, 위키 코드는 캐릭터의 서버에 맞는 것만 고른다.
+        val (wiki, extra) = findSources(client, store)
         val attempts = mutableListOf<RedeemAttempt>()
+        var found = 0
         var stop: String? = null
-        loop@ for (group in groups) {
-            for (code in group) {
-                if (attempts.isNotEmpty()) Thread.sleep(CODE_GAP_MS)
-                var attempt = redeem(client, role, code)
-                if (attempt.status == RedeemStatus.TOO_FAST) {
-                    Thread.sleep(CODE_GAP_MS)
-                    attempt = redeem(client, role, code)
+        roles@ for (role in roles) {
+            val tried = store.redeemTried(role)
+            // 묶음 코드는 하나만 쓸 수 있으니 묶음 단위로 다룬다. 묶음 안에서 하나라도 받았거나 이미 썼으면 나머지는 건너뛴다.
+            val groups = codeGroups(wiki, extra, role.region, ServerClock.today())
+                .map { group -> group.filter { it !in tried } }.filter { it.isNotEmpty() }
+            found += groups.sumOf { it.size }
+            for (group in groups) {
+                for (code in group) {
+                    if (attempts.isNotEmpty()) Thread.sleep(CODE_GAP_MS)
+                    var attempt = redeem(client, role, code)
+                    if (attempt.status == RedeemStatus.TOO_FAST) {
+                        Thread.sleep(CODE_GAP_MS)
+                        attempt = redeem(client, role, code)
+                    }
+                    attempts += attempt
+                    if (attempt.status == RedeemStatus.NOT_LOGGED_IN) {
+                        stop = "리딤 코드 입력용 로그인 정보가 없어요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
+                        break@roles
+                    }
+                    if (attempt.status == RedeemStatus.TOO_FAST) continue
+                    if (attempt.status == RedeemStatus.REDEEMED) {
+                        store.redeemLog = listOf(RedeemedCode(code, ServerClock.now(), rewardOf(code), role.shortLabel())) + store.redeemLog
+                    }
+                    if (attempt.status == RedeemStatus.REDEEMED || attempt.status == RedeemStatus.USED) {
+                        store.setRedeemTried(role, store.redeemTried(role) + group)
+                        break
+                    }
+                    store.setRedeemTried(role, store.redeemTried(role) + code)
                 }
-                attempts += attempt
-                if (attempt.status == RedeemStatus.NOT_LOGGED_IN) {
-                    stop = "리딤 코드 입력용 로그인 정보가 없어요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
-                    break@loop
-                }
-                if (attempt.status == RedeemStatus.TOO_FAST) continue
-                if (attempt.status == RedeemStatus.REDEEMED) {
-                    store.redeemLog = listOf(RedeemedCode(code, ServerClock.now(), rewardOf(code))) + store.redeemLog
-                }
-                if (attempt.status == RedeemStatus.REDEEMED || attempt.status == RedeemStatus.USED) {
-                    store.redeemTried = store.redeemTried + group
-                    break
-                }
-                store.redeemTried = store.redeemTried + code
             }
         }
-        val report = RedeemReport(groups.sumOf { it.size }, attempts, stop)
+        val report = RedeemReport(found, attempts, stop)
         store.lastRedeemAt = ServerClock.now()
         store.lastRedeemSummary = summary(report)
         report
@@ -133,15 +152,18 @@ object Redeem {
     private fun chooseOnlyRole(client: CheckInClient, store: Store): GameRole? {
         val roles = roles(client)
         if (roles.size != 1) return null
-        store.redeemRole = roles.single()
+        store.redeemRoles = roles
         return roles.single()
     }
 
-    /** 위키 + 공식 목록 + 최근 커뮤니티 글에서 코드 묶음을 모은다. 한쪽이 실패해도 나머지는 쓴다. */
-    private fun findCodes(client: CheckInClient, store: Store, role: GameRole): List<List<String>> {
-        val groups = mutableListOf<List<String>>()
+    /**
+     * 위키 문서와, 공식 목록 + 최근 커뮤니티 글에서 찾은 코드를 모은다. 한쪽이 실패해도 나머지는 쓴다.
+     * 위키는 서버별로 걸러야 해서 문서째 돌려주고, 나머지 코드는 서버 정보가 없어 그대로 돌려준다.
+     */
+    private fun findSources(client: CheckInClient, store: Store): Pair<JSONObject?, List<String>> {
+        var wiki: JSONObject? = null
         try {
-            groups += parseWikiCodes(wikiPage(), role.region, ServerClock.today())
+            wiki = wikiPage()
         } catch (e: Exception) {
         }
         val codes = linkedSetOf<String>()
@@ -164,8 +186,14 @@ object Redeem {
             }
         } catch (e: Exception) {
         }
+        return wiki to codes.toList()
+    }
+
+    /** 한 캐릭터가 입력할 코드 묶음: 그 서버의 위키 코드(묶음 그대로) + 위키에 없는 나머지 코드(하나씩). */
+    internal fun codeGroups(wiki: JSONObject?, extra: List<String>, region: String, today: LocalDate): List<List<String>> {
+        val groups = wiki?.let { parseWikiCodes(it, region, today) }.orEmpty().toMutableList()
         val known = groups.flatten().toSet()
-        groups += codes.filter { it !in known }.map { listOf(it) }
+        groups += extra.filter { it !in known }.distinct().map { listOf(it) }
         return groups
     }
 
@@ -195,12 +223,13 @@ object Redeem {
         val url = "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyHyl" +
             "?cdkey=$code&game_biz=$GAME_BIZ&lang=ko&region=${role.region}&uid=${role.uid}&t=${ServerClock.now()}"
         val json = client.get(url, mapOf("Origin" to "https://www.hoyolab.com", "Referer" to "https://www.hoyolab.com/"))
-        return RedeemAttempt(code, statusOf(json.optInt("retcode", Int.MIN_VALUE)), json.optString("message"))
+        return RedeemAttempt(code, statusOf(json.optInt("retcode", Int.MIN_VALUE)), json.optString("message"), role.shortLabel())
     }
 
     fun summary(report: RedeemReport): String = when {
         report.stopReason != null && report.attempts.none { it.status == RedeemStatus.REDEEMED } -> report.stopReason
-        report.redeemed.isNotEmpty() -> "새 코드 ${report.redeemed.size}개 입력: ${report.redeemed.joinToString(", ")}"
+        report.redeemed.isNotEmpty() -> "새 코드 ${report.redeemed.size}개 입력" +
+            (if (report.redeemedRoles > 1) " · 캐릭터 ${report.redeemedRoles}명" else "") + ": ${report.redeemed.joinToString(", ")}"
         report.attempts.isEmpty() -> "새 코드 없음"
         else -> "새 코드 ${report.attempts.size}개를 확인했지만 받을 수 있는 게 없었어요"
     }
@@ -208,7 +237,10 @@ object Redeem {
     /** 결과 창에 보일 자세한 내용. */
     fun details(report: RedeemReport): String {
         if (report.attempts.isEmpty()) return report.stopReason ?: "새로 올라온 코드가 없어요. 이미 입력한 코드는 다시 입력하지 않아요."
-        val lines = report.attempts.joinToString("\n") { "${it.code}  ${statusText(it.status)}" }
+        val many = report.roleCount > 1
+        val lines = report.attempts.joinToString("\n") {
+            (if (many && it.role != null) "[${it.role}] " else "") + "${it.code}  ${statusText(it.status)}"
+        }
         val tail = report.redeemed.takeIf { it.isNotEmpty() }?.let { "\n\n보상은 게임 우편함으로 와요." } ?: ""
         return (report.stopReason?.let { "$it\n\n" } ?: "") + lines + tail
     }

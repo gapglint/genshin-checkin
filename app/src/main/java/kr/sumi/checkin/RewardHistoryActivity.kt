@@ -112,7 +112,7 @@ class RewardHistoryActivity : Activity() {
         else items.joinToString("\n") { (name, count) -> "· $name ×${"%,d".format(count)}" }
         AppDialog(this)
             .setTitle(code.code)
-            .setMessage("${android.text.format.DateFormat.format("M월 d일 HH:mm", java.util.Date(code.at))}에 받았어요\n\n$rewards")
+            .setMessage("${android.text.format.DateFormat.format("M월 d일 HH:mm", java.util.Date(code.at))}에 받았어요${code.role?.let { "\n$it" } ?: ""}\n\n$rewards")
             .setNeutralButton("코드 복사") {
                 getSystemService(android.content.ClipboardManager::class.java)
                     .setPrimaryClip(android.content.ClipData.newPlainText("리딤 코드", code.code))

@@ -71,14 +71,17 @@ class RewardHistoryScreen(private val context: Context) {
         list.addView(monthCard(s), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
 
         list.addView(sectionLabel("리딤 코드"))
+        // 여러 캐릭터로 받았을 때만 줄마다 어느 캐릭터인지 적는다.
+        val manyRoles = s.codes.mapNotNull { it.role }.distinct().size > 1
         list.addView(group(
             if (s.codes.isEmpty()) listOf(row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요", null, muted = true))
             else listOf(redeemTotals(s.codes)) + s.codes.map {
                 val reward = it.reward?.let { raw -> RewardHistory.formatTotals(Redeem.rewardItems(raw), max = 4) }
+                    ?: "보상은 게임 우편함에서 확인해요"
                 val code = it
                 row(
                     R.drawable.ic_item_gift, it.code, DateFormat.format("M월 d일", Date(it.at)).toString(),
-                    sub = reward ?: "보상은 게임 우편함에서 확인해요", unseen = it.at > s.seenRedeemAt,
+                    sub = if (manyRoles && it.role != null) "${it.role}\n$reward" else reward, unseen = it.at > s.seenRedeemAt,
                     onClick = { onCodeClick?.invoke(code) },
                 )
             }

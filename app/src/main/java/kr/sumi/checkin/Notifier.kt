@@ -100,7 +100,8 @@ object Notifier {
     fun notifyRedeem(context: Context, store: Store, report: RedeemReport) {
         val (title, text) = when {
             report.redeemed.isNotEmpty() && !AppSettings(context).notifyRedeem -> return
-            report.redeemed.isNotEmpty() -> "리딤 코드 ${report.redeemed.size}개를 받았어요" to
+            report.redeemed.isNotEmpty() -> "리딤 코드 ${report.redeemed.size}개를 받았어요" +
+                (if (report.redeemedRoles > 1) " (캐릭터 ${report.redeemedRoles}명)" else "") to
                 "${report.redeemed.joinToString(", ")} · 게임 우편함에서 받으세요."
             report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
             else -> return
