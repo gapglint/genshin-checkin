@@ -46,22 +46,6 @@
             android:name=".RewardHistoryActivity"
             android:exported="false" />
 
-        <!-- 로그인 문제 진단용 임시 화면들. 원인을 찾으면 logintest 폴더와 함께 지운다. -->
-        <activity
-            android:name=".logintest.TestListActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
-        <activity
-            android:name=".logintest.TestActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
-        <!-- 창 전체를 GPU 없이 그리는 시험. 그래픽칩 문제인지 가르는 용도. -->
-        <activity
-            android:name=".logintest.NoGpuTestActivity"
-            android:exported="false"
-            android:hardwareAccelerated="false"
-            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
-
         <service
             android:name=".CheckInJobService"
             android:exported="false"
