@@ -184,6 +184,25 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getLong("login_expiry_notified", 0)
         set(value) = prefs.edit { putLong("login_expiry_notified", value) }
 
+    /** 마지막으로 받은 실시간 메모(레진·파견 등). */
+    var note: DailyNote?
+        get() = prefs.getString("note", null)?.let { DailyNote.fromJson(it) }
+        set(value) = prefs.edit { putString("note", value?.toJson()) }
+
+    /** 실시간 메모를 못 받은 이유(화면 안내용). 받으면 지운다. */
+    var noteProblem: String?
+        get() = prefs.getString("note_problem", null)
+        set(value) = prefs.edit { putString("note_problem", value) }
+
+    /** 레진·파견·주전자를 이미 알렸는지. 같은 일을 두 번 알리지 않는다. */
+    var noteFlags: NoteFlags
+        get() = NoteFlags(prefs.getBoolean("note_flag_resin", false), prefs.getBoolean("note_flag_expeditions", false), prefs.getBoolean("note_flag_coin", false))
+        set(value) = prefs.edit {
+            putBoolean("note_flag_resin", value.resin)
+            putBoolean("note_flag_expeditions", value.expeditions)
+            putBoolean("note_flag_coin", value.coin)
+        }
+
     /** 화면·알림에 쓸 이름: 닉네임, 없으면 UID. */
     val displayName get() = accountRole?.nickname ?: "UID $accountId"
 
@@ -259,6 +278,21 @@ class AppSettings(private val context: Context) {
     var redeemEnabled: Boolean
         get() = prefs.getBoolean("redeem_enabled", true)
         set(value) = prefs.edit { putBoolean("redeem_enabled", value) }
+
+    /** 레진이 정한 개수가 되면 알릴지. */
+    var resinAlert: Boolean
+        get() = prefs.getBoolean("resin_alert", true)
+        set(value) = prefs.edit { putBoolean("resin_alert", value) }
+
+    /** 레진 알림 기준 개수. 0이면 가득 찼을 때. */
+    var resinThreshold: Int
+        get() = prefs.getInt("resin_threshold", 180)
+        set(value) = prefs.edit { putInt("resin_threshold", value) }
+
+    /** 탐사 파견이 모두 끝나거나 주전자 동전이 가득 차면 알릴지. */
+    var notesExtra: Boolean
+        get() = prefs.getBoolean("notes_extra", false)
+        set(value) = prefs.edit { putBoolean("notes_extra", value) }
 
     /** 서버 시각 - 폰 시각(ms). 앱을 다시 켜도 서버 기준으로 계산하려고 남겨 둔다. */
     var clockOffset: Long

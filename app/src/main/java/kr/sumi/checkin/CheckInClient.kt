@@ -129,6 +129,9 @@ class CheckInClient(private val cookie: String) {
     @Throws(IOException::class)
     fun get(url: String, headers: Map<String, String> = emptyMap()): JSONObject = request("GET", url, null, headers)
 
+    @Throws(IOException::class)
+    fun post(url: String, body: String, headers: Map<String, String> = emptyMap()): JSONObject = request("POST", url, body, headers)
+
     private fun request(
         method: String,
         url: String,

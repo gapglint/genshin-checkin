@@ -8,6 +8,24 @@ import android.widget.LinearLayout
 /** 계정 칩 하나. */
 data class AccountChip(val id: String, val label: String, val signedToday: Boolean)
 
+/** 실시간 메모 카드에 그릴 내용. 문장은 액티비티가 지금 시각으로 만든다. */
+data class NotesUi(
+    val resin: Int,
+    val maxResin: Int,
+    /** 레진 아래 한 줄, 예: "가득 차기까지 7시간 36분 · 오후 3:20". */
+    val resinSub: String,
+    /** 오른쪽 위 작은 표시, 예: "180개에 알림". 알림이 꺼져 있으면 null. */
+    val alert: String?,
+    val expeditions: String,
+    val expeditionsSub: String,
+    val coin: String,
+    val coinSub: String,
+    val commissions: String,
+    val commissionsSub: String,
+    /** 언제 받은 값인지, 예: "오후 3:02 기준 · 눌러서 새로고침". */
+    val updated: String,
+)
+
 /** 메인 화면에 그릴 내용. 저장소에서 만들고, 화면은 이것만 보고 그린다. 계정에 관한 값은 지금 고른 계정 것이다. */
 data class MainUiState(
     val loggedIn: Boolean,
@@ -52,6 +70,15 @@ data class MainUiState(
     /** 이번 달 안에 받을 수 있는 마지막 칸 번호(놓친 날을 보충하지 않으면 그 뒤 칸은 못 받는다). */
     val calendarReachable: Int = Int.MAX_VALUE,
     val calendarMissed: Int = 0,
+    /** 실시간 메모. 아직 못 받았으면 null. */
+    val notes: NotesUi? = null,
+    /** 실시간 메모를 못 받은 이유. */
+    val notesProblem: String? = null,
+    val notesLoading: Boolean = false,
+    val resinAlert: Boolean = true,
+    /** 레진 알림 기준 개수. 0이면 가득 찼을 때. */
+    val resinThreshold: Int = 180,
+    val notesExtra: Boolean = false,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -102,6 +129,21 @@ class MainScreen(val root: View) {
     private val calendarCount: TextView = root.findViewById(R.id.calendarCount)
     private val calendarGrid: LinearLayout = root.findViewById(R.id.calendarGrid)
     private val calendarNote: TextView = root.findViewById(R.id.calendarNote)
+    val notesCard: View = root.findViewById(R.id.notesCard)
+    private val notesResin: TextView = root.findViewById(R.id.notesResin)
+    private val notesAlertChip: TextView = root.findViewById(R.id.notesAlertChip)
+    private val notesBar: LinearLayout = root.findViewById(R.id.notesBar)
+    private val notesResinSub: TextView = root.findViewById(R.id.notesResinSub)
+    private val notesDivider: View = root.findViewById(R.id.notesDivider)
+    private val notesStats: LinearLayout = root.findViewById(R.id.notesStats)
+    private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
+    val rowResinAlert: View = root.findViewById(R.id.rowResinAlert)
+    val resinSwitch: StarSwitch = root.findViewById(R.id.resinSwitch)
+    private val resinAlertSub: TextView = root.findViewById(R.id.resinAlertSub)
+    val rowResinThreshold: View = root.findViewById(R.id.rowResinThreshold)
+    private val resinThresholdSub: TextView = root.findViewById(R.id.resinThresholdSub)
+    val rowNotesExtra: View = root.findViewById(R.id.rowNotesExtra)
+    val notesExtraSwitch: StarSwitch = root.findViewById(R.id.notesExtraSwitch)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
@@ -122,6 +164,12 @@ class MainScreen(val root: View) {
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
         root.findViewById<View>(R.id.timingGroup).clipToOutline = true
         redeemSection.clipToOutline = true
+        notesCard.clipToOutline = true
+        notesAlertChip.background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = 100 * context.resources.displayMetrics.density
+            setColor(context.getColor(R.color.item_tile))
+        }
+        root.findViewById<View>(R.id.notesGroup).clipToOutline = true
         tileRedeem.clipToOutline = true
         tileHistory.clipToOutline = true
         setupBanner.clipToOutline = true
@@ -199,6 +247,109 @@ class MainScreen(val root: View) {
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         renderTiles(s)
         renderCalendar(s)
+        renderNotes(s)
+    }
+
+    /**
+     * 실시간 메모 카드. 레진을 크게(최대치는 작게), 막대로 얼마나 찼는지, 그 아래 파견·주전자·일일 의뢰를 나란히.
+     * 아직 못 받았으면 이유와 '눌러서 다시 시도'만 보인다.
+     */
+    private fun renderNotes(s: MainUiState) {
+        val n = s.notes
+        notesCard.visibility = if (s.loggedIn && (n != null || s.notesProblem != null || s.notesLoading)) View.VISIBLE else View.GONE
+        resinSwitch.isChecked = s.resinAlert
+        notesExtraSwitch.isChecked = s.notesExtra
+        resinAlertSub.text = when {
+            !s.resinAlert -> "꺼져 있어요"
+            s.resinThreshold <= 0 -> "레진이 가득 차면 알려요"
+            else -> "레진이 ${s.resinThreshold}개가 되면 알려요"
+        }
+        resinThresholdSub.text = if (s.resinThreshold <= 0) "가득 찼을 때" else "${s.resinThreshold}개"
+        rowResinThreshold.isEnabled = s.resinAlert
+        rowResinThreshold.alpha = if (s.resinAlert) 1f else 0.5f
+
+        val shown = if (n != null) View.VISIBLE else View.GONE
+        notesBar.visibility = shown
+        notesDivider.visibility = shown
+        notesStats.visibility = shown
+        notesAlertChip.visibility = shown
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        if (n == null) {
+            notesResin.textSize = 17f
+            notesResin.text = if (s.notesLoading) "불러오는 중..." else "불러오지 못했어요"
+            notesResinSub.text = s.notesProblem ?: "잠시만 기다려 주세요"
+            notesResinSub.setTextColor(context.getColor(R.color.accent))
+            notesUpdated.text = if (s.notesLoading) "" else "눌러서 다시 시도"
+            notesUpdated.visibility = if (s.notesLoading) View.GONE else View.VISIBLE
+            return
+        }
+        notesResin.textSize = 24f
+        notesResin.text = android.text.SpannableString("${n.resin} / ${n.maxResin}").apply {
+            val start = "${n.resin}".length
+            setSpan(android.text.style.RelativeSizeSpan(0.62f), start, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(context.getColor(R.color.ink_muted)), start, length, 0)
+        }
+        val full = n.resin >= n.maxResin
+        notesResinSub.text = n.resinSub
+        notesResinSub.setTextColor(context.getColor(if (full) R.color.accent else R.color.ink))
+        notesAlertChip.text = n.alert ?: "알림 꺼짐"
+
+        // 막대: 바탕(연한 색) 위에 찬 만큼만 레진 색.
+        notesBar.removeAllViews()
+        notesBar.background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = dp(4).toFloat()
+            setColor(context.getColor(R.color.resin_track))
+        }
+        val filled = n.resin.coerceIn(0, n.maxResin)
+        if (filled > 0) notesBar.addView(View(context).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(4).toFloat()
+                setColor(context.getColor(R.color.item_resin))
+            }
+        }, LinearLayout.LayoutParams(0, MATCH, filled.toFloat()))
+        if (n.maxResin - filled > 0) notesBar.addView(View(context), LinearLayout.LayoutParams(0, MATCH, (n.maxResin - filled).toFloat()))
+        notesBar.contentDescription = "레진 ${n.resin}개, 최대 ${n.maxResin}개"
+
+        notesStats.removeAllViews()
+        listOf(
+            Triple(R.drawable.ic_note_expedition, "탐사 파견", n.expeditions to n.expeditionsSub),
+            Triple(R.drawable.ic_note_teapot, "주전자 동전", n.coin to n.coinSub),
+            Triple(R.drawable.ic_note_commission, "일일 의뢰", n.commissions to n.commissionsSub),
+        ).forEach { (icon, label, values) ->
+            notesStats.addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    addView(android.widget.ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(dp(16), dp(16)))
+                    addView(TextView(context).apply {
+                        text = label
+                        textSize = 12f
+                        setTextColor(context.getColor(R.color.ink_muted))
+                        maxLines = 1
+                        setPadding(dp(4), 0, 0, 0)
+                    })
+                })
+                addView(TextView(context).apply {
+                    text = values.first
+                    textSize = 15f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setTextColor(context.getColor(R.color.ink))
+                    fontFeatureSettings = "tnum"
+                    maxLines = 1
+                    setPadding(0, dp(4), 0, 0)
+                })
+                addView(TextView(context).apply {
+                    text = values.second
+                    textSize = 12f
+                    setTextColor(context.getColor(R.color.ink_muted))
+                    maxLines = 2
+                })
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        notesUpdated.visibility = View.VISIBLE
+        notesUpdated.text = s.notesProblem?.let { "$it · 눌러서 다시 시도" } ?: n.updated
     }
 
     /**

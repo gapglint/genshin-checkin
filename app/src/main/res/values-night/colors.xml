@@ -12,4 +12,6 @@
     <color name="on_action">#2A1F08</color>
     <color name="hero">#1C2340</color>
     <color name="item_tile">#232838</color>
+    <color name="item_resin">#8D9BF0</color>
+    <color name="resin_track">#2A3050</color>
 </resources>

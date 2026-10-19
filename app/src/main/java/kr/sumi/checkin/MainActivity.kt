@@ -84,6 +84,18 @@ class MainActivity : Activity() {
         screen.rowRedeemNow.setOnClickListener { redeemNow() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
+        screen.notesCard.setOnClickListener { loadNotes(force = true) }
+        screen.rowResinAlert.setOnClickListener { screen.resinSwitch.toggle() }
+        screen.resinSwitch.setOnCheckedChangeListener { _, checked ->
+            settings.resinAlert = checked
+            notesSettingsChanged()
+        }
+        screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
+        screen.rowNotesExtra.setOnClickListener { screen.notesExtraSwitch.toggle() }
+        screen.notesExtraSwitch.setOnCheckedChangeListener { _, checked ->
+            settings.notesExtra = checked
+            notesSettingsChanged()
+        }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -105,6 +117,7 @@ class MainActivity : Activity() {
         refresh()
         loadNicknamesIfMissing()
         loadCalendarIfStale()
+        loadNotes()
     }
 
     private var closeSettings: Any? = null
@@ -155,6 +168,96 @@ class MainActivity : Activity() {
                 refresh()
             }
         }.start()
+    }
+
+    private var loadingNotes = false
+
+    /** 실시간 메모를 조용히 받아 온다. 5분 안에 받은 값이 있으면 그대로 쓴다. 받은 뒤 다음 알림 시각을 다시 건다. */
+    private fun loadNotes(force: Boolean = false) {
+        val store = store ?: return
+        val note = store.note
+        if (loadingNotes || (!force && note != null && ServerClock.now() - note.at < 5 * 60_000)) return
+        loadingNotes = true
+        refresh()
+        Thread {
+            try {
+                Notes.refresh(this, store)
+            } catch (e: Exception) {
+                store.noteProblem = "네트워크 오류로 불러오지 못했어요"
+            }
+            Notes.schedule(this)
+            runOnUiThread {
+                loadingNotes = false
+                refresh()
+            }
+        }.start()
+    }
+
+    /** 레진 알림을 켜고 끄거나 기준을 바꾸면 다음 알림 시각을 다시 건다. */
+    private fun notesSettingsChanged() {
+        Notes.schedule(this)
+        refresh()
+    }
+
+    /** 레진 알림 기준을 고른다. */
+    private fun chooseResinThreshold() {
+        val options = intArrayOf(120, 160, 180, 0)
+        val max = store?.note?.maxResin ?: 200
+        val labels = options.map { if (it == 0) "가득 찼을 때 (${max}개)" else "${it}개" }.toTypedArray()
+        AppDialog(this)
+            .setTitle("레진 알림 기준")
+            .setSingleChoiceItems(labels, options.indexOf(settings.resinThreshold)) { dialog, which ->
+                settings.resinThreshold = options[which]
+                dialog.dismiss()
+                notesSettingsChanged()
+            }
+            .setFooter("레진은 8분에 1개씩 차요. 180개에 알림을 받으면 가득 차기까지 약 ${Notes.duration((max - 180).coerceAtLeast(0) * Notes.RESIN_MS)} 남아요.")
+            .setNegativeButton("취소")
+            .show()
+    }
+
+    /** 저장된 실시간 메모를 지금 시각 기준의 카드 문장으로. 레진·파견은 받은 뒤 흐른 시간만큼 앞당겨 보여 준다. */
+    private fun notesUi(n: DailyNote): NotesUi {
+        val now = ServerClock.now()
+        val resin = n.resinAt(now)
+        val target = Notes.target(n, settings.resinThreshold)
+        val allBack = n.expeditionsTotal > 0 && (n.expeditionsDone >= n.expeditionsTotal || now >= n.expeditionsDoneAt)
+        val coinFull = n.maxHomeCoin > 0 && (n.homeCoin >= n.maxHomeCoin || now >= n.homeCoinFullAt)
+        val commissionsDone = n.commissionsTotal > 0 && n.commissionsDone >= n.commissionsTotal
+        return NotesUi(
+            resin = resin,
+            maxResin = n.maxResin,
+            resinSub = if (resin >= n.maxResin) "가득 찼어요 · 더 쌓이지 않으니 써 주세요"
+                else "가득 차기까지 ${Notes.duration(n.resinFullAt - now)} · ${Notes.clock(n.resinFullAt)}",
+            alert = when {
+                !settings.resinAlert -> null
+                target >= n.maxResin -> "가득 차면 알림"
+                else -> "${target}개에 알림"
+            },
+            expeditions = when {
+                n.expeditionsTotal == 0 -> "없음"
+                allBack -> "${n.expeditionsTotal}/${n.expeditionsTotal} 완료"
+                else -> "${n.expeditionsDone}/${n.expeditionsTotal} 완료"
+            },
+            expeditionsSub = when {
+                n.expeditionsTotal == 0 -> "보낸 파견이 없어요"
+                allBack -> "보상을 받아 주세요"
+                else -> "${Notes.duration(n.expeditionsDoneAt - now)} 뒤 모두 끝나요"
+            },
+            coin = if (n.maxHomeCoin == 0) "없음" else "%,d".format(if (coinFull) n.maxHomeCoin else n.homeCoin),
+            coinSub = when {
+                n.maxHomeCoin == 0 -> "주전자가 없어요"
+                coinFull -> "가득 찼어요"
+                else -> "/ %,d".format(n.maxHomeCoin)
+            },
+            commissions = "${n.commissionsDone}/${n.commissionsTotal}",
+            commissionsSub = when {
+                !commissionsDone -> "${n.commissionsTotal - n.commissionsDone}개 남았어요"
+                n.commissionRewardClaimed -> "보상 받음"
+                else -> "보상을 받아 주세요"
+            },
+            updated = "${Notes.clock(n.at)} 기준 · 눌러서 새로고침",
+        )
     }
 
     /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */
@@ -231,6 +334,12 @@ class MainActivity : Activity() {
                 calendarMissed = store?.calendarMissed ?: 0,
                 // 남은 날(오늘 아직 출석 전이면 오늘 포함)만큼 더 받을 수 있다.
                 calendarReachable = (store?.signedTotal ?: 0) + today.lengthOfMonth() - today.dayOfMonth + (if (signedToday) 0 else 1),
+                notes = store?.note?.let { notesUi(it) },
+                notesProblem = store?.noteProblem,
+                notesLoading = loadingNotes && store?.note == null,
+                resinAlert = settings.resinAlert,
+                resinThreshold = settings.resinThreshold,
+                notesExtra = settings.notesExtra,
             )
         )
         store?.let { countUnseenRewards(it) }

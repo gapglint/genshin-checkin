@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 레진: 초승달이 담긴 동그란 결정. 게임 그림을 쓰지 않고 앱 색으로 단순하게 그렸다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="@color/item_resin" android:pathData="M12,2.5a9.5,9.5 0,1 1,0 19a9.5,9.5 0,1 1,0 -19z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.85" android:pathData="M14.8,6.2 C11.4,6.6 9,9.2 9,12.4 C9,15.3 11,17.7 13.8,18.3 C10.3,19.3 6.4,16.6 6.4,12.4 C6.4,8.4 10.4,5.3 14.8,6.2 Z" />
+</vector>

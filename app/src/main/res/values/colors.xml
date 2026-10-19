@@ -25,6 +25,8 @@
     <color name="item_mora">#C2913A</color>
     <color name="item_book">#5B78C9</color>
     <color name="item_ore">#7C93B5</color>
+    <color name="item_resin">#6E7DDB</color>
+    <color name="resin_track">#DDE1F4</color>
     <color name="item_tile">#E9ECF3</color>
 
     <color name="icon_bg_top">#2A3560</color>

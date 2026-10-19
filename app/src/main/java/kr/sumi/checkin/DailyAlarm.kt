@@ -85,6 +85,9 @@ class DailyAlarmReceiver : BroadcastReceiver() {
 /** 재부팅·앱 업데이트·정확한 알람 권한 변경 뒤에는 알람이 사라지거나 바뀌므로 다시 건다. */
 class RescheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (AppSettings(context).hasAccounts) CheckIn.schedule(context)
+        if (AppSettings(context).hasAccounts) {
+            CheckIn.schedule(context)
+            Notes.schedule(context)
+        }
     }
 }

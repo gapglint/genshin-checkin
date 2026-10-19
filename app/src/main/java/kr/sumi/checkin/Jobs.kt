@@ -75,7 +75,10 @@ class CheckInJobService : JobService() {
                     else -> {
                         // 재부팅 등으로 알람이 사라졌을 수 있으니 출석 작업이 돌 때마다 다시 건다.
                         if (AppSettings(app).hasAccounts) DailyAlarm.schedule(app)
-                        CheckIn.runAll(app).any { it is Outcome.RateLimited }
+                        val limited = CheckIn.runAll(app).any { it is Outcome.RateLimited }
+                        // 6시간 주기 작업에 실시간 메모 확인도 얹는다. 알람이 밀렸어도 여기서 다시 잡힌다.
+                        if (params.jobId == Jobs.PERIODIC) Notes.checkAll(app)
+                        limited
                     }
                 }
             } catch (e: IOException) {

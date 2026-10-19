@@ -16,16 +16,21 @@ object Notifier {
     private const val CHANNEL_MAKE_UP = "make_up"
     private const val CHANNEL_REDEEM = "redeem"
     private const val CHANNEL_QUIET = "quiet_night"
+    private const val CHANNEL_NOTES = "notes"
     private const val ID_REDEEM = 3
     private const val ID_CHECK_IN = 1
     private const val ID_MAKE_UP = 2
     private const val ID_LOGIN_EXPIRY = 4
+    private const val ID_RESIN = 5
+    private const val ID_EXPEDITIONS = 6
+    private const val ID_HOME_COIN = 7
 
     fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "출첵 결과", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_MAKE_UP, "보충 출석", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_REDEEM, "리딤 코드", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_NOTES, "레진·탐사 파견", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_QUIET, "밤 알림(소리 없음)", NotificationManager.IMPORTANCE_LOW))
     }
 
@@ -147,6 +152,43 @@ object Notifier {
             .build()
         context.getSystemService(NotificationManager::class.java).notify(id, notification)
         store.loginExpiryNotifiedFor = store.loginAt
+    }
+
+    /** 레진이 기준만큼 찼을 때, 파견이 모두 끝났을 때, 주전자 동전이 가득 찼을 때. 누르면 앱을 연다. */
+    @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
+    fun notifyNote(context: Context, store: Store, note: DailyNote, alerts: NoteAlerts, target: Int) {
+        if (!canNotify(context)) return
+        fun post(kind: Int, title: String, text: String) {
+            val id = idFor(kind, store)
+            val pending = PendingIntent.getActivity(
+                context, id, MainActivity.accountIntent(context, store.accountId),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = Notification.Builder(context, channel(context, CHANNEL_NOTES))
+                .setSmallIcon(R.drawable.ic_notify)
+                .setContentTitle(who(context, store) + title)
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .build()
+            context.getSystemService(NotificationManager::class.java).notify(id, notification)
+        }
+        if (alerts.resin) {
+            if (target >= note.maxResin) {
+                post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.")
+            } else {
+                val left = note.resinFullAt - note.at
+                post(ID_RESIN, "레진이 ${target}개 찼어요",
+                    "지금 ${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})")
+            }
+        }
+        if (alerts.expeditions) {
+            post(ID_EXPEDITIONS, "탐사 파견이 모두 끝났어요", "${note.expeditionsTotal}명 모두 돌아왔어요. 보상을 받고 다시 보내 주세요.")
+        }
+        if (alerts.coin) {
+            post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.")
+        }
     }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */
