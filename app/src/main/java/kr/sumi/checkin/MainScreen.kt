@@ -62,6 +62,8 @@ data class MainUiState(
     val redeemWhen: String? = null,
     /** 출첵·보충이 진행 중이면 그 안내. */
     val busy: String? = null,
+    /** 진행률(0~1)을 아는 작업이면 막대를 그만큼 채운다. */
+    val busyProgress: Float? = null,
     /** 아직 확인하지 않은 보상 수. */
     val historyUnseen: Int = 0,
     /** 이번 달 출석 보상(출석 횟수 순서). 아직 못 받아 왔으면 비어 있다. */
@@ -235,6 +237,11 @@ class MainScreen(val root: View) {
         primaryButton.visibility = if (s.loggedIn && s.signedToday && s.busy == null) View.GONE else View.VISIBLE
         primaryButton.isEnabled = s.busy == null
         busyBar.visibility = if (s.busy != null) View.VISIBLE else View.GONE
+        (busyBar as android.widget.ProgressBar).apply {
+            isIndeterminate = s.busyProgress == null
+            max = 100
+            setProgress(((s.busyProgress ?: 0f) * 100).toInt(), true)
+        }
         primaryButton.text = when {
             s.busy != null -> s.busy
             !s.loggedIn -> "호요랩 로그인"

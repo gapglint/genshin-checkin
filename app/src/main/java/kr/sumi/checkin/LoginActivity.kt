@@ -101,6 +101,18 @@ class LoginActivity : Activity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) = note("페이지", url)
 
+                /**
+                 * 웹 주소가 아닌 링크(호요랩 페이지의 '앱으로 보기'가 여는 intent://, market:// 등)는 웹뷰가 못 연다.
+                 * 그런 링크는 휴대폰에 넘겨 해당 앱(없으면 플레이 스토어)을 연다.
+                 */
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val url = request.url.toString()
+                    if (url.startsWith("http://") || url.startsWith("https://")) return false
+                    note("외부 링크", url)
+                    openOutside(url)
+                    return true
+                }
+
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (request.isForMainFrame) note("불러오기 오류 ${error.errorCode} ${error.description}", request.url.toString())
                 }
@@ -215,6 +227,30 @@ class LoginActivity : Activity() {
             kr.sumi.checkin.logintest.Results(this@LoginActivity).saveLoginTrail(trail.joinToString("") { "  $it\n" })
             startActivity(Intent(this@LoginActivity, kr.sumi.checkin.logintest.TestListActivity::class.java))
             finish()
+        }
+    }
+
+    /** intent:// 링크는 그 앱을, 안 깔렸으면 링크에 적힌 대체 주소나 플레이 스토어를 연다. 열 수 없으면 조용히 무시한다. */
+    private fun openOutside(url: String) {
+        try {
+            if (url.startsWith("intent:")) {
+                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME).apply {
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                    component = null
+                    selector = null
+                }
+                try {
+                    startActivity(intent)
+                } catch (e: android.content.ActivityNotFoundException) {
+                    val fallback = intent.getStringExtra("browser_fallback_url")
+                        ?: intent.`package`?.let { "https://play.google.com/store/apps/details?id=$it" }
+                    fallback?.let { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                }
+            } else {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+            }
+        } catch (e: Exception) {
+            // 잘못된 링크이거나 열 앱이 없다. 로그인 화면은 그대로 둔다.
         }
     }
 

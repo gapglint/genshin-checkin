@@ -33,6 +33,8 @@ class MainActivity : Activity() {
     /** 지금 화면에 보이는 계정. 없으면 로그인 전 화면. */
     private val store: Store? get() = settings.current()
     private var busy: String? = null
+    /** 진행률을 아는 작업(리딤)이면 0~1. 모르면 null(막대가 왔다 갔다 한다). */
+    private var busyProgress: Float? = null
     private var loadingNickname = false
     private var countingRewards = false
 
@@ -468,6 +470,7 @@ class MainActivity : Activity() {
                 redeemShort = store?.lastRedeemSummary?.substringBefore(":")?.trim(),
                 redeemWhen = store?.lastRedeemSummary?.let { DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() },
                 busy = busy,
+                busyProgress = busyProgress,
                 historyUnseen = store?.historyUnseen ?: 0,
                 calendar = store?.takeIf { it.calendarDay?.take(7) == today.toString().take(7) }?.calendarAwards.orEmpty(),
                 calendarMissed = store?.calendarMissed ?: 0,
@@ -512,31 +515,49 @@ class MainActivity : Activity() {
     /** 고른 계정의 로그인이 아직 유효한지 호요랩에 물어보고 알려 준다. 풀렸으면 다시 로그인하게 한다. */
     private fun checkLogin() {
         val store = store ?: return
-        runInBackground("로그인 확인 중...") {
-            val valid = CheckInClient(store.cookie ?: return@runInBackground null).isLoggedIn()
-            runOnUiThread {
-                val who = store.accountRole?.let { "${it.nickname} (${it.serverName})\n" } ?: ""
-                AppDialog(this)
-                    .setTitle(if (valid) "로그인돼 있어요" else "로그인이 풀렸어요")
-                    .setMessage(
-                        if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요.\n\n캡차 때문에 자동 출석이 막히면 '출석 페이지'에서 직접 누를 수 있어요."
-                        else "${who}HoYoLAB UID ${store.accountId} 계정을 다시 로그인해 주세요."
-                    )
-                    .setPositiveButton(if (valid) "확인" else "다시 로그인") {
-                        if (!valid) startActivity(LoginActivity.loginIntent(this))
-                    }
-                    .apply {
-                        if (valid) {
-                            setNeutralButton("다시 로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
-                            setNegativeButton("출석 페이지") {
-                                startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId))
-                            }
+        val cookie = store.cookie ?: return
+        loadWithDialog("로그인 확인 중...", { CheckInClient(cookie).isLoggedIn() }) { valid ->
+            val who = store.accountRole?.let { "${it.nickname} (${it.serverName})\n" } ?: ""
+            AppDialog(this)
+                .setTitle(if (valid) "로그인돼 있어요" else "로그인이 풀렸어요")
+                .setMessage(
+                    if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요.\n\n캡차 때문에 자동 출석이 막히면 '출석 페이지'에서 직접 누를 수 있어요."
+                    else "${who}HoYoLAB UID ${store.accountId} 계정을 다시 로그인해 주세요."
+                )
+                .setPositiveButton(if (valid) "확인" else "다시 로그인") {
+                    if (!valid) startActivity(LoginActivity.loginIntent(this))
+                }
+                .apply {
+                    if (valid) {
+                        setNeutralButton("다시 로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
+                        setNegativeButton("출석 페이지") {
+                            startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId))
                         }
                     }
-                    .show()
-            }
-            null
+                }
+                .show()
         }
+    }
+
+    /**
+     * 금방 끝나는 확인(로그인 확인, 캐릭터 불러오기)은 메인의 진행 표시(출석·리딤용)를 쓰지 않고 작은 창으로 기다린다.
+     * 기다리다 창을 닫으면 결과를 버린다. 네트워크 오류는 토스트로 알린다.
+     */
+    private fun <T> loadWithDialog(label: String, work: () -> T, then: (T) -> Unit) {
+        var cancelled = false
+        val waiting = AppDialog(this).setMessage(label).setOnCancelListener { cancelled = true }.setNegativeButton("취소") { cancelled = true }.show()
+        Thread {
+            val result = try {
+                Result.success(work())
+            } catch (e: IOException) {
+                Result.failure(e)
+            }
+            runOnUiThread {
+                if (cancelled || isFinishing || isDestroyed) return@runOnUiThread
+                waiting.dismiss()
+                result.fold(then) { Toast.makeText(this, "네트워크 오류: ${it.message}", Toast.LENGTH_LONG).show() }
+            }
+        }.start()
     }
 
     /**
@@ -563,7 +584,10 @@ class MainActivity : Activity() {
         }
     }
 
-    /** '사용하지 않는 앱 일시중지'를 끄는 화면(앱 정보). 이 앱은 사용자가 거의 열지 않으므로 꺼 두어야 계속 돈다. */
+    /**
+     * '사용하지 않는 앱 일시중지'를 끄는 화면(앱 정보). 안드로이드 버전·제조사에 따라 '사용하지 않는 앱 권한 삭제'로도 불린다.
+     * 이 앱은 사용자가 거의 열지 않으므로 꺼 두어야 계속 돈다.
+     */
     private fun openHibernationSettings() {
         if (Build.VERSION.SDK_INT < 30) return
         try {
@@ -591,11 +615,8 @@ class MainActivity : Activity() {
     /** 이 계정의 서버별 캐릭터를 불러와 리딤 보상을 받을 캐릭터를 고르게 한다. */
     private fun chooseRedeemRole() {
         val store = store ?: return
-        runInBackground("캐릭터 불러오는 중...") {
-            val roles = Redeem.roles(CheckInClient(store.cookie ?: return@runInBackground null))
-            runOnUiThread { showRoleChoice(store, roles) }
-            null
-        }
+        val cookie = store.cookie ?: return
+        loadWithDialog("캐릭터 불러오는 중...", { Redeem.roles(CheckInClient(cookie)) }) { showRoleChoice(store, it) }
     }
 
     private fun showRoleChoice(store: Store, roles: List<GameRole>) {
@@ -622,11 +643,16 @@ class MainActivity : Activity() {
 
     private fun redeemNow() {
         val store = store ?: return
-        runInBackground("리딤 코드 확인 중...") { redeemFor(store) }
+        runInBackground("리딤 코드 찾는 중...") { redeemFor(store) }
     }
 
     private fun redeemFor(store: Store): String? {
-        val report = Redeem.run(store)
+        val report = Redeem.run(store) { step, done ->
+            runOnUiThread {
+                // 끝난 뒤 늦게 도착한 진행 소식은 버린다.
+                if (busy != null) { busy = step; busyProgress = done; refresh() }
+            }
+        }
         runOnUiThread {
             AppDialog(this)
                 .setTitle(if (report.redeemed.isNotEmpty()) "리딤 코드 ${report.redeemed.size}개를 받았어요" else "리딤 코드")
@@ -731,6 +757,7 @@ class MainActivity : Activity() {
             }
             runOnUiThread {
                 busy = null
+                busyProgress = null
                 refresh()
                 if (calendarDirty) {
                     calendarDirty = false

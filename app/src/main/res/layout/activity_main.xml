@@ -267,6 +267,8 @@
             android:layout_marginTop="8dp"
             android:indeterminate="true"
             android:indeterminateTint="@color/accent"
+            android:progressTint="@color/accent"
+            android:progressBackgroundTint="@color/item_tile"
             android:visibility="gone" />
 
         <!-- 보충 출석 안내: 가능할 때만 보인다 -->
@@ -955,14 +957,14 @@
                             style="@style/Text.RowTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="앱 일시중지 끄기" />
+                            android:text="사용하지 않는 앱 정리 끄기" />
 
                         <TextView
                             style="@style/Text.RowSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="앱을 몇 달 열지 않으면 안드로이드가 앱을 멈춰 출석이 끊겨요. '사용하지 않는 앱 일시중지'를 꺼 주세요." />
+                            android:text="앱을 몇 달 열지 않으면 안드로이드가 앱을 멈춰 출석이 끊겨요. 폰에 따라 '사용하지 않는 앱 일시중지' 또는 '사용하지 않는 앱 권한 삭제'로 보여요. 어느 쪽이든 꺼 주세요." />
                     </LinearLayout>
 
                     <TextView

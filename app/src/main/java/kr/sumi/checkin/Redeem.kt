@@ -61,7 +61,7 @@ object Redeem {
      * 만료된 코드는 한 번 입력해 보고 기억하므로 다시 시도하지 않는다.
      */
     private const val POST_MAX_AGE_SEC = 90L * 24 * 3600
-    private const val MAX_POSTS = 20
+    private const val MAX_POSTS = 10
     /** 이미 읽은 글은 다시 열지 않는다. 다만 막 올라온 글은 코드가 추가될 수 있어 이 기간 동안은 다시 본다. */
     private const val POST_RECHECK_SEC = 2L * 24 * 3600
     /** 링크를 띄어쓰기 없이 이어 붙인 글(…code=ABC123https://…)도 있어 코드 뒤에 http가 오면 거기서 끊는다. */
@@ -92,16 +92,18 @@ object Redeem {
     /**
      * 새 코드를 찾아 고른 캐릭터마다 입력한다. 코드는 서버(UID)마다 따로 쓸 수 있어서 캐릭터별로 기억한다.
      * 수동 실행과 예약 실행이 겹치지 않게 한 번에 하나만.
+     * progress: 화면에 보일 단계와 진행률(0~1). 코드 찾기가 앞 40%, 입력이 나머지다.
      */
     @Throws(IOException::class)
-    fun run(store: Store): RedeemReport = synchronized(this) {
+    fun run(store: Store, progress: (String, Float) -> Unit = { _, _ -> }): RedeemReport = synchronized(this) {
+        progress("리딤 코드 찾는 중...", 0f)
         val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
         // 리딤 코드는 HoYoverse 계정 전체에 한 번이라, 고른 캐릭터 하나로만 입력한다.
         val roles = listOfNotNull(store.redeemRole ?: chooseOnlyRole(client, store))
         if (roles.isEmpty()) return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
 
         // 코드 찾기는 한 번만 하고, 위키 코드는 캐릭터의 서버에 맞는 것만 고른다.
-        val (wiki, extra) = findSources(client, store)
+        val (wiki, extra) = findSources(client, store) { step, done -> progress(step, done * 0.4f) }
         val attempts = mutableListOf<RedeemAttempt>()
         var found = 0
         var stop: String? = null
@@ -111,7 +113,9 @@ object Redeem {
             val groups = codeGroups(wiki, extra, role.region, ServerClock.today())
                 .map { group -> group.filter { it !in tried } }.filter { it.isNotEmpty() }
             found += groups.sumOf { it.size }
-            for (group in groups) {
+            // 묶음에서 앞 코드가 통하면 나머지는 건너뛰므로, 진행률은 묶음 단위로 센다.
+            for ((index, group) in groups.withIndex()) {
+                progress("새 코드 입력 중 (${index + 1}/${groups.size})", 0.4f + 0.6f * index / groups.size)
                 for (code in group) {
                     if (attempts.isNotEmpty()) Thread.sleep(CODE_GAP_MS)
                     var attempt = redeem(client, role, code)
@@ -136,6 +140,7 @@ object Redeem {
                 }
             }
         }
+        progress("마무리 중...", 1f)
         val report = RedeemReport(found, attempts, stop)
         store.lastRedeemAt = ServerClock.now()
         store.lastRedeemSummary = summary(report)
@@ -161,13 +166,17 @@ object Redeem {
      * 위키 문서와, 공식 목록 + 최근 커뮤니티 글에서 찾은 코드를 모은다. 한쪽이 실패해도 나머지는 쓴다.
      * 위키는 서버별로 걸러야 해서 문서째 돌려주고, 나머지 코드는 서버 정보가 없어 그대로 돌려준다.
      */
-    private fun findSources(client: CheckInClient, store: Store): Pair<JSONObject?, List<String>> {
+    private fun findSources(client: CheckInClient, store: Store, progress: (String, Float) -> Unit): Pair<JSONObject?, List<String>> {
+        // 위키는 다른 서버라 호요랩 글을 읽는 동안 따로 받아 둔다(느릴 때 기다리는 시간을 줄인다).
         var wiki: JSONObject? = null
-        try {
-            wiki = wikiPage()
-        } catch (e: Exception) {
-        }
+        val wikiThread = Thread {
+            try {
+                wiki = wikiPage()
+            } catch (e: Exception) {
+            }
+        }.apply { start() }
         val codes = linkedSetOf<String>()
+        progress("공식 코드 목록 보는 중...", 0.1f)
         try {
             codes += parseOfficialCodes(client.get("$BBS/community/painter/wapi/circle/channel/guide/material?game_id=2", BBS_HEADERS))
         } catch (e: Exception) {
@@ -180,13 +189,16 @@ object Redeem {
             val scanned = store.redeemScannedPosts
             val toRead = recentPostIds(search, nowSec - POST_MAX_AGE_SEC).take(MAX_POSTS)
                 .filter { it !in scanned || it in fresh }
-            for (postId in toRead) {
+            for ((index, postId) in toRead.withIndex()) {
+                progress("커뮤니티 글 보는 중 (${index + 1}/${toRead.size})", 0.2f + 0.6f * index / toRead.size)
                 Thread.sleep(CheckInClient.REQUEST_GAP_MS)
                 codes += parseCodesInPost(client.get("$BBS/community/post/wapi/getPostFull?post_id=$postId", BBS_HEADERS))
                 store.redeemScannedPosts = store.redeemScannedPosts + postId
             }
         } catch (e: Exception) {
         }
+        progress("위키 보는 중...", 0.9f)
+        wikiThread.join()
         return wiki to codes.toList()
     }
 
