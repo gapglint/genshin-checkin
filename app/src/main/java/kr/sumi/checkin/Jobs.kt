@@ -25,32 +25,43 @@ object Jobs {
 
     private fun scheduler(context: Context) = context.getSystemService(JobScheduler::class.java)
 
-    private fun builder(context: Context, id: Int) =
+    private fun builder(context: Context, id: Int, needsNetwork: Boolean = true) =
         JobInfo.Builder(id, ComponentName(context, CheckInJobService::class.java))
-            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+            .setRequiredNetworkType(if (needsNetwork) JobInfo.NETWORK_TYPE_ANY else JobInfo.NETWORK_TYPE_NONE)
             .setPersisted(true)
+
+    /**
+     * 예약은 앱을 멈추게 해서는 안 된다. 시스템이 네트워크 조건을 거부하면(권한 문제 등) 조건 없이 다시 건다.
+     * 네트워크가 없을 때 돌면 작업이 IOException으로 다시 시도하므로 결과는 같다.
+     */
+    private fun schedule(context: Context, id: Int, configure: JobInfo.Builder.() -> JobInfo.Builder) {
+        try {
+            scheduler(context).schedule(builder(context, id).configure().build())
+        } catch (e: SecurityException) {
+            try {
+                scheduler(context).schedule(builder(context, id, needsNetwork = false).configure().build())
+            } catch (e: RuntimeException) {
+            }
+        } catch (e: IllegalStateException) {
+            // 예약 개수 제한 등. 다음에 앱을 열거나 알람이 울릴 때 다시 건다.
+        }
+    }
 
     /** 6시간 주기 작업을 건다. 이미 있으면 그대로 두고 false, 새로 걸었으면 true. */
     fun schedulePeriodic(context: Context): Boolean {
         if (scheduler(context).getPendingJob(PERIODIC) != null) return false
-        scheduler(context).schedule(
-            builder(context, PERIODIC)
-                .setPeriodic(PERIOD_MS)
-                .setBackoffCriteria(15 * 60_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
-                .build()
-        )
+        schedule(context, PERIODIC) {
+            setPeriodic(PERIOD_MS).setBackoffCriteria(15 * 60_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+        }
         return true
     }
 
     /** 한 번만 도는 작업. replace가 false면 이미 기다리는 같은 작업이 있을 때 그대로 둔다. */
     fun scheduleOnce(context: Context, id: Int, delayMs: Long = 0, replace: Boolean = true) {
         if (!replace && scheduler(context).getPendingJob(id) != null) return
-        scheduler(context).schedule(
-            builder(context, id)
-                .setMinimumLatency(delayMs)
-                .setBackoffCriteria(5 * 60_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
-                .build()
-        )
+        schedule(context, id) {
+            setMinimumLatency(delayMs).setBackoffCriteria(5 * 60_000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+        }
     }
 
     fun cancel(context: Context, id: Int) = scheduler(context).cancel(id)

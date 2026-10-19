@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 예약 작업을 '네트워크 연결됐을 때만' 돌리려면 필요하다. 없으면 최신 안드로이드는 예약할 때 앱을 멈춘다. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 서버 기준 새벽 1시 직후에 정확히 출석하기 위한 알람. 사용자가 설정에서 허용한다. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
