@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 편집 화면 아래 서랍: 카드보다 한 단계 들어간 색의 둥근 판. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="24dp" />
+    <solid android:color="@color/item_tile" />
+</shape>

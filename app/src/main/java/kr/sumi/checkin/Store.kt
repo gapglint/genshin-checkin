@@ -246,6 +246,12 @@ class Store(private val context: Context, val accountId: String) {
     }
 }
 
+/** 메인 화면에서 순서를 바꾸고 숨길 수 있는 카드 이름. */
+const val CARD_NOTES = "notes"
+const val CARD_TILES = "tiles"
+const val CARD_CALENDAR = "calendar"
+val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_CALENDAR)
+
 /** 모든 계정이 함께 쓰는 설정과 계정 목록. */
 class AppSettings(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("hoyo", Context.MODE_PRIVATE)
@@ -306,6 +312,28 @@ class AppSettings(private val context: Context) {
     var gamePackage: String?
         get() = prefs.getString("game_package", null)
         set(value) = prefs.edit { putString("game_package", value) }
+
+    /** 메인 카드 순서(출석 카드 아래). 모르는 이름은 버리고 빠진 카드는 뒤에 붙인다. */
+    var cardOrder: List<String>
+        get() {
+            val saved = prefs.getString("card_order", null)?.split(",").orEmpty().filter { it in CARDS }.distinct()
+            return saved + CARDS.filter { it !in saved }
+        }
+        set(value) = prefs.edit { putString("card_order", value.joinToString(",")) }
+
+    fun isShown(card: String) = when (card) {
+        CARD_NOTES -> showNotes
+        CARD_TILES -> showTiles
+        CARD_CALENDAR -> showCalendar
+        else -> true
+    }
+
+    fun setShown(card: String, shown: Boolean) = when (card) {
+        CARD_NOTES -> showNotes = shown
+        CARD_TILES -> showTiles = shown
+        CARD_CALENDAR -> showCalendar = shown
+        else -> Unit
+    }
 
     /** 메인 화면에 보일 것. 출석 카드는 항상 보인다. */
     var showNotes: Boolean

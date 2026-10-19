@@ -88,8 +88,8 @@ data class MainUiState(
     val gameAppCount: Int = 0,
     val showTiles: Boolean = true,
     val showCalendar: Boolean = true,
-    /** 메인 화면 설정 요약, 예: "출석 · 레진 · 바로가기 · 달력". */
-    val mainDisplaySummary: String = "",
+    /** 출석 카드 아래 카드 순서(CARDS의 이름). */
+    val cardOrder: List<String> = CARDS,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -150,30 +150,24 @@ class MainScreen(val root: View) {
     private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
     val notesPlay: View = root.findViewById(R.id.notesPlay)
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
-    private val mainDisplaySub: TextView = root.findViewById(R.id.mainDisplaySub)
-    val rowResinThreshold: View = root.findViewById(R.id.rowResinThreshold)
+    val editButton: View = root.findViewById(R.id.editButton)
+    val editPanel: View = root.findViewById(R.id.editPanel)
+    val editBack: View = editPanel.findViewById(R.id.headerBack)
+    private val cards: LinearLayout = root.findViewById(R.id.cards)
     val rowGameApp: View = root.findViewById(R.id.rowGameApp)
     private val gameAppSub: TextView = root.findViewById(R.id.gameAppSub)
-    private val resinThresholdSub: TextView = root.findViewById(R.id.resinThresholdSub)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
     private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
     private val accountSub: TextView = root.findViewById(R.id.accountSub)
     val rowLogout: View = root.findViewById(R.id.rowLogout)
     val privacyLink: TextView = root.findViewById(R.id.privacyLink)
     val sourceLink: TextView = root.findViewById(R.id.sourceLink)
-    private val redeemSection: View = root.findViewById(R.id.redeemGroup)
-    val rowRedeem: View = root.findViewById(R.id.rowRedeem)
-    val redeemSwitch: StarSwitch = root.findViewById(R.id.redeemSwitch)
-    val rowRedeemRole: View = root.findViewById(R.id.rowRedeemRole)
-    private val redeemRoleSub: TextView = root.findViewById(R.id.redeemRoleSub)
-    private val redeemSummary: TextView = root.findViewById(R.id.redeemSummary)
 
     init {
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
         root.findViewById<View>(R.id.timingGroup).clipToOutline = true
-        redeemSection.clipToOutline = true
         notesCard.clipToOutline = true
         root.findViewById<View>(R.id.notesGroup).clipToOutline = true
         tileRedeem.clipToOutline = true
@@ -236,11 +230,6 @@ class MainScreen(val root: View) {
         makeUpButton.isEnabled = s.busy == null
 
         notificationsSub.text = s.notificationsSummary
-        redeemSwitch.isChecked = s.redeemEnabled
-        redeemRoleSub.text = s.redeemRole ?: if (s.loggedIn) "눌러서 골라 주세요" else "로그인하면 고를 수 있어요"
-        redeemRoleSub.setTextColor(context.getColor(if (s.redeemRole == null && s.loggedIn) R.color.accent else R.color.ink_muted))
-        redeemSummary.text = s.redeemSummary?.let { "마지막 확인 $it" } ?: "새 코드를 찾아 하루 한 번 입력해요"
-        rowRedeemRole.isEnabled = s.loggedIn && s.busy == null
 
         heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
         // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
@@ -250,9 +239,18 @@ class MainScreen(val root: View) {
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+        applyOrder(s.cardOrder)
         renderTiles(s)
         renderCalendar(s)
         renderNotes(s)
+    }
+
+    /** 카드를 저장된 순서대로 다시 놓는다. 이미 그 순서면 건드리지 않는다. */
+    private fun applyOrder(order: List<String>) {
+        val views = order.mapNotNull { mapOf(CARD_NOTES to notesCard, CARD_TILES to tiles, CARD_CALENDAR to calendarCard)[it] }
+        if ((0 until cards.childCount).map { cards.getChildAt(it) } == views) return
+        cards.removeAllViews()
+        views.forEach { cards.addView(it) }
     }
 
     /**
@@ -262,14 +260,7 @@ class MainScreen(val root: View) {
     private fun renderNotes(s: MainUiState) {
         val n = s.notes
         notesCard.visibility = if (s.loggedIn && s.showNotes && (n != null || s.notesProblem != null || s.notesLoading)) View.VISIBLE else View.GONE
-        mainDisplaySub.text = s.mainDisplaySummary
-        resinThresholdSub.text = when {
-            !s.resinAlert -> "레진 알림이 꺼져 있어요"
-            s.resinThreshold <= 0 -> "가득 찼을 때"
-            else -> "${s.resinThreshold}개"
-        }
-        // 레진 알림을 끄면 기준도 필요 없으니 숨긴다. 원신이 둘 이상 깔렸을 때만 어느 걸 켤지 고르게 한다.
-        rowResinThreshold.visibility = if (s.resinAlert) View.VISIBLE else View.GONE
+        // 원신이 둘 이상 깔렸을 때만 어느 걸 켤지 고르게 한다.
         rowGameApp.visibility = if (s.gameApp != null && s.gameAppCount > 1) View.VISIBLE else View.GONE
         gameAppSub.text = s.gameApp
 

@@ -29,6 +29,7 @@ class AppDialog(private val activity: Activity) {
     private var multiItems: Array<String>? = null
     private var multiChecked: BooleanArray? = null
     private var footer: String? = null
+    private var custom: android.view.View? = null
     // 버튼은 왼쪽부터 중립, 취소, 확인 순서로 놓인다.
     private var neutral: Pair<String, (() -> Unit)?>? = null
     private var negative: Pair<String, (() -> Unit)?>? = null
@@ -57,6 +58,9 @@ class AppDialog(private val activity: Activity) {
 
     /** 목록 아래의 작은 안내문. */
     fun setFooter(text: String) = apply { footer = text }
+
+    /** 목록 대신 직접 만든 내용(카드 옵션 등). 길면 스크롤된다. */
+    fun setView(view: android.view.View) = apply { custom = view }
 
     fun show(): Dialog {
         val context = activity
@@ -119,6 +123,9 @@ class AppDialog(private val activity: Activity) {
                 })
             }
             body.addView(ScrollView(context).apply { addView(group) }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f))
+        }
+        custom?.let {
+            body.addView(ScrollView(context).apply { addView(it) }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f))
         }
         footer?.let {
             body.addView(TextView(context).apply {

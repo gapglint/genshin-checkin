@@ -46,6 +46,14 @@
                 android:textStyle="bold" />
 
             <ImageButton
+                android:id="@+id/editButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="메인 화면 편집"
+                android:src="@drawable/ic_edit" />
+
+            <ImageButton
                 android:id="@+id/settingsButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -334,6 +342,14 @@
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_chevron" />
         </LinearLayout>
+
+        <!-- 순서를 바꾸고 숨길 수 있는 카드들(✏️ 편집). MainScreen이 저장된 순서대로 다시 놓는다 -->
+        <LinearLayout
+            android:id="@+id/cards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:animateLayoutChanges="true"
+            android:orientation="vertical">
 
         <!-- 실시간 메모: 평소엔 레진 한 줄(숫자·막대·가득 차는 시각). 누르면 파견·주전자·일일 의뢰가 펼쳐진다 -->
         <LinearLayout
@@ -666,8 +682,94 @@
                 android:textColor="@color/accent"
                 android:textSize="13sp" />
         </LinearLayout>
+        </LinearLayout>
         </kr.sumi.checkin.MaxWidthLinearLayout>
     </ScrollView>
+
+    <!-- 메인 화면 편집: 카드 줄을 끌어서 순서를 바꾸고, 누르면 옵션, −를 누르면 아래 서랍으로. 줄은 MainEditor가 만든다 -->
+    <LinearLayout
+        android:id="@+id/editPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg"
+        android:clickable="true"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <include
+            android:id="@+id/editHeader"
+            layout="@layout/header_bar" />
+
+        <ScrollView
+            android:id="@+id/editScroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false">
+
+            <kr.sumi.checkin.MaxWidthLinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="24dp">
+
+                <LinearLayout
+                    android:id="@+id/editList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:animateLayoutChanges="true"
+                    android:orientation="vertical" />
+
+                <LinearLayout
+                    android:id="@+id/editDrawer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:background="@drawable/bg_drawer"
+                    android:orientation="vertical"
+                    android:paddingStart="16dp"
+                    android:paddingTop="10dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="16dp">
+
+                    <View
+                        android:layout_width="36dp"
+                        android:layout_height="4dp"
+                        android:layout_gravity="center_horizontal"
+                        android:background="@drawable/bg_grabber" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="서랍"
+                        android:textColor="@color/ink"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/editDrawerEmpty"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="카드의 − 를 누르면 여기로 들어가요"
+                        android:textColor="@color/ink_muted"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:id="@+id/editDrawerItems"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:animateLayoutChanges="true"
+                        android:orientation="horizontal" />
+                </LinearLayout>
+            </kr.sumi.checkin.MaxWidthLinearLayout>
+        </ScrollView>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/settingsPanel"
@@ -902,90 +1004,6 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="28dp"
             android:layout_marginBottom="8dp"
-            android:text="리딤 코드"
-            android:textColor="@color/ink_muted"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:id="@+id/redeemGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_group"
-            android:divider="@drawable/divider_inset"
-            android:orientation="vertical"
-            android:showDividers="middle">
-
-            <LinearLayout
-                android:id="@+id/rowRedeem"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="리딤 코드 자동 입력" />
-
-                    <TextView
-                        android:id="@+id/redeemSummary"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
-                </LinearLayout>
-
-                <kr.sumi.checkin.StarSwitch
-                    android:id="@+id/redeemSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/rowRedeemRole"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="보상 받을 캐릭터" />
-
-                    <TextView
-                        android:id="@+id/redeemRoleSub"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
-                </LinearLayout>
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_chevron" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="28dp"
-            android:layout_marginBottom="8dp"
             android:text="알림·화면"
             android:textColor="@color/ink_muted"
             android:textSize="13sp"
@@ -1032,37 +1050,6 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/rowResinThreshold"
-                style="@style/Row">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/Text.RowTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="레진 알림 기준" />
-
-                    <TextView
-                        android:id="@+id/resinThresholdSub"
-                        style="@style/Text.RowSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
-                </LinearLayout>
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_chevron" />
-            </LinearLayout>
-
-            <LinearLayout
                 android:id="@+id/rowMainDisplay"
                 style="@style/Row">
 
@@ -1076,14 +1063,14 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="메인 화면" />
+                        android:text="메인 화면 편집" />
 
                     <TextView
-                        android:id="@+id/mainDisplaySub"
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp" />
+                        android:layout_marginTop="2dp"
+                        android:text="카드 순서·숨기기·카드별 알림·리딤 설정" />
                 </LinearLayout>
 
                 <ImageView

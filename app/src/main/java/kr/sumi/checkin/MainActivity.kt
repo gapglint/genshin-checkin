@@ -17,6 +17,8 @@ import android.text.format.DateFormat
 import android.view.View
 import android.view.Window
 import android.view.WindowInsets
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import android.app.Activity
 import java.io.IOException
@@ -27,6 +29,7 @@ import java.util.Date
 class MainActivity : Activity() {
     private lateinit var settings: AppSettings
     private lateinit var screen: MainScreen
+    private lateinit var editor: MainEditor
     /** 지금 화면에 보이는 계정. 없으면 로그인 전 화면. */
     private val store: Store? get() = settings.current()
     private var busy: String? = null
@@ -41,6 +44,12 @@ class MainActivity : Activity() {
         screen = MainScreen(findViewById(R.id.root))
         applySystemBarInsets(findViewById(R.id.content))
         applySystemBarInsets(screen.settingsPanel)
+        applySystemBarInsets(screen.editPanel)
+        editor = MainEditor(screen.editPanel, settings, onChanged = {
+            Notes.schedule(this)
+            refresh()
+            loadNotes()
+        }, openOptions = { openCardOptions(it) })
         screen.settingsButton.setOnClickListener { showSettings(true) }
         screen.settingsBack.setOnClickListener { showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
@@ -75,9 +84,6 @@ class MainActivity : Activity() {
         screen.privacyLink.setOnClickListener { openWeb(PRIVACY_URL) }
         screen.sourceLink.setOnClickListener { openWeb(SOURCE_URL) }
         screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
-        screen.rowRedeem.setOnClickListener { screen.redeemSwitch.toggle() }
-        screen.redeemSwitch.setOnCheckedChangeListener { _, checked -> settings.redeemEnabled = checked }
-        screen.rowRedeemRole.setOnClickListener { chooseRedeemRole() }
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
         screen.notesCard.setOnClickListener {
@@ -89,9 +95,10 @@ class MainActivity : Activity() {
             }
         }
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
-        screen.rowMainDisplay.setOnClickListener { chooseMainDisplay() }
+        screen.rowMainDisplay.setOnClickListener { showEditor(true) }
+        screen.editButton.setOnClickListener { showEditor(true) }
+        screen.editBack.setOnClickListener { showEditor(false) }
         screen.rowGameApp.setOnClickListener { chooseGameApp() }
-        screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -122,25 +129,45 @@ class MainActivity : Activity() {
         ResinWidget.updateAll(this)
     }
 
-    private var closeSettings: Any? = null
+    private var closePanel: Any? = null
 
     /** 설정은 같은 화면 위에 연다. 열려 있으면 뒤로 가기로 닫는다. */
     private fun showSettings(show: Boolean) {
         screen.settingsPanel.visibility = if (show) View.VISIBLE else View.GONE
         if (show) screen.settingsPanel.findViewById<View>(R.id.settingsScroll).scrollTo(0, 0)
-        if (Build.VERSION.SDK_INT >= 33) setCloseSettingsOnBack(show)
+        updateBackCallback()
+    }
+
+    /** 메인 화면 편집도 같은 화면 위에 연다(설정에서 열면 설정 위에 겹친다). */
+    private fun showEditor(show: Boolean) {
+        if (show) editor.render()
+        screen.editPanel.visibility = if (show) View.VISIBLE else View.GONE
+        updateBackCallback()
+    }
+
+    /** 위에 열린 것부터 닫는다. 닫을 게 있었으면 true. */
+    private fun closeTopPanel(): Boolean = when {
+        screen.editPanel.visibility == View.VISIBLE -> { showEditor(false); true }
+        screen.settingsPanel.visibility == View.VISIBLE -> { showSettings(false); true }
+        else -> false
+    }
+
+    private fun updateBackCallback() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            setPanelBackCallback(screen.editPanel.visibility == View.VISIBLE || screen.settingsPanel.visibility == View.VISIBLE)
+        }
     }
 
     @TargetApi(33)
-    private fun setCloseSettingsOnBack(on: Boolean) {
-        val current = closeSettings as android.window.OnBackInvokedCallback?
+    private fun setPanelBackCallback(on: Boolean) {
+        val current = closePanel as android.window.OnBackInvokedCallback?
         if (on && current == null) {
-            val callback = android.window.OnBackInvokedCallback { showSettings(false) }
+            val callback = android.window.OnBackInvokedCallback { closeTopPanel() }
             onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
-            closeSettings = callback
+            closePanel = callback
         } else if (!on && current != null) {
             onBackInvokedDispatcher.unregisterOnBackInvokedCallback(current)
-            closeSettings = null
+            closePanel = null
         }
     }
 
@@ -148,7 +175,7 @@ class MainActivity : Activity() {
     @SuppressLint("GestureBackNavigation")
     @Deprecated("Android 13 미만용")
     override fun onBackPressed() {
-        if (screen.settingsPanel.visibility == View.VISIBLE) showSettings(false) else super.onBackPressed()
+        if (!closeTopPanel()) super.onBackPressed()
     }
 
     private var loadingCalendar = false
@@ -218,52 +245,138 @@ class MainActivity : Activity() {
             .show()
     }
 
-    /** 메인 화면에 보일 카드를 고른다. 출석 카드는 항상 보인다. */
-    private fun chooseMainDisplay() {
-        val checked = booleanArrayOf(settings.showNotes, settings.showTiles, settings.showCalendar)
-        AppDialog(this)
-            .setTitle("메인 화면")
-            .setMultiChoiceItems(arrayOf(
-                "레진 (누르면 파견·주전자·일일 의뢰)",
-                "리딤 코드·보상 내역 바로가기",
-                "이번 달 출석 보상 달력",
-            ), checked)
-            .setFooter("출석 카드는 항상 보여요. 꺼도 알림과 자동 출석은 그대로예요.")
-            .setNegativeButton("취소")
-            .setPositiveButton("저장") {
-                settings.showNotes = checked[0]
-                settings.showTiles = checked[1]
-                settings.showCalendar = checked[2]
-                refresh()
-                loadNotes()
-            }
-            .show()
+    /** 카드 옵션을 바꾼 뒤: 알림 시각을 다시 걸고, 메인과 (열려 있으면) 편집 화면을 다시 그린다. */
+    private fun cardOptionsChanged() {
+        Notes.schedule(this)
+        refresh()
+        if (screen.editPanel.visibility == View.VISIBLE) editor.render()
     }
 
-    private fun mainDisplaySummary(): String {
-        val parts = listOfNotNull(
-            "레진".takeIf { settings.showNotes },
-            "바로가기".takeIf { settings.showTiles },
-            "달력".takeIf { settings.showCalendar },
-        )
-        return if (parts.isEmpty()) "출석 카드만" else "출석 · " + parts.joinToString(" · ")
-    }
+    /** 편집 화면에서 카드를 누르면 그 카드의 옵션만 작은 창으로 띄운다. 바꾸면 바로 저장된다. */
+    private fun openCardOptions(card: String) {
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        var dialog: android.app.Dialog? = null
 
-    /** 레진 알림 기준을 고른다. */
-    private fun chooseResinThreshold() {
-        val options = intArrayOf(120, 160, 180, 0)
-        val max = store?.note?.maxResin ?: 200
-        val labels = options.map { if (it == 0) "가득 찼을 때 (${max}개)" else "${it}개" }.toTypedArray()
-        AppDialog(this)
-            .setTitle("레진 알림 기준")
-            .setSingleChoiceItems(labels, options.indexOf(settings.resinThreshold)) { dialog, which ->
-                settings.resinThreshold = options[which]
-                dialog.dismiss()
-                notesSettingsChanged()
+        fun label(text: String, top: Int = 0) = body.addView(TextView(this).apply {
+            this.text = text
+            textSize = 13f
+            setTextColor(getColor(R.color.ink_muted))
+            setPadding(0, dp(top), 0, dp(6))
+        })
+
+        fun toggle(text: String, on: Boolean, set: (Boolean) -> Unit) {
+            val switch = StarSwitch(this).apply {
+                isChecked = on
+                setOnCheckedChangeListener { _, checked -> set(checked); cardOptionsChanged() }
             }
-            .setFooter("레진은 8분에 1개씩 차요. 180개에 알림을 받으면 가득 차기까지 약 ${Notes.duration((max - 180).coerceAtLeast(0) * Notes.RESIN_MS)} 남아요.")
-            .setNegativeButton("취소")
-            .show()
+            body.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                minimumHeight = dp(52)
+                setOnClickListener { switch.toggle() }
+                addView(TextView(this@MainActivity).apply {
+                    this.text = text
+                    textSize = 15f
+                    setTextColor(getColor(R.color.ink))
+                }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                addView(switch)
+            })
+        }
+
+        /** 레진 알림 기준: 끄기 · 120 · 160 · 180 · 가득을 같은 폭의 버튼으로. 고른 것만 진하게. */
+        fun resinChoice() {
+            val options = listOf(-1 to "끄기", 120 to "120", 160 to "160", 180 to "180", 0 to "가득")
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            fun paint() {
+                val current = if (!settings.resinAlert) -1 else settings.resinThreshold
+                for (i in 0 until row.childCount) {
+                    val picked = options[i].first == current
+                    (row.getChildAt(i) as TextView).apply {
+                        background = android.graphics.drawable.GradientDrawable().apply {
+                            cornerRadius = dp(12).toFloat()
+                            setColor(getColor(if (picked) R.color.action else R.color.item_tile))
+                        }
+                        setTextColor(getColor(if (picked) R.color.on_action else R.color.ink))
+                        isSelected = picked
+                    }
+                }
+            }
+            options.forEachIndexed { i, (value, text) ->
+                row.addView(TextView(this).apply {
+                    this.text = text
+                    textSize = 14f
+                    gravity = android.view.Gravity.CENTER
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    contentDescription = if (value == -1) "레진 알림 끄기" else if (value == 0) "가득 차면 알림" else "${value}개에 알림"
+                    setOnClickListener {
+                        if (value == -1) settings.resinAlert = false else {
+                            settings.resinAlert = true
+                            settings.resinThreshold = value
+                        }
+                        paint()
+                        cardOptionsChanged()
+                    }
+                }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { if (i > 0) marginStart = dp(6) })
+            }
+            paint()
+            body.addView(row)
+        }
+
+        val title = when (card) {
+            MainEditor.CARD_CHECK_IN -> {
+                toggle("출석하면 알림", settings.notifyCheckIn) { settings.notifyCheckIn = it }
+                toggle("보충할 수 있을 때 알림", settings.makeUpAlerts) { settings.makeUpAlerts = it }
+                "출석"
+            }
+            CARD_NOTES -> {
+                label("레진이 이만큼 차면 알림")
+                resinChoice()
+                label("", top = 8)
+                toggle("탐사 파견이 모두 끝나면 알림", settings.expeditionAlert) { settings.expeditionAlert = it }
+                toggle("주전자 동전이 가득 차면 알림", settings.coinAlert) { settings.coinAlert = it }
+                "레진"
+            }
+            CARD_TILES -> {
+                toggle("리딤 코드 자동 입력", settings.redeemEnabled) { settings.redeemEnabled = it }
+                toggle("리딤 코드를 받으면 알림", settings.notifyRedeem) { settings.notifyRedeem = it }
+                body.addView(LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(52)
+                    setOnClickListener { dialog?.dismiss(); chooseRedeemRole() }
+                    addView(LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        addView(TextView(this@MainActivity).apply {
+                            text = "보상 받을 캐릭터"
+                            textSize = 15f
+                            setTextColor(getColor(R.color.ink))
+                        })
+                        addView(TextView(this@MainActivity).apply {
+                            text = store?.redeemRole?.shortLabel() ?: "눌러서 골라 주세요"
+                            textSize = 12f
+                            setTextColor(getColor(if (store?.redeemRole == null) R.color.accent else R.color.ink_muted))
+                        })
+                    }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                    addView(android.widget.ImageView(this@MainActivity).apply { setImageResource(R.drawable.ic_chevron) },
+                        LinearLayout.LayoutParams(dp(20), dp(20)))
+                })
+                "리딤 코드·보상 내역"
+            }
+            else -> {
+                label("이번 달 출석 보상을 칸으로 보여 줘요. 따로 바꿀 옵션은 없어요.")
+                "출석 보상 달력"
+            }
+        }
+        val builder = AppDialog(this).setTitle(title).setView(body)
+        if (card != MainEditor.CARD_CHECK_IN && settings.isShown(card)) {
+            builder.setNegativeButton("서랍에 넣기") {
+                settings.setShown(card, false)
+                cardOptionsChanged()
+            }
+        }
+        dialog = builder.setPositiveButton("닫기").show()
     }
 
     /** 닉네임을 아직 모르는 계정이 있으면 조용히 불러온다(화면을 막지 않는다). */
@@ -352,7 +465,7 @@ class MainActivity : Activity() {
                 gameAppCount = Game.installed(this).size,
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
-                mainDisplaySummary = mainDisplaySummary(),
+                cardOrder = settings.cardOrder,
             )
         )
         store?.let { countUnseenRewards(it) }
