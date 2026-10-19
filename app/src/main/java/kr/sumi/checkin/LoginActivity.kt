@@ -6,7 +6,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.Message
 import android.net.Uri
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
@@ -16,7 +15,6 @@ import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.webkit.CookieManager
-import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -38,8 +36,6 @@ import java.io.IOException
 class LoginActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var frame: FrameLayout
-    /** 구글·애플 같은 소셜 로그인이 window.open으로 띄우는 창. 본 웹뷰 위에 겹쳐 보인다. */
-    private var popup: WebView? = null
     private lateinit var status: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val pageAccountId by lazy { intent.getStringExtra(EXTRA_ACCOUNT) }
@@ -115,37 +111,6 @@ class LoginActivity : Activity() {
             "오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요."
         }
         webView = newWebView().apply {
-            // 소셜 로그인은 새 창을 띄운다. 지원하지 않으면 창이 열렸다 닫히며 깜빡이기만 한다.
-            settings.setSupportMultipleWindows(true)
-            settings.javaScriptCanOpenWindowsAutomatically = true
-            webChromeClient = object : WebChromeClient() {
-                override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
-                    note("새 창 열림")
-                    closePopup()
-                    val child = newWebView().apply {
-                        // 불러오기 전 잠깐 까만 바탕이 비치지 않게.
-                        setBackgroundColor(0xFFFFFFFF.toInt())
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                                note("새 창 페이지", url)
-                                // 소셜 로그인을 마치고 호요랩 보안 페이지로 돌아오면 창 할 일은 끝났다.
-                                if (url.contains("hoyolab.com/security.html") || url.contains("/account-system-sea/security.html")) closePopup()
-                            }
-                        }
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onCloseWindow(window: WebView) {
-                                note("새 창 닫힘")
-                                closePopup()
-                            }
-                        }
-                    }
-                    popup = child
-                    frame.addView(child, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-                    (resultMsg.obj as WebView.WebViewTransport).webView = child
-                    resultMsg.sendToTarget()
-                    return true
-                }
-            }
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) = note("페이지", url)
 
@@ -161,8 +126,7 @@ class LoginActivity : Activity() {
                     note("웹뷰 엔진 종료 crash=${detail.didCrash()}")
                     engineGone = true
                     handler.removeCallbacks(pollCookie)
-                    closePopup()
-                    frame.removeView(view)
+                            frame.removeView(view)
                     view.destroy()
                     frame.addView(TextView(this@LoginActivity).apply {
                         text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도하거나, 위의 '기록 복사'로 보내 주세요."
@@ -224,12 +188,7 @@ class LoginActivity : Activity() {
 
     private fun goBack() {
         if (engineGone) return finish()
-        val open = popup
-        when {
-            open != null -> if (open.canGoBack()) open.goBack() else closePopup()
-            webView.canGoBack() -> webView.goBack()
-            else -> finish()
-        }
+        if (webView.canGoBack()) webView.goBack() else finish()
     }
 
     /**
@@ -247,7 +206,6 @@ class LoginActivity : Activity() {
         setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
         setBackgroundResource(android.R.drawable.list_selector_background)
         setOnClickListener {
-            closePopup()
             note("호요랩 사이트로 전환")
             status.text = "가운데 「로그인」을 눌러 로그인해 주세요. 로그인되면 자동으로 닫혀요."
             visibility = View.GONE
@@ -279,13 +237,6 @@ class LoginActivity : Activity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
     }
 
-    private fun closePopup() {
-        val open = popup ?: return
-        popup = null
-        frame.removeView(open)
-        open.destroy()
-    }
-
     override fun onPause() {
         super.onPause()
         // 페이지 모드에서 같은 계정으로 다시 로그인했을 수도 있으니 나갈 때 쿠키를 갱신해 둔다.
@@ -295,7 +246,6 @@ class LoginActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        closePopup()
         if (!engineGone) webView.destroy()
         super.onDestroy()
     }
