@@ -366,6 +366,9 @@ class MainEditor(
     /** 서랍 카드: 톡 누르면 맨 아래로 꺼내고, 꾹 누르면 들어 올려 놓은 자리로 꺼낸다. 드는 동안은 같은 모습의 그림이 따라온다. */
     private inner class TileDrag(private val card: String) : View.OnTouchListener {
         private var ghost: ImageView? = null
+        /** 그림의 처음 자리(서랍 카드 위). 움직일 때는 여기에 손가락이 움직인 만큼을 더한다. */
+        private var ghostX = 0f
+        private var ghostY = 0f
         private var downX = 0f
         private var downY = 0f
         private var tile: View? = null
@@ -378,11 +381,13 @@ class MainEditor(
             val bitmap = Bitmap.createBitmap(t.width, t.height, Bitmap.Config.ARGB_8888).also { t.draw(Canvas(it)) }
             val tileAt = IntArray(2).also { t.getLocationOnScreen(it) }
             val rootAt = IntArray(2).also { root.getLocationOnScreen(it) }
+            ghostX = (tileAt[0] - rootAt[0]).toFloat()
+            ghostY = (tileAt[1] - rootAt[1]).toFloat()
             ghost = ImageView(context).apply {
                 setImageBitmap(bitmap)
                 elevation = dp(24).toFloat()
-                x = (tileAt[0] - rootAt[0]).toFloat()
-                y = (tileAt[1] - rootAt[1]).toFloat()
+                translationX = ghostX
+                translationY = ghostY
                 root.addView(this, FrameLayout.LayoutParams(t.width, t.height))
                 animate().scaleX(1.1f).scaleY(1.1f).rotation(-2f).setDuration(140).start()
             }
@@ -402,8 +407,8 @@ class MainEditor(
                         if (abs(e.rawX - downX) > slop || abs(e.rawY - downY) > slop) v.removeCallbacks(lift)
                         return true
                     }
-                    g.translationX = e.rawX - downX
-                    g.translationY = e.rawY - downY
+                    g.translationX = ghostX + e.rawX - downX
+                    g.translationY = ghostY + e.rawY - downY
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.removeCallbacks(lift)

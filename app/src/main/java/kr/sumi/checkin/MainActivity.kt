@@ -345,6 +345,8 @@ class MainActivity : Activity() {
             MainEditor.CARD_CHECK_IN -> {
                 toggle("출석하면 알림", settings.notifyCheckIn) { settings.notifyCheckIn = it }
                 toggle("보충할 수 있을 때 알림", settings.makeUpAlerts) { settings.makeUpAlerts = it }
+                // 모든 알림에 걸리는 설정이라, 항상 보이는 출석 카드에 둔다.
+                toggle("밤(오후 10시~오전 8시)엔 모든 알림 소리 없이", settings.quietNight) { settings.quietNight = it }
                 "출석"
             }
             CARD_NOTES -> {
