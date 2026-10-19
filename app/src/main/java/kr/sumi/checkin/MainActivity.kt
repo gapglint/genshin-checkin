@@ -92,6 +92,7 @@ class MainActivity : Activity() {
                 if (settings.notesExpanded) loadNotes()
             }
         }
+        screen.notesPlay.setOnClickListener { startActivity(Game.launchIntent(this)) }
         screen.rowMainDisplay.setOnClickListener { chooseMainDisplay() }
         screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
 

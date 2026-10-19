@@ -21,7 +21,7 @@ data class NotesUi(
     val coinSub: String,
     val commissions: String,
     val commissionsSub: String,
-    /** 펼쳤을 때 맨 아래, 예: "오후 3:02 기준 · 누르면 접혀요". */
+    /** 펼쳤을 때 맨 아래, 예: "오후 3:02 기준". */
     val updated: String,
 )
 
@@ -144,6 +144,7 @@ class MainScreen(val root: View) {
     private val notesMore: View = root.findViewById(R.id.notesMore)
     private val notesStats: LinearLayout = root.findViewById(R.id.notesStats)
     private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
+    val notesPlay: View = root.findViewById(R.id.notesPlay)
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     private val mainDisplaySub: TextView = root.findViewById(R.id.mainDisplaySub)
     val rowResinThreshold: View = root.findViewById(R.id.rowResinThreshold)

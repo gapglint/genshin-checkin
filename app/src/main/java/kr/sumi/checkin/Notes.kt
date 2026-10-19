@@ -173,7 +173,7 @@ object Notes {
                 n.commissionRewardClaimed -> "보상 받음"
                 else -> "보상을 받아 주세요"
             },
-            updated = "${clock(n.at)} 기준 · 누르면 접혀요",
+            updated = "${clock(n.at)} 기준",
         )
     }
 

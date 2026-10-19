@@ -9,6 +9,11 @@
     <!-- 절전 때문에 출석이 밀리지 않도록 배터리 최적화 예외를 요청한다. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- '원신 켜기'로 게임을 열려면 안드로이드 11부터는 그 앱이 깔려 있는지 볼 수 있게 밝혀 둬야 한다. -->
+    <queries>
+        <package android:name="com.miHoYo.GenshinImpact" />
+    </queries>
+
     <!-- 쿠키가 백업으로 다른 기기에 넘어가지 않게 백업을 끈다. -->
     <application
         android:name=".App"

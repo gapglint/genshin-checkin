@@ -32,7 +32,7 @@ class MainScreenSnapshotTest {
         notes = NotesUi(
             resin = 142, maxResin = 200, fullLabel = "7시간 44분 뒤 가득", fullTime = "오후 3:20",
             expeditions = "2/5 완료", expeditionsSub = "2시간 뒤 모두 끝나요", coin = "1,840", coinSub = "/ 2,400",
-            commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준 · 누르면 접혀요",
+            commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준",
         ),
     )
     private val waiting = MainUiState(
