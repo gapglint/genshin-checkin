@@ -65,6 +65,16 @@ class MainScreenSnapshotTest {
         paparazzi.snapshot(view)
     }
 
+    /** 그 자리에서 편집: 카드에 점선·−·≡, 달력은 서랍에. */
+    @Test fun editing() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 3000))
+        val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
+        val screen = MainScreen(view)
+        screen.render(signed.copy(editing = true, showCalendar = false))
+        MainEditor(screen, {}, {}, {}, {}).show(true, listOf(CARD_CALENDAR))
+        paparazzi.snapshot(view)
+    }
+
     // 여러 기기·조건: 화면이 잘리거나 겹치지 않는지 본다(실제 화면 높이 그대로).
     private fun device(config: DeviceConfig, state: MainUiState = signed) {
         paparazzi.unsafeUpdateConfig(config)

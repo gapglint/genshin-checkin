@@ -44,12 +44,18 @@ class MainActivity : Activity() {
         screen = MainScreen(findViewById(R.id.root))
         applySystemBarInsets(findViewById(R.id.content))
         applySystemBarInsets(screen.settingsPanel)
-        applySystemBarInsets(screen.editPanel)
-        editor = MainEditor(screen.editPanel, settings, onChanged = {
-            Notes.schedule(this)
-            refresh()
-            loadNotes()
-        }, openOptions = { openCardOptions(it) })
+        editor = MainEditor(
+            screen,
+            onOptions = { openCardOptions(it) },
+            onHide = { settings.setShown(it, false); cardOptionsChanged() },
+            onShow = { settings.setShown(it, true); cardOptionsChanged(); loadNotes() },
+            onOrder = { visible ->
+                // 보이는 카드만 새 순서로, 서랍의 카드는 원래 자리를 지킨다.
+                val queue = ArrayDeque(visible)
+                settings.cardOrder = settings.cardOrder.map { if (settings.isShown(it)) queue.removeFirst() else it }
+                refresh()
+            },
+        )
         screen.settingsButton.setOnClickListener { showSettings(true) }
         screen.settingsBack.setOnClickListener { showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
@@ -95,9 +101,9 @@ class MainActivity : Activity() {
             }
         }
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
-        screen.rowMainDisplay.setOnClickListener { showEditor(true) }
-        screen.editButton.setOnClickListener { showEditor(true) }
-        screen.editBack.setOnClickListener { showEditor(false) }
+        screen.rowMainDisplay.setOnClickListener { showSettings(false); setEditing(true) }
+        screen.editButton.setOnClickListener { setEditing(true) }
+        screen.editDone.setOnClickListener { setEditing(false) }
         screen.rowGameApp.setOnClickListener { chooseGameApp() }
 
         if (Build.VERSION.SDK_INT >= 33) {
@@ -138,24 +144,25 @@ class MainActivity : Activity() {
         updateBackCallback()
     }
 
-    /** 메인 화면 편집도 같은 화면 위에 연다(설정에서 열면 설정 위에 겹친다). */
-    private fun showEditor(show: Boolean) {
-        if (show) editor.render()
-        screen.editPanel.visibility = if (show) View.VISIBLE else View.GONE
+    private var editing = false
+
+    /** 메인 화면을 그 자리에서 편집한다. 뒤로 가기나 '완료'로 끝낸다. */
+    private fun setEditing(on: Boolean) {
+        editing = on
+        refresh()
+        if (on) screen.root.findViewById<View>(R.id.scroll).scrollTo(0, 0)
         updateBackCallback()
     }
 
     /** 위에 열린 것부터 닫는다. 닫을 게 있었으면 true. */
     private fun closeTopPanel(): Boolean = when {
-        screen.editPanel.visibility == View.VISIBLE -> { showEditor(false); true }
         screen.settingsPanel.visibility == View.VISIBLE -> { showSettings(false); true }
+        editing -> { setEditing(false); true }
         else -> false
     }
 
     private fun updateBackCallback() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            setPanelBackCallback(screen.editPanel.visibility == View.VISIBLE || screen.settingsPanel.visibility == View.VISIBLE)
-        }
+        if (Build.VERSION.SDK_INT >= 33) setPanelBackCallback(editing || screen.settingsPanel.visibility == View.VISIBLE)
     }
 
     @TargetApi(33)
@@ -249,7 +256,6 @@ class MainActivity : Activity() {
     private fun cardOptionsChanged() {
         Notes.schedule(this)
         refresh()
-        if (screen.editPanel.visibility == View.VISIBLE) editor.render()
     }
 
     /** 편집 화면에서 카드를 누르면 그 카드의 옵션만 작은 창으로 띄운다. 바꾸면 바로 저장된다. */
@@ -466,8 +472,10 @@ class MainActivity : Activity() {
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
                 cardOrder = settings.cardOrder,
+                editing = editing,
             )
         )
+        editor.show(editing, settings.cardOrder.filter { !settings.isShown(it) })
         store?.let { countUnseenRewards(it) }
     }
 

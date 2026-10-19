@@ -90,6 +90,8 @@ data class MainUiState(
     val showCalendar: Boolean = true,
     /** 출석 카드 아래 카드 순서(CARDS의 이름). */
     val cardOrder: List<String> = CARDS,
+    /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
+    val editing: Boolean = false,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -151,9 +153,11 @@ class MainScreen(val root: View) {
     val notesPlay: View = root.findViewById(R.id.notesPlay)
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
-    val editPanel: View = root.findViewById(R.id.editPanel)
-    val editBack: View = editPanel.findViewById(R.id.headerBack)
-    private val cards: LinearLayout = root.findViewById(R.id.cards)
+    val editDone: View = root.findViewById(R.id.editDone)
+    val cards: LinearLayout = root.findViewById(R.id.cards)
+    /** 카드마다 감싸는 틀. 편집할 때 그 위에 편집 층을 겹친다(MainEditor). 태그는 카드 이름. */
+    private val slots = mutableMapOf<String, android.widget.FrameLayout>()
+    fun slot(card: String): android.widget.FrameLayout = slots.getValue(card)
     val rowGameApp: View = root.findViewById(R.id.rowGameApp)
     private val gameAppSub: TextView = root.findViewById(R.id.gameAppSub)
     val rowAccount: View = root.findViewById(R.id.rowAccount)
@@ -164,6 +168,10 @@ class MainScreen(val root: View) {
     val sourceLink: TextView = root.findViewById(R.id.sourceLink)
 
     init {
+        wrap(MainEditor.CARD_CHECK_IN, root.findViewById(R.id.heroCard))
+        wrap(CARD_NOTES, notesCard)
+        wrap(CARD_TILES, tiles)
+        wrap(CARD_CALENDAR, calendarCard)
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
@@ -243,11 +251,37 @@ class MainScreen(val root: View) {
         renderTiles(s)
         renderCalendar(s)
         renderNotes(s)
+        // 편집 중에는 머리줄에 '완료'만, 잠깐 뜨는 안내·버튼은 숨겨 카드에만 집중하게 한다.
+        editDone.visibility = if (s.editing) View.VISIBLE else View.GONE
+        editButton.visibility = if (s.editing || !s.loggedIn) View.GONE else View.VISIBLE
+        settingsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
+        if (s.editing) {
+            primaryButton.visibility = View.GONE
+            makeUpCard.visibility = View.GONE
+            setupBanner.visibility = View.GONE
+        }
+        for (card in CARDS) slot(card).visibility = slot(card).getChildAt(0).visibility
+    }
+
+    private fun wrap(card: String, view: View) {
+        val parent = view.parent as android.view.ViewGroup
+        val index = parent.indexOfChild(view)
+        parent.removeView(view)
+        // 카드의 위쪽 여백 등을 틀 안에서도 그대로 쓰도록 직접 옮겨 담는다.
+        val margins = view.layoutParams as android.view.ViewGroup.MarginLayoutParams
+        val slot = android.widget.FrameLayout(context).apply {
+            tag = card
+            addView(view, android.widget.FrameLayout.LayoutParams(margins.width, margins.height).apply {
+                setMargins(margins.leftMargin, margins.topMargin, margins.rightMargin, margins.bottomMargin)
+            })
+        }
+        parent.addView(slot, index, LinearLayout.LayoutParams(MATCH, LinearLayout.LayoutParams.WRAP_CONTENT))
+        slots[card] = slot
     }
 
     /** 카드를 저장된 순서대로 다시 놓는다. 이미 그 순서면 건드리지 않는다. */
     private fun applyOrder(order: List<String>) {
-        val views = order.mapNotNull { mapOf(CARD_NOTES to notesCard, CARD_TILES to tiles, CARD_CALENDAR to calendarCard)[it] }
+        val views = order.map { slot(it) }
         if ((0 until cards.childCount).map { cards.getChildAt(it) } == views) return
         cards.removeAllViews()
         views.forEach { cards.addView(it) }
@@ -259,7 +293,7 @@ class MainScreen(val root: View) {
      */
     private fun renderNotes(s: MainUiState) {
         val n = s.notes
-        notesCard.visibility = if (s.loggedIn && s.showNotes && (n != null || s.notesProblem != null || s.notesLoading)) View.VISIBLE else View.GONE
+        notesCard.visibility = if (s.loggedIn && s.showNotes && (n != null || s.notesProblem != null || s.notesLoading || s.editing)) View.VISIBLE else View.GONE
         // 원신이 둘 이상 깔렸을 때만 어느 걸 켤지 고르게 한다.
         rowGameApp.visibility = if (s.gameApp != null && s.gameAppCount > 1) View.VISIBLE else View.GONE
         gameAppSub.text = s.gameApp
@@ -272,7 +306,11 @@ class MainScreen(val root: View) {
         notesChevron.rotation = if (s.notesExpanded) 270f else 90f
         if (n == null) {
             notesResin.textSize = 16f
-            notesResin.text = if (s.notesLoading) "불러오는 중..." else "불러오지 못했어요"
+            notesResin.text = when {
+                s.notesLoading -> "불러오는 중..."
+                s.notesProblem == null -> "레진"
+                else -> "불러오지 못했어요"
+            }
             notesFullLabel.text = ""
             notesFullTime.text = if (s.notesLoading) "" else "다시 시도"
             notesFullTime.setTextColor(context.getColor(R.color.accent))
@@ -354,8 +392,15 @@ class MainScreen(val root: View) {
      * 받은 칸은 흐리게 하고 체크, 다음에 받을 칸은 금색 테두리, 이번 달 안에 못 받는 칸은 더 흐리게.
      */
     private fun renderCalendar(s: MainUiState) {
-        calendarCard.visibility = if (s.loggedIn && s.showCalendar && s.calendar.isNotEmpty()) View.VISIBLE else View.GONE
-        if (s.calendar.isEmpty()) return
+        calendarCard.visibility = if (s.loggedIn && s.showCalendar && (s.calendar.isNotEmpty() || s.editing)) View.VISIBLE else View.GONE
+        if (s.calendar.isEmpty()) {
+            // 편집 중에 아직 못 받았으면 제목만.
+            calendarTitle.text = "${s.month}월 출석 보상"
+            calendarCount.text = ""
+            calendarGrid.removeAllViews()
+            calendarNote.visibility = View.GONE
+            return
+        }
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         calendarTitle.text = "${s.month}월 출석 보상"

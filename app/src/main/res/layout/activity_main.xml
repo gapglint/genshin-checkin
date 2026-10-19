@@ -45,6 +45,20 @@
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
+            <TextView
+                android:id="@+id/editDone"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_done"
+                android:gravity="center"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="완료"
+                android:textColor="@color/on_action"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
             <ImageButton
                 android:id="@+id/editButton"
                 android:layout_width="48dp"
@@ -683,93 +697,55 @@
                 android:textSize="13sp" />
         </LinearLayout>
         </LinearLayout>
-        </kr.sumi.checkin.MaxWidthLinearLayout>
-    </ScrollView>
 
-    <!-- 메인 화면 편집: 카드 줄을 끌어서 순서를 바꾸고, 누르면 옵션, −를 누르면 아래 서랍으로. 줄은 MainEditor가 만든다 -->
-    <LinearLayout
-        android:id="@+id/editPanel"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/bg"
-        android:clickable="true"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <include
-            android:id="@+id/editHeader"
-            layout="@layout/header_bar" />
-
-        <ScrollView
-            android:id="@+id/editScroll"
+        <!-- 편집하는 동안만 보이는 서랍: 숨긴 카드가 타일로 담기고, 누르면 다시 꺼낸다 -->
+        <LinearLayout
+            android:id="@+id/editDrawer"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false">
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_drawer"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp"
+            android:visibility="gone">
 
-            <kr.sumi.checkin.MaxWidthLinearLayout
+            <View
+                android:layout_width="36dp"
+                android:layout_height="4dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/bg_grabber" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="서랍"
+                android:textColor="@color/ink"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/editDrawerEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="카드의 − 를 누르면 여기로 들어가요"
+                android:textColor="@color/ink_muted"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:id="@+id/editDrawerItems"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:orientation="vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="24dp">
-
-                <LinearLayout
-                    android:id="@+id/editList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:animateLayoutChanges="true"
-                    android:orientation="vertical" />
-
-                <LinearLayout
-                    android:id="@+id/editDrawer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:background="@drawable/bg_drawer"
-                    android:orientation="vertical"
-                    android:paddingStart="16dp"
-                    android:paddingTop="10dp"
-                    android:paddingEnd="16dp"
-                    android:paddingBottom="16dp">
-
-                    <View
-                        android:layout_width="36dp"
-                        android:layout_height="4dp"
-                        android:layout_gravity="center_horizontal"
-                        android:background="@drawable/bg_grabber" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="서랍"
-                        android:textColor="@color/ink"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/editDrawerEmpty"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="카드의 − 를 누르면 여기로 들어가요"
-                        android:textColor="@color/ink_muted"
-                        android:textSize="13sp" />
-
-                    <LinearLayout
-                        android:id="@+id/editDrawerItems"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:animateLayoutChanges="true"
-                        android:orientation="horizontal" />
-                </LinearLayout>
-            </kr.sumi.checkin.MaxWidthLinearLayout>
-        </ScrollView>
-    </LinearLayout>
+                android:layout_marginTop="10dp"
+                android:animateLayoutChanges="true"
+                android:orientation="horizontal" />
+        </LinearLayout>
+        </kr.sumi.checkin.MaxWidthLinearLayout>
+    </ScrollView>
 
     <LinearLayout
         android:id="@+id/settingsPanel"
