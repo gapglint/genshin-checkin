@@ -344,27 +344,27 @@ class StoreAssetsTest {
         title = "새벽 1시, 서버 시각에\n자동 출석", sub = "이번 달 출석 보상이 한눈에, 보충 출석까지",
     )
 
-    @Test fun screenshot3History() = screenshot(
+    @Test fun screenshot4History() = screenshot(
         signed, night = false, history = history,
         title = "이번 달 받은 원석,\n한눈에", sub = "리딤으로 받은 보상까지 합계로",
     )
 
-    @Test fun screenshot4Alerts() = screenshot(
+    @Test fun screenshot5Alerts() = screenshot(
         signed, night = false, custom = { notificationShade(it) },
         title = "밤에는 조용히,\n아침에 확인", sub = "필요 없는 알림은 끄고, 새벽 알림은 소리 없이",
     )
 
-    @Test fun screenshot5Dark() = screenshot(
+    @Test fun screenshot6Dark() = screenshot(
         signed, night = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 
-    @Test fun screenshot7Resin() = screenshot(
+    @Test fun screenshot3Resin() = screenshot(
         resinFull, night = false, scrollTo = R.id.notesCard, aboveDp = 6,
         title = "레진이 차면\n알림으로 알려 드려요", sub = "가득 차는 시각·탐사 파견까지, 원신도 바로 켜기",
     )
 
-    @Test fun screenshot6Trust() = screenshot(
+    @Test fun screenshot7Trust() = screenshot(
         signed, night = false, custom = { trustCard(it) },
         title = "계정은 안전하게,\n앱은 가볍게", sub = "비밀번호 저장 안 함 · 서버·광고 없음 · 1MB 미만",
     )
@@ -379,27 +379,27 @@ class StoreAssetsTest {
         title = "새벽 1시, 서버 시각에\n자동 출석", sub = "이번 달 출석 보상이 한눈에, 보충 출석까지",
     )
 
-    @Test fun tablet3History() = screenshot(
+    @Test fun tablet4History() = screenshot(
         signed, night = false, history = history, tablet = true,
         title = "이번 달 받은 원석,\n한눈에", sub = "리딤으로 받은 보상까지 합계로",
     )
 
-    @Test fun tablet4Alerts() = screenshot(
+    @Test fun tablet5Alerts() = screenshot(
         signed, night = false, custom = { notificationShade(it) }, tablet = true,
         title = "밤에는 조용히,\n아침에 확인", sub = "필요 없는 알림은 끄고, 새벽 알림은 소리 없이",
     )
 
-    @Test fun tablet5Dark() = screenshot(
+    @Test fun tablet6Dark() = screenshot(
         signed, night = true, tablet = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 
-    @Test fun tablet7Resin() = screenshot(
+    @Test fun tablet3Resin() = screenshot(
         resinFull, night = false, tablet = true,
         title = "레진이 차면\n알림으로 알려 드려요", sub = "가득 차는 시각·탐사 파견까지, 원신도 바로 켜기",
     )
 
-    @Test fun tablet6Trust() = screenshot(
+    @Test fun tablet7Trust() = screenshot(
         signed, night = false, custom = { trustCard(it) }, tablet = true,
         title = "계정은 안전하게,\n앱은 가볍게", sub = "비밀번호 저장 안 함 · 서버·광고 없음 · 1MB 미만",
     )
