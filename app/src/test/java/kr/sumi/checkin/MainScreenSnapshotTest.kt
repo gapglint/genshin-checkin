@@ -54,6 +54,8 @@ class MainScreenSnapshotTest {
     @Test fun signedLight() = snap(signed, night = false)
     @Test fun signedDark() = snap(signed, night = true)
     @Test fun notesExpanded() = snap(signed.copy(notesExpanded = true, gameInstalled = true), night = false)
+    /** 접힌 레진 카드에도 원신 켜기가 보인다. */
+    @Test fun notesCompactWithGame() = snap(signed.copy(gameInstalled = true), night = false)
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 

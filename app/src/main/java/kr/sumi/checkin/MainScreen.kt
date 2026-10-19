@@ -154,6 +154,7 @@ class MainScreen(val root: View) {
     private val notesMore: View = root.findViewById(R.id.notesMore)
     private val notesStats: LinearLayout = root.findViewById(R.id.notesStats)
     private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
+    private val notesFooter: View = root.findViewById(R.id.notesFooter)
     val notesPlay: View = root.findViewById(R.id.notesPlay)
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
@@ -323,6 +324,7 @@ class MainScreen(val root: View) {
         notesMore.visibility = if (n != null && expandable && s.notesExpanded) View.VISIBLE else View.GONE
         notesChevron.rotation = if (s.notesExpanded) 270f else 90f
         if (n == null) {
+            notesFooter.visibility = View.GONE
             notesResin.textSize = 16f
             notesResin.text = when {
                 s.notesLoading -> "불러오는 중..."
@@ -362,7 +364,12 @@ class MainScreen(val root: View) {
         }, LinearLayout.LayoutParams(0, MATCH, filled.toFloat()))
         if (n.maxResin - filled > 0) notesBar.addView(View(context), LinearLayout.LayoutParams(0, MATCH, (n.maxResin - filled).toFloat()))
         notesBar.contentDescription = "레진 ${n.resin}개, 최대 ${n.maxResin}개"
-        if (!s.notesExpanded || !expandable) return
+        // 원신 켜기는 접혀 있어도 보인다. 기준 시각은 펼쳤거나 문제가 있을 때만(접힌 카드는 짧게).
+        val expanded = s.notesExpanded && expandable
+        notesPlay.visibility = if (s.gameInstalled) View.VISIBLE else View.GONE
+        notesUpdated.text = s.notesProblem?.let { "$it · 눌러서 다시 시도" } ?: n.updated.takeIf { expanded }
+        notesFooter.visibility = if (s.gameInstalled || !notesUpdated.text.isNullOrEmpty()) View.VISIBLE else View.GONE
+        if (!expanded) return
 
         notesStats.removeAllViews()
         mapOf(
@@ -401,8 +408,6 @@ class MainScreen(val root: View) {
                 })
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
-        notesPlay.visibility = if (s.gameInstalled) View.VISIBLE else View.GONE
-        notesUpdated.text = s.notesProblem?.let { "$it · 눌러서 다시 시도" } ?: n.updated
     }
 
     /**
