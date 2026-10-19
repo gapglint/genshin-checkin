@@ -96,6 +96,18 @@ class StoreAssetsTest {
         redeemSummary = "10월 18일 01:05 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력",
         redeemWhen = "10월 18일 01:05", historyUnseen = 3,
         calendar = sampleCalendar, calendarReachable = 31,
+        notes = NotesUi(
+            resin = 142, maxResin = 200, fullLabel = "7시간 44분 뒤 가득", fullTime = "오후 3:20",
+            expeditions = "2/5 완료", expeditionsSub = "2시간 뒤 모두 끝나요", coin = "1,840", coinSub = "/ 2,400",
+            commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준",
+        ),
+        gameInstalled = true,
+    )
+
+    /** 레진 장면: 알림 기준(180)에 거의 닿은 레진 카드를 펼쳐 보인다. */
+    private val resinFull = signed.copy(
+        notes = signed.notes!!.copy(resin = 181, fullLabel = "2시간 32분 뒤 가득", fullTime = "오전 10:08", expeditions = "5/5 완료", expeditionsSub = "보상을 받아 주세요"),
+        notesExpanded = true, makeUpMissed = null,
     )
 
     /** 방송 직후처럼 새 코드 여러 개를 넣은 상태. 리딤 장면 스크린샷용. */
@@ -347,6 +359,11 @@ class StoreAssetsTest {
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
     )
 
+    @Test fun screenshot7Resin() = screenshot(
+        resinFull, night = false, scrollTo = R.id.notesCard, aboveDp = 6,
+        title = "레진이 차면\n알림으로 알려 드려요", sub = "가득 차는 시각·탐사 파견까지, 원신도 바로 켜기",
+    )
+
     @Test fun screenshot6Trust() = screenshot(
         signed, night = false, custom = { trustCard(it) },
         title = "계정은 안전하게,\n앱은 가볍게", sub = "비밀번호 저장 안 함 · 서버·광고 없음 · 1MB 미만",
@@ -375,6 +392,11 @@ class StoreAssetsTest {
     @Test fun tablet5Dark() = screenshot(
         signed, night = true, tablet = true,
         title = "여러 계정도\n차례로 자동 출석", sub = "광고 없이, 로그인 정보는 폰 안에만",
+    )
+
+    @Test fun tablet7Resin() = screenshot(
+        resinFull, night = false, tablet = true,
+        title = "레진이 차면\n알림으로 알려 드려요", sub = "가득 차는 시각·탐사 파견까지, 원신도 바로 켜기",
     )
 
     @Test fun tablet6Trust() = screenshot(
