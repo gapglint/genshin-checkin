@@ -92,7 +92,7 @@ class MainActivity : Activity() {
                 if (settings.notesExpanded) loadNotes()
             }
         }
-        screen.notesPlay.setOnClickListener { startActivity(Game.launchIntent(this)) }
+        screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
         screen.rowMainDisplay.setOnClickListener { chooseMainDisplay() }
         screen.rowResinThreshold.setOnClickListener { chooseResinThreshold() }
 
@@ -336,6 +336,7 @@ class MainActivity : Activity() {
                 resinThreshold = settings.resinThreshold,
                 showNotes = settings.showNotes,
                 notesExpanded = settings.notesExpanded,
+                gameInstalled = Game.launchIntent(this) != null,
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
                 mainDisplaySummary = mainDisplaySummary(),

@@ -81,6 +81,8 @@ data class MainUiState(
     val showNotes: Boolean = true,
     /** 레진 카드를 펼쳐 파견·주전자·일일 의뢰까지 보이는지. */
     val notesExpanded: Boolean = false,
+    /** 원신이 깔려 있으면 레진 카드에 '원신 켜기'를 보인다. */
+    val gameInstalled: Boolean = false,
     val showTiles: Boolean = true,
     val showCalendar: Boolean = true,
     /** 메인 화면 설정 요약, 예: "출석 · 레진 · 바로가기 · 달력". */
@@ -348,6 +350,7 @@ class MainScreen(val root: View) {
                 })
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
+        notesPlay.visibility = if (s.gameInstalled) View.VISIBLE else View.GONE
         notesUpdated.text = s.notesProblem?.let { "$it · 눌러서 다시 시도" } ?: n.updated
     }
 

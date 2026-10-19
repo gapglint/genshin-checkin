@@ -53,7 +53,7 @@ class MainScreenSnapshotTest {
 
     @Test fun signedLight() = snap(signed, night = false)
     @Test fun signedDark() = snap(signed, night = true)
-    @Test fun notesExpanded() = snap(signed.copy(notesExpanded = true), night = false)
+    @Test fun notesExpanded() = snap(signed.copy(notesExpanded = true, gameInstalled = true), night = false)
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 

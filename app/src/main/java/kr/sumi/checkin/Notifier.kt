@@ -165,17 +165,19 @@ object Notifier {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             // 레진·파견 알림을 받으면 대개 바로 게임을 켜므로 '원신 켜기' 버튼을 붙인다.
-            val play = PendingIntent.getActivity(
-                context, id + 1, Game.launchIntent(context).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+            val play = Game.launchIntent(context)?.let {
+                PendingIntent.getActivity(
+                    context, id + 1, it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+            }
             val notification = Notification.Builder(context, channel(context, CHANNEL_NOTES))
                 .setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle(who(context, store) + title)
                 .setContentText(text)
                 .setStyle(Notification.BigTextStyle().bigText(text))
                 .setContentIntent(pending)
-                .addAction(Notification.Action.Builder(null, "원신 켜기", play).build())
+                .apply { if (play != null) addAction(Notification.Action.Builder(null, "원신 켜기", play).build()) }
                 .setAutoCancel(true)
                 .build()
             context.getSystemService(NotificationManager::class.java).notify(id, notification)
