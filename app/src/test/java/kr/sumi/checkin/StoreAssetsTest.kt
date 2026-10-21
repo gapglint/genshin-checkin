@@ -126,7 +126,6 @@ class StoreAssetsTest {
         state: MainUiState, night: Boolean, title: String, sub: String,
         scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false, history: HistoryUiState? = null,
         custom: ((android.content.Context) -> View)? = null, settings: Boolean = false,
-        headsUp: Triple<String, String, String>? = null,
     ) {
         // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         val w = if (tablet) 1440 else 1080
@@ -193,7 +192,7 @@ class StoreAssetsTest {
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(context.getColor(R.color.hero_ink))
             })
-            if (headsUp == null) addView(TextView(context).apply {
+            addView(TextView(context).apply {
                 text = sub
                 textSize = 16f * textScale
                 gravity = Gravity.CENTER
@@ -205,14 +204,6 @@ class StoreAssetsTest {
             setBackgroundResource(R.drawable.ic_launcher_background)
             addView(screen, FrameLayout.LayoutParams(w, appH))
             addView(caption, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-            // 앱을 열지 않아도 오는 알림: 화면 위쪽 가장자리에 걸쳐 띄운다(부제 대신).
-            headsUp?.let { (time, title, body) ->
-                val cardW = (w * scale).toInt()
-                addView(headsUpCard(context, time, title, body, textScale), FrameLayout.LayoutParams(cardW, WRAP_CONTENT).apply {
-                    leftMargin = (w - cardW) / 2
-                    topMargin = (400 * k).toInt()
-                })
-            }
         })
     }
 
@@ -262,33 +253,6 @@ class StoreAssetsTest {
             addView(notification("오전 1:05", "리딤 코드 2개를 받았어요", "VesnaOnPatrol, EPIC2026 · 게임 우편함에서 받으세요."))
             addView(notification("오전 1:03", "원신 출첵 완료", "출첵 완료! (17일째)\n보상: 원석 x20"),
                 LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(8) })
-        }
-    }
-
-    /** 화면 위에 내려온 알림 한 장(안드로이드 밝은 알림 모양). 문구는 Notifier가 실제로 보내는 문구다. */
-    private fun headsUpCard(context: android.content.Context, time: String, title: String, body: String, scale: Float): View {
-        val d = context.resources.displayMetrics.density * scale
-        fun dp(v: Int) = (v * d).toInt()
-        val ink = 0xFF1B1D22.toInt(); val muted = 0xFF5F636E.toInt()
-        return LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(14), dp(16), dp(16))
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(0xFFFFFFFF.toInt()) }
-            elevation = dp(10).toFloat()
-            addView(android.widget.ImageView(context).apply {
-                setImageResource(R.drawable.ic_notify)
-                setColorFilter(0xFF2A1F08.toInt())
-                setPadding(dp(7), dp(7), dp(7), dp(7))
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(context.getColor(R.color.gold))
-                }
-            }, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(14) })
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(TextView(context).apply { text = "원신 출첵 · $time"; textSize = 12f * scale; setTextColor(muted) })
-                addView(TextView(context).apply { text = title; textSize = 16f * scale; setTypeface(typeface, Typeface.BOLD); setTextColor(ink); setPadding(0, dp(2), 0, 0) })
-                addView(TextView(context).apply { text = body; textSize = 14f * scale; setTextColor(muted); setPadding(0, dp(2), 0, 0); setLineSpacing(0f, 1.1f) })
-            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         }
     }
 
@@ -373,7 +337,6 @@ class StoreAssetsTest {
     @Test fun screenshot1Redeem() = screenshot(
         redeemed, night = false, custom = { redeemScene(it, 1080, 2160) },
         title = "방송 리딤코드,\n알아서 입력돼요", sub = "새 코드가 나오면 고른 캐릭터로 자동 입력",
-        headsUp = Triple("오전 1:05", "리딤 코드 2개를 받았어요", "VesnaOnPatrol, EPIC2026 · 게임 우편함에서 받으세요."),
     )
 
     @Test fun screenshot2CheckIn() = screenshot(
@@ -397,9 +360,8 @@ class StoreAssetsTest {
     )
 
     @Test fun screenshot3Resin() = screenshot(
-        resinFull, night = false, scrollTo = R.id.notesCard, aboveDp = 72,
+        resinFull, night = false, scrollTo = R.id.notesCard, aboveDp = 6,
         title = "레진이 차면\n알림으로 알려 드려요", sub = "가득 차는 시각·탐사 파견까지, 원신도 바로 켜기",
-        headsUp = Triple("오전 9:12", "레진이 181개 찼어요", "181/200 · 2시간 32분 뒤 가득 차요 (오전 10:08)"),
     )
 
     @Test fun screenshot7Trust() = screenshot(
@@ -410,7 +372,6 @@ class StoreAssetsTest {
     @Test fun tablet1Redeem() = screenshot(
         redeemed, night = false, custom = { redeemScene(it, 1440, 2190) }, tablet = true,
         title = "방송 리딤코드,\n알아서 입력돼요", sub = "새 코드가 나오면 고른 캐릭터로 자동 입력",
-        headsUp = Triple("오전 1:05", "리딤 코드 2개를 받았어요", "VesnaOnPatrol, EPIC2026 · 게임 우편함에서 받으세요."),
     )
 
     @Test fun tablet2CheckIn() = screenshot(
@@ -434,9 +395,8 @@ class StoreAssetsTest {
     )
 
     @Test fun tablet3Resin() = screenshot(
-        resinFull, night = false, tablet = true, scrollTo = R.id.heroCard, aboveDp = 104,
+        resinFull, night = false, tablet = true,
         title = "레진이 차면\n알림으로 알려 드려요", sub = "가득 차는 시각·탐사 파견까지, 원신도 바로 켜기",
-        headsUp = Triple("오전 9:12", "레진이 181개 찼어요", "181/200 · 2시간 32분 뒤 가득 차요 (오전 10:08)"),
     )
 
     @Test fun tablet7Trust() = screenshot(
