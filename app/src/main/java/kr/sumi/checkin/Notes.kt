@@ -251,7 +251,8 @@ object Notes {
     private fun roleOf(store: Store, client: CheckInClient): GameRole? {
         store.redeemRole?.let { return it }
         store.accountRole?.let { return it }
-        return GameRole.representative(Redeem.roles(client), null)?.also { store.accountRole = it }
+        Redeem.applyRoles(store, Redeem.roles(client))
+        return store.redeemRole ?: store.accountRole
     }
 
     /** 받아 오기만 한다. 실시간 메모가 꺼져 있으면 한 번 켜고 다시 받는다. */

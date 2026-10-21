@@ -162,10 +162,18 @@ object Redeem {
         return report
     }
 
-    /** 계정의 대표 캐릭터(닉네임 표시용)를 불러와 저장한다. 네트워크 오류는 IOException. */
+    /**
+     * 계정의 대표 캐릭터(닉네임 표시용)를 불러와 저장한다. 네트워크 오류는 IOException.
+     * 캐릭터가 하나뿐이면 리딤 캐릭터도 바로 정해, 로그인 직후부터 '골라 주세요' 대신 그 캐릭터가 보이게 한다.
+     */
     @Throws(IOException::class)
     fun refreshAccount(store: Store) {
-        val roles = roles(CheckInClient(store.cookie ?: return))
+        applyRoles(store, roles(CheckInClient(store.cookie ?: return)))
+    }
+
+    /** 불러온 캐릭터 목록을 반영한다: 하나뿐이면 리딤 캐릭터로 정하고, 대표 캐릭터를 저장한다. */
+    fun applyRoles(store: Store, roles: List<GameRole>) {
+        if (store.redeemRole == null && roles.size == 1) store.redeemRoles = roles
         store.accountRole = GameRole.representative(roles, store.redeemRole)
     }
 
