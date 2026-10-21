@@ -357,7 +357,8 @@ object Redeem {
 
     /** 위키 보상 표기를 (한국어 이름, 개수) 목록으로. 모르는 아이템은 영어 이름 그대로 둔다. */
     fun rewardItems(raw: String): List<Pair<String, Int>> = raw.split(";").mapNotNull { part ->
-        val name = part.substringBefore("*").replace(Regex("\\[\\[|]]|\\{\\{|}}"), "").trim()
+        // 위키 링크·틀 괄호를 뗀다. 안드로이드의 정규식(ICU)은 짝 없는 '}'를 오류로 보므로 정규식을 쓰지 않는다.
+        val name = listOf("[[", "]]", "{{", "}}").fold(part.substringBefore("*")) { text, mark -> text.replace(mark, "") }.trim()
         val count = part.substringAfter("*", "").trim().replace(",", "").toIntOrNull() ?: return@mapNotNull null
         if (name.isEmpty()) null else (ITEM_NAMES[name] ?: name) to count
     }
