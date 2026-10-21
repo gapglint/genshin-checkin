@@ -95,7 +95,22 @@ object Redeem {
      * progress: 화면에 보일 단계와 진행률(0~1). 코드 찾기가 앞 40%, 입력이 나머지다.
      */
     @Throws(IOException::class)
-    fun run(store: Store, progress: (String, Float) -> Unit = { _, _ -> }): RedeemReport = synchronized(this) {
+    fun run(store: Store, onProgress: (String, Float) -> Unit = { _, _ -> }): RedeemReport = synchronized(this) {
+        try {
+            runLocked(store) { step, done -> running = step to done; onProgress(step, done) }
+        } finally {
+            running = null
+        }
+    }
+
+    /**
+     * 지금 돌고 있는 리딤(예약 실행 포함)의 단계와 진행률. 안 돌고 있으면 null.
+     * 화면은 예약 실행이 도는 중에 버튼을 누르면 새로 돌리지 않고 이것을 보여 준다(같은 계정 코드를 두 번 입력하지 않게).
+     */
+    @Volatile var running: Pair<String, Float>? = null
+        private set
+
+    private fun runLocked(store: Store, progress: (String, Float) -> Unit): RedeemReport {
         progress("리딤 코드 찾는 중...", 0f)
         val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
         // 리딤 코드는 HoYoverse 계정 전체에 한 번이라, 고른 캐릭터 하나로만 입력한다.
@@ -144,7 +159,7 @@ object Redeem {
         val report = RedeemReport(found, attempts, stop)
         store.lastRedeemAt = ServerClock.now()
         store.lastRedeemSummary = summary(report)
-        report
+        return report
     }
 
     /** 계정의 대표 캐릭터(닉네임 표시용)를 불러와 저장한다. 네트워크 오류는 IOException. */

@@ -662,7 +662,37 @@ class MainActivity : Activity() {
 
     private fun redeemNow() {
         val store = store ?: return
+        // 로그인 직후 등에 예약 실행이 이미 돌고 있으면, 끝날 때까지 막혀 멈춘 것처럼 보이지 않게 그 진행을 보여 준다.
+        if (Redeem.running != null) return watchRedeem(store)
         runInBackground("리딤 코드 찾는 중...") { redeemFor(store) }
+    }
+
+    /** 백그라운드에서 도는 리딤의 진행을 0.5초마다 옮겨 보여 주고, 끝나면 결과 요약을 띄운다. */
+    private fun watchRedeem(store: Store) {
+        if (busy != null) return
+        val root = screen.root
+        val tick = object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                val now = Redeem.running
+                if (now != null) {
+                    busy = now.first
+                    busyProgress = now.second
+                    refresh()
+                    root.postDelayed(this, 500)
+                    return
+                }
+                busy = null
+                busyProgress = null
+                refresh()
+                AppDialog(this@MainActivity)
+                    .setTitle("리딤 코드")
+                    .setMessage(store.lastRedeemSummary ?: "확인을 마쳤어요.")
+                    .setPositiveButton("확인")
+                    .show()
+            }
+        }
+        tick.run()
     }
 
     private fun redeemFor(store: Store): String? {
