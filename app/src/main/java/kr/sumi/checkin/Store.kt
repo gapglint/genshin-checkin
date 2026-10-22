@@ -257,7 +257,7 @@ const val NOTE_EXPEDITIONS = "expeditions"
 const val NOTE_COIN = "coin"
 const val NOTE_COMMISSIONS = "commissions"
 val NOTE_STATS = listOf(NOTE_EXPEDITIONS, NOTE_COIN, NOTE_COMMISSIONS)
-val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_CALENDAR, CARD_RERUNS)
+val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_RERUNS, CARD_CALENDAR)
 
 /** 모든 계정이 함께 쓰는 설정과 계정 목록. */
 class AppSettings(private val context: Context) {
