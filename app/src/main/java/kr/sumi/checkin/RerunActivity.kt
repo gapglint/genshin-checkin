@@ -227,7 +227,7 @@ class RerunList(private val context: Context) {
         val base = color(RerunActivity.elementColor(c.element))
         addView(android.widget.ImageView(context).apply {
             RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
-            setPadding(dp(13), dp(13), dp(13), dp(13))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
@@ -236,7 +236,7 @@ class RerunList(private val context: Context) {
                 shape = GradientDrawable.OVAL
                 if (c.chronicled) setStroke(dp(2), color(R.color.gold))
             }
-        }, LinearLayout.LayoutParams(dp(52), dp(52)))
+        }, LinearLayout.LayoutParams(dp(60), dp(60)))
         addView(text(short, 13f, if (onDark) R.color.hero_ink else R.color.ink).apply {
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END

@@ -2,7 +2,17 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">
-    <!-- 얼음: 눈송이 -->
-    <path android:strokeColor="#FFFFFF" android:strokeWidth="2" android:strokeLineCap="round"
-        android:pathData="M12,2.5v19M3.8,7.25l16.4,9.5M3.8,16.75l16.4,-9.5M9.5,3.8L12,6.3l2.5,-2.5M9.5,20.2L12,17.7l2.5,2.5M4.3,10.6l3.4,0.9 -0.9,-3.4M19.7,13.4l-3.4,-0.9 0.9,3.4M4.3,13.4l3.4,-0.9 -0.9,3.4M19.7,10.6l-3.4,0.9 0.9,-3.4" />
+    <!-- 얼음: 눈송이(여섯 갈래 결정) -->
+    <group android:pivotX="12" android:pivotY="12">
+        <path android:fillColor="#FFFFFF" android:pathData="M10.9,1.8h2.2v20.4h-2.2z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M8.6,3.8l1.5,-1.5 1.9,1.9 1.9,-1.9 1.5,1.5L12,7.2zM8.6,20.2l1.5,1.5 1.9,-1.9 1.9,1.9 1.5,-1.5L12,16.8z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="60">
+        <path android:fillColor="#FFFFFF" android:pathData="M10.9,1.8h2.2v20.4h-2.2z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M8.6,3.8l1.5,-1.5 1.9,1.9 1.9,-1.9 1.5,1.5L12,7.2zM8.6,20.2l1.5,1.5 1.9,-1.9 1.9,1.9 1.5,-1.5L12,16.8z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="-60">
+        <path android:fillColor="#FFFFFF" android:pathData="M10.9,1.8h2.2v20.4h-2.2z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M8.6,3.8l1.5,-1.5 1.9,1.9 1.9,-1.9 1.5,1.5L12,7.2zM8.6,20.2l1.5,1.5 1.9,-1.9 1.9,1.9 1.5,-1.5L12,16.8z" />
+    </group>
 </vector>
