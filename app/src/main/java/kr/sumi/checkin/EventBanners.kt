@@ -69,11 +69,24 @@ object EventBanners {
             if (conn.responseCode !in 200..299) throw java.io.IOException("HTTP ${conn.responseCode}")
             val tmp = File(dir, file.name + ".part")
             conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+            compact(tmp, context.resources.displayMetrics.widthPixels)
             tmp.renameTo(file)
             return file
         } finally {
             conn.disconnect()
         }
+    }
+
+    /**
+     * 받은 그림을 화면 폭에 맞춰 JPEG(품질 92)로 다시 저장해 본다. 원본보다 20% 넘게 작아질 때만 바꾼다.
+     * 사진 같은 PNG 배너는 크게 줄고, 이미 JPEG인 배너는 다시 저장해도 줄지 않아 원본을 그대로 둔다(화질 손해 없음).
+     */
+    private fun compact(file: File, width: Int) {
+        val bitmap = runCatching { decode(file, width) }.getOrNull() ?: return
+        val scaled = if (bitmap.width > width) Bitmap.createScaledBitmap(bitmap, width, bitmap.height * width / bitmap.width, true) else bitmap
+        val out = java.io.ByteArrayOutputStream()
+        if (!scaled.compress(Bitmap.CompressFormat.JPEG, 92, out)) return
+        if (out.size() < file.length() * 0.8) file.writeBytes(out.toByteArray())
     }
 
     internal fun decode(file: File, width: Int): Bitmap? {
