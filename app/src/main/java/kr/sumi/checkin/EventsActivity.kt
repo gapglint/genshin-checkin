@@ -70,67 +70,7 @@ class EventsActivity : Activity() {
             else -> "지금 진행 중인 이벤트가 없어요."
         }
         if (events.isEmpty()) return
-        list.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(R.drawable.bg_group)
-            clipToOutline = true
-            dividerDrawable = getDrawable(R.drawable.divider_inset)
-            showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-            for (e in events) addView(row(e))
-        })
-    }
-
-    private fun row(e: GameEvent) = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(16), dp(14), dp(12), dp(14))
-        foreground = getDrawable(android.R.drawable.list_selector_background)
-        setOnClickListener { open(e) }
-        addView(LinearLayout(this@EventsActivity).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(LinearLayout(this@EventsActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                for ((label, bg, fg) in tags(e)) addView(TextView(this@EventsActivity).apply {
-                    text = label
-                    textSize = 11f
-                    setTypeface(typeface, Typeface.BOLD)
-                    setTextColor(getColor(fg))
-                    setPadding(dp(7), dp(2), dp(7), dp(2))
-                    background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(getColor(bg)) }
-                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginEnd = dp(6); bottomMargin = dp(6) })
-            })
-            addView(TextView(this@EventsActivity).apply {
-                text = e.name
-                textSize = 15f
-                maxLines = 2
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setTextColor(getColor(R.color.ink))
-            })
-            addView(TextView(this@EventsActivity).apply {
-                text = period(e)
-                textSize = 12f
-                setTextColor(getColor(R.color.ink_muted))
-                setPadding(0, dp(4), 0, 0)
-            })
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        addView(android.widget.ImageView(this@EventsActivity).apply {
-            setImageResource(R.drawable.ic_chevron)
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dp(8) })
-    }
-
-    /** 제목으로 고른 표시: 웹이벤트, 원석 보상. */
-    private fun tags(e: GameEvent) = listOfNotNull(
-        Triple("웹이벤트", R.color.hero, R.color.hero_ink).takeIf { e.path.startsWith("http") || "웹이벤트" in e.name || "웹 이벤트" in e.name },
-        Triple("원석", R.color.gold, R.color.on_gold).takeIf { "원석" in e.name },
-    )
-
-    private fun period(e: GameEvent): String {
-        if (e.end == 0L) return "상시"
-        val zone = java.time.ZoneId.systemDefault()
-        val end = java.time.Instant.ofEpochSecond(e.end).atZone(zone)
-        val left = java.time.Duration.between(java.time.Instant.ofEpochMilli(ServerClock.now()), end.toInstant()).toDays()
-        return "${end.monthValue}월 ${end.dayOfMonth}일까지 · " + if (left <= 0) "오늘 끝나요" else "${left}일 남음"
+        list.addView(EventsList(this, ServerClock.now()) { open(it) }.build(events))
     }
 
     /** 안내 글이면 글 안의 웹이벤트 주소를 찾아(네트워크) 지금 계정으로 연다. 로그인 전이면 브라우저로. */
@@ -155,5 +95,72 @@ class EventsActivity : Activity() {
 
     companion object {
         fun intent(context: Context) = Intent(context, EventsActivity::class.java)
+    }
+}
+
+/** 이벤트 목록 묶음을 그린다(화면 스냅숏 테스트에서도 쓰려고 액티비티와 나눴다). nowMs는 남은 날 계산 기준. */
+class EventsList(private val context: Context, private val nowMs: Long, private val onOpen: (GameEvent) -> Unit) {
+    private fun dp(v: Int) = (v * context.resources.displayMetrics.density).toInt()
+
+    fun build(events: List<GameEvent>) = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        setBackgroundResource(R.drawable.bg_group)
+        clipToOutline = true
+        dividerDrawable = context.getDrawable(R.drawable.divider_inset)
+        showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
+        for (e in events) addView(row(e))
+    }
+
+    private fun row(e: GameEvent) = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(16), dp(14), dp(12), dp(14))
+        foreground = context.getDrawable(android.R.drawable.list_selector_background)
+        setOnClickListener { onOpen(e) }
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                for ((label, bg, fg) in tags(e)) addView(TextView(context).apply {
+                    text = label
+                    textSize = 11f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(context.getColor(fg))
+                    setPadding(dp(7), dp(2), dp(7), dp(2))
+                    background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(context.getColor(bg)) }
+                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginEnd = dp(6); bottomMargin = dp(6) })
+            })
+            addView(TextView(context).apply {
+                text = e.name
+                textSize = 15f
+                maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(context.getColor(R.color.ink))
+            })
+            addView(TextView(context).apply {
+                text = period(e)
+                textSize = 12f
+                setTextColor(context.getColor(R.color.ink_muted))
+                setPadding(0, dp(4), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(android.widget.ImageView(context).apply {
+            setImageResource(R.drawable.ic_chevron)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dp(8) })
+    }
+
+    /** 제목으로 고른 표시: 웹이벤트, 원석 보상. */
+    private fun tags(e: GameEvent) = listOfNotNull(
+        Triple("웹이벤트", R.color.hero, R.color.hero_ink).takeIf { e.path.startsWith("http") || "웹이벤트" in e.name || "웹 이벤트" in e.name },
+        Triple("원석", R.color.gold, R.color.on_gold).takeIf { "원석" in e.name },
+    )
+
+    private fun period(e: GameEvent): String {
+        if (e.end == 0L) return "상시"
+        val zone = java.time.ZoneId.systemDefault()
+        val end = java.time.Instant.ofEpochSecond(e.end).atZone(zone)
+        val left = java.time.Duration.between(java.time.Instant.ofEpochMilli(nowMs), end.toInstant()).toDays()
+        return "${end.monthValue}월 ${end.dayOfMonth}일까지 · " + if (left <= 0) "오늘 끝나요" else "${left}일 남음"
     }
 }
