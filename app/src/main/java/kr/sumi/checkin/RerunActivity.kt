@@ -341,7 +341,7 @@ class RerunList(
             LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(2) })
         onToggle?.let { toggle ->
             isClickable = true
-            foreground = context.getDrawable(android.R.drawable.list_selector_background)
+            foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
             setOnClickListener { toggle(c) }
         }
         contentDescription = (if (c.name in watched) "픽업 알림 받는 중, " else "") + "${c.ko}, ${RerunActivity.elementName(c.element)}, " +

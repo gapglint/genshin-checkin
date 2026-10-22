@@ -188,7 +188,7 @@ class LoginActivity : Activity() {
         minHeight = (44 * density).toInt()
         gravity = android.view.Gravity.CENTER_VERTICAL
         setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
-        setBackgroundResource(android.R.drawable.list_selector_background)
+        background = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
         setOnClickListener {
             status.text = "가운데 「로그인」을 눌러 로그인해 주세요. 로그인되면 자동으로 닫혀요."
             visibility = View.GONE

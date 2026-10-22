@@ -131,7 +131,7 @@ class EventsList(
         orientation = LinearLayout.VERTICAL
         setBackgroundResource(R.drawable.bg_group)
         clipToOutline = true
-        foreground = context.getDrawable(android.R.drawable.list_selector_background)
+        foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
         setOnClickListener { onOpen(e) }
         contentDescription = e.name
         addView(FrameLayout(context).apply {
