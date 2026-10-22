@@ -11,7 +11,7 @@ import java.time.LocalDate
 
 class RerunSnapshotTest {
     @get:Rule
-    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(screenHeight = 5200))
+    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6)
 
     @Test fun rerunList() {
         val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns.json")!!.readText()))

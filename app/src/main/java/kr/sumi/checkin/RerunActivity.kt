@@ -18,7 +18,7 @@ import java.io.IOException
 
 /**
  * 복각표: 5성 캐릭터마다 마지막 픽업 뒤 몇 버전이 지났는지. 오래된 순으로, 같은 버전 수끼리 묶는다.
- * 그림 없이 이름·원소 색·버전만 보여 준다(자료는 위키의 기원 기록, Reruns 참고).
+ * 캐릭터 그림 없이 원소 색·이름·버전만으로 그린다(자료는 위키의 기원 기록, Reruns 참고).
  */
 class RerunActivity : Activity() {
     private lateinit var list: LinearLayout
@@ -107,76 +107,150 @@ class RerunActivity : Activity() {
     }
 }
 
-/** 복각표 목록을 그린다(화면 스냅숏 테스트에서도 쓰려고 액티비티와 나눴다). */
+/**
+ * 복각표 목록을 그린다(화면 스냅숏 테스트에서도 쓰려고 액티비티와 나눴다).
+ * 맨 위는 가장 오래 기다린 캐릭터를 출석 카드처럼 큰 숫자로, 아래는 같은 버전 수끼리 캐릭터 동그라미를 격자로 놓는다.
+ * 캐릭터 그림 대신 원소 색 동그라미에 이름 첫 글자를 쓴다.
+ */
 class RerunList(private val context: Context) {
     private val density = context.resources.displayMetrics.density
     private fun dp(v: Int) = (v * density).toInt()
-    private fun getColor(id: Int) = context.getColor(id)
-    private fun getDrawable(id: Int) = context.getDrawable(id)
+    private fun color(id: Int) = context.getColor(id)
+    private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
     private lateinit var list: LinearLayout
 
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
         this.list = list
-        section(data, data.ranked(today, standard = false))
+        val ranked = data.ranked(today, standard = false)
+        ranked.firstOrNull()?.let { (_, top) -> list.addView(hero(data, top, ranked.filter { it.second == top }.map { it.first })) }
+        list.addView(text("동그라미 색은 원소, 금색 테두리는 집대성 기원으로 나온 캐릭터예요.", 12f, R.color.ink_muted).apply {
+            setPadding(dp(4), dp(10), dp(4), 0)
+        })
+        for ((since, group) in ranked.groupBy { it.second }.filterKeys { it != ranked.firstOrNull()?.second }) {
+            section(since, group.map { it.first })
+        }
         val standard = data.ranked(today, standard = true)
         if (standard.isNotEmpty()) {
-            list.addView(text("상시 캐릭터 (상시 기원에서도 나와요)", 14f, R.color.ink_muted, bold = true).apply {
-                setPadding(dp(4), dp(24), 0, dp(4))
-            })
-            section(data, standard)
+            list.addView(text("상시 캐릭터", 16f, R.color.ink, bold = true).apply { setPadding(dp(4), dp(28), 0, 0) })
+            list.addView(text("상시 기원에서도 나와요", 12f, R.color.ink_muted).apply { setPadding(dp(4), dp(2), 0, 0) })
+            for ((since, group) in standard.groupBy { it.second }) section(since, group.map { it.first })
         }
         list.addView(text(
             "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.",
             12f, R.color.ink_muted,
-        ).apply { setPadding(dp(4), dp(20), dp(4), 0) })
+        ).apply { setPadding(dp(4), dp(24), dp(4), 0) })
     }
 
-    /** 같은 버전 수끼리 한 묶음(카드)으로. */
-    private fun section(data: RerunData, ranked: List<Pair<RerunCharacter, Int>>) {
-        for ((since, group) in ranked.groupBy { it.second }) {
-            list.addView(LinearLayout(context).apply {
+    /** 가장 오래 기다린 캐릭터: 남색 카드에 금색 큰 숫자(출석 카드와 같은 모양). */
+    private fun hero(data: RerunData, since: Int, characters: List<RerunCharacter>) = android.widget.FrameLayout(context).apply {
+        setBackgroundResource(R.drawable.bg_hero)
+        clipToOutline = true
+        addView(android.widget.ImageView(context).apply {
+            setImageResource(R.drawable.hero_motif)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, android.widget.FrameLayout.LayoutParams(dp(160), dp(160), Gravity.TOP or Gravity.END).apply { setMargins(0, -dp(24), -dp(32), 0) })
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            addView(text("가장 오래 기다린 캐릭터", 13f, R.color.hero_muted))
+            addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(4), dp(16), 0, dp(8))
+                gravity = Gravity.BOTTOM
                 addView(TextView(context).apply {
-                    text = if (since == 0) "지금 픽업" else "${since}버전 전"
-                    textSize = 13f
-                    setTypeface(typeface, Typeface.BOLD)
-                    setTextColor(getColor(R.color.on_action))
-                    setPadding(dp(10), dp(3), dp(10), dp(3))
-                    background = GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(getColor(RerunActivity.tone(since))) }
+                    text = "$since"
+                    textSize = 64f
+                    typeface = numerals
+                    includeFontPadding = false
+                    setTextColor(color(R.color.gold))
                 })
-                addView(text("${group.size}명", 12f, R.color.ink_muted).apply { setPadding(dp(8), 0, 0, 0) })
+                addView(text("버전째", 20f, R.color.hero_ink).apply { setPadding(dp(8), 0, 0, dp(8)) })
             })
-            list.addView(LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundResource(R.drawable.bg_group)
-                clipToOutline = true
-                dividerDrawable = getDrawable(R.drawable.divider_inset)
-                showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-                for ((c, _) in group) addView(row(data, c))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(16), 0, 0)
+                for (c in characters.take(4)) addView(token(data, c, onDark = true), LinearLayout.LayoutParams(dp(72), WRAP_CONTENT))
             })
-        }
+            if (characters.size > 4) addView(text("외 ${characters.size - 4}명", 12f, R.color.hero_muted).apply { setPadding(0, dp(4), 0, 0) })
+        })
+        contentDescription = "가장 오래 기다린 캐릭터: ${characters.joinToString { it.ko }}, ${since}버전째"
     }
 
-    private fun row(data: RerunData, c: RerunCharacter) = LinearLayout(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = dp(48)
-        setPadding(dp(16), dp(10), dp(16), dp(10))
-        contentDescription = "${c.ko}, ${RerunActivity.elementName(c.element)}, 마지막 픽업 ${data.label(c.last)}"
-        addView(View(context).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(getColor(RerunActivity.elementColor(c.element))) }
-        }, LinearLayout.LayoutParams(dp(12), dp(12)).apply { marginEnd = dp(12) })
-        addView(text(c.ko, 15f, R.color.ink), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        if (c.chronicled) addView(text("집대성", 11f, R.color.accent).apply { setPadding(0, 0, dp(8), 0) })
-        addView(text(data.label(c.last), 13f, R.color.ink_muted))
+    /** 같은 버전 수 한 묶음: 큰 숫자 머리말 + 캐릭터 동그라미 격자(한 줄에 4명). */
+    private fun section(since: Int, characters: List<RerunCharacter>) {
+        list.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+            setPadding(dp(4), dp(22), 0, dp(10))
+            if (since == 0) {
+                addView(text("지금 픽업 중", 18f, RerunActivity.tone(0), bold = true))
+            } else {
+                addView(TextView(context).apply {
+                    text = "$since"
+                    textSize = 30f
+                    typeface = numerals
+                    includeFontPadding = false
+                    setTextColor(color(RerunActivity.tone(since)))
+                })
+                addView(text("버전 전", 15f, R.color.ink, bold = true).apply { setPadding(dp(6), 0, 0, dp(3)) })
+            }
+            addView(text("${characters.size}명", 12f, R.color.ink_muted).apply { setPadding(dp(8), 0, 0, dp(4)) })
+        })
+        list.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.drawable.bg_group)
+            setPadding(dp(8), dp(14), dp(8), dp(6))
+            for (row in characters.chunked(4)) addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                for (c in row) addView(token(null, c, onDark = false), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                repeat(4 - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(8) })
+        })
+    }
+
+    /** 캐릭터 동그라미: 원소 색으로 칠하고 이름 첫 글자, 아래에 짧은 이름(과 마지막 픽업 버전). 집대성으로 나온 캐릭터는 금색 테두리. */
+    private fun token(data: RerunData?, c: RerunCharacter, onDark: Boolean) = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        val short = shortName(c.ko)
+        val base = color(RerunActivity.elementColor(c.element))
+        addView(TextView(context).apply {
+            text = short.take(1)
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(0xFFFFFFFF.toInt())
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(lighten(base), base),
+            ).apply {
+                shape = GradientDrawable.OVAL
+                if (c.chronicled) setStroke(dp(2), color(R.color.gold))
+            }
+        }, LinearLayout.LayoutParams(dp(52), dp(52)))
+        addView(text(short, 13f, if (onDark) R.color.hero_ink else R.color.ink).apply {
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER
+            setPadding(dp(2), dp(6), dp(2), 0)
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        data?.let {
+            addView(text(it.label(c.last), 11f, if (onDark) R.color.hero_muted else R.color.ink_muted).apply { gravity = Gravity.CENTER })
+        }
+        contentDescription = "${c.ko}, ${RerunActivity.elementName(c.element)}" + (if (c.chronicled) ", 집대성" else "")
+    }
+
+    /** '카에데하라 카즈하' → '카즈하'처럼 성을 뗀 이름. 한 단어면 그대로. */
+    private fun shortName(ko: String) = ko.trim().split(" ").last()
+
+    private fun lighten(c: Int): Int {
+        fun mix(v: Int) = v + ((255 - v) * 0.35f).toInt()
+        return (0xFF shl 24) or (mix(c shr 16 and 0xFF) shl 16) or (mix(c shr 8 and 0xFF) shl 8) or mix(c and 0xFF)
     }
 
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false) = TextView(context).apply {
         text = value
         textSize = size
-        setTextColor(getColor(color))
+        setTextColor(color(color))
         if (bold) setTypeface(typeface, Typeface.BOLD)
     }
 }
