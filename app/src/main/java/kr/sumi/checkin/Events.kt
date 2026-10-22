@@ -20,7 +20,7 @@ object Events {
     private const val PREFS = "events"
     private const val REFRESH_MS = 6 * 60 * 60_000L
     private val HEADERS = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to "ko-kr")
-    /** 안내 글 안의 참여 링크. 공식 짧은 주소(hoyo.link)가 '이벤트 참여하기' 링크라 먼저 찾고, 없으면 웹이벤트 주소. */
+    /** 안내 글 안의 참여 링크. 공식 짧은 주소(hoyo.link)가 '이벤트 참여하기' 링크라 먼저 보고(실제 주소로 풀어서), 없으면 웹이벤트 주소. */
     private val SHORT_LINK = Regex("""https://hoyo\.link/[A-Za-z0-9]+""")
     private val EVENT_LINK = Regex("""https://act\.hoyo(?:lab|verse)\.com/[^\s"'<>\\]+""")
 
@@ -56,10 +56,11 @@ object Events {
     }
 
     /**
-     * 열 주소: 웹이벤트 주소면 그대로, 안내 글이면 글 안의 참여 링크(hoyo.link 또는 웹이벤트 주소), 없으면 글 페이지.
-     * 네트워크 오류면 글 페이지로 연다.
+     * 열 주소: 웹이벤트 주소면 그대로, 안내 글이면 글 안의 참여 링크, 없으면 글 페이지(토픽 토론처럼 글에서 참여하는 이벤트).
+     * 참여 링크는 웹이벤트 페이지(act.hoyolab.com, act.hoyoverse.com)로 가는 것만 쓴다. 충전센터처럼 호요랩 로그인이
+     * 통하지 않는 곳이나, 글 끝에 홍보로 붙은 다른 이벤트(others의 주소)는 건너뛴다. 네트워크 오류면 글 페이지로 연다.
      */
-    fun target(event: GameEvent): String {
+    fun target(event: GameEvent, others: List<GameEvent> = emptyList()): String {
         if (event.path.startsWith("http")) return event.path
         val postId = Regex("""/article/(\d+)""").find(event.path)?.groupValues?.get(1)
             ?: return "https://www.hoyolab.com${event.path}"
@@ -69,12 +70,31 @@ object Events {
         } catch (e: IOException) {
             null
         } ?: return page
-        val text = content.optString("content") + " " + content.optString("structured_content")
-        val clean = text.replace("\\/", "/")
-        // 짧은 주소는 웹뷰가 따라가서 실제 이벤트 페이지로 연다.
-        return SHORT_LINK.find(clean)?.value
-            ?: EVENT_LINK.find(clean)?.value?.replace("\\u0026", "&")?.replace("&amp;", "&")
-            ?: page
+        val text = (content.optString("content") + " " + content.optString("structured_content")).replace("\\/", "/")
+        val promoted = others.filter { it.id != event.id && it.path.startsWith("http") }.map { it.path.substringBefore('?') }.toSet()
+        val links = SHORT_LINK.findAll(text).map { it.value }.distinct().mapNotNull { runCatching { resolve(it) }.getOrNull() } +
+            EVENT_LINK.findAll(text).map { it.value.replace("\\u0026", "&").replace("&amp;", "&") }
+        return links.firstOrNull { isEventPage(it) && it.substringBefore('?') !in promoted } ?: page
+    }
+
+    internal fun isEventPage(url: String) = EVENT_LINK.find(url)?.range?.first == 0
+
+    /** 짧은 주소(hoyo.link)가 가리키는 실제 주소. 몇 번 넘겨주기를 따라간다. */
+    private fun resolve(url: String): String {
+        var current = url
+        repeat(4) {
+            if (!SHORT_LINK.matches(current) && !current.startsWith("https://hoyo.link/")) return current
+            val conn = URL(current).openConnection() as HttpURLConnection
+            try {
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 10_000
+                current = conn.getHeaderField("Location") ?: return current
+            } finally {
+                conn.disconnect()
+            }
+        }
+        return current
     }
 
     internal fun parse(json: JSONObject): List<GameEvent> {

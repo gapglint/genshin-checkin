@@ -90,7 +90,7 @@ class EventsActivity : Activity() {
         if (opening) return
         opening = true
         Thread {
-            val url = Events.target(e)
+            val url = Events.target(e, Events.cached(this))
             runOnUiThread {
                 opening = false
                 val account = AppSettings(this).current()?.accountId
