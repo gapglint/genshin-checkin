@@ -38,6 +38,25 @@ object EventBanners {
         }
     }
 
+    /**
+     * 목록을 그리기 전에 배너를 미리 받아 둔다(글자만 먼저 뜨고 그림이 나중에 튀어나오지 않게).
+     * 다 받았거나 timeoutMs가 지나면 done을 메인 스레드에서 한 번 부른다. 늦은 그림은 계속 받아 두었다가 자리에 들어간다.
+     */
+    fun prefetch(context: Context, urls: List<String>, timeoutMs: Long, done: () -> Unit) {
+        val todo = urls.filter { it.isNotEmpty() && memory.get(it) == null }.distinct()
+        if (todo.isEmpty()) { done(); return }
+        val app = context.applicationContext
+        val width = app.resources.displayMetrics.widthPixels
+        var called = false
+        val finish = Runnable { if (!called) { called = true; done() } }
+        var left = todo.size
+        main.postDelayed(finish, timeoutMs)
+        for (url in todo) pool.execute {
+            runCatching { decode(fetch(app, url), width) }.getOrNull()?.let { memory.put(url, it) }
+            main.post { if (--left == 0) { main.removeCallbacks(finish); finish.run() } }
+        }
+    }
+
     private fun fetch(context: Context, url: String): File {
         val dir = File(context.cacheDir, "banners").apply { mkdirs() }
         val file = File(dir, url.hashCode().toUInt().toString(16))

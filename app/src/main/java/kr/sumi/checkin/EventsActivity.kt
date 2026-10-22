@@ -29,6 +29,7 @@ class EventsActivity : Activity() {
     private lateinit var list: LinearLayout
     private lateinit var status: TextView
     private var opening = false
+    private var renders = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +65,6 @@ class EventsActivity : Activity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private fun render(error: String? = null) {
-        list.removeAllViews()
         val events = Events.live(this)
         status.text = when {
             events.isNotEmpty() -> "호요랩의 원신 이벤트예요. 누르면 로그인된 상태로 열려요. 보상 받기는 직접 눌러 주세요."
@@ -72,8 +72,17 @@ class EventsActivity : Activity() {
             Events.cached(this).isEmpty() -> "불러오는 중..."
             else -> "지금 진행 중인 이벤트가 없어요."
         }
-        if (events.isEmpty()) return
-        list.addView(EventsList(this, ServerClock.now()) { open(it) }.build(events))
+        if (events.isEmpty()) { renders++; list.removeAllViews(); return }
+        // 이미 그려 둔 목록은 새 배너를 받는 동안 그대로 둔다. 배너를 받은 뒤 한 번에 그린다(오래 걸리면 3초 뒤 남은 그림은 자리만 두고 그린다).
+        val generation = ++renders
+        if (list.childCount == 0) list.addView(android.widget.ProgressBar(this), LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(48)
+        })
+        EventBanners.prefetch(this, events.map { it.banner }, 3_000) {
+            if (isFinishing || generation != renders) return@prefetch
+            list.removeAllViews()
+            list.addView(EventsList(this, ServerClock.now()) { open(it) }.build(events))
+        }
     }
 
     /** 안내 글이면 글 안의 웹이벤트 주소를 찾아(네트워크) 지금 계정으로 연다. 로그인 전이면 브라우저로. */
