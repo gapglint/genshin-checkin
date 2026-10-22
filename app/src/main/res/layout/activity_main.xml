@@ -700,6 +700,60 @@
                 android:textColor="@color/accent"
                 android:textSize="13sp" />
         </LinearLayout>
+
+        <!-- 복각표 버튼: 누르면 캐릭터별 마지막 픽업 뒤 지난 버전 수를 보여 준다 -->
+        <LinearLayout
+            android:id="@+id/rerunCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_group"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_item_tile"
+                android:importantForAccessibility="no"
+                android:padding="9dp"
+                android:src="@drawable/ic_rerun" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="복각표"
+                    android:textColor="@color/ink_muted"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/rerunValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/ink"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_chevron" />
+        </LinearLayout>
         </LinearLayout>
 
         </kr.sumi.checkin.MaxWidthLinearLayout>

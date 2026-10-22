@@ -46,6 +46,10 @@
             android:name=".RewardHistoryActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".RerunActivity"
+            android:exported="false" />
+
         <service
             android:name=".CheckInJobService"
             android:exported="false"

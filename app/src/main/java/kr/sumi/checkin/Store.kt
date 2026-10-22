@@ -250,13 +250,14 @@ class Store(private val context: Context, val accountId: String) {
 const val CARD_NOTES = "notes"
 const val CARD_TILES = "tiles"
 const val CARD_CALENDAR = "calendar"
+const val CARD_RERUNS = "reruns"
 
 /** 레진 카드를 펼치면 보일 수 있는 항목. 사용자가 고른 것만 보인다. */
 const val NOTE_EXPEDITIONS = "expeditions"
 const val NOTE_COIN = "coin"
 const val NOTE_COMMISSIONS = "commissions"
 val NOTE_STATS = listOf(NOTE_EXPEDITIONS, NOTE_COIN, NOTE_COMMISSIONS)
-val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_CALENDAR)
+val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_CALENDAR, CARD_RERUNS)
 
 /** 모든 계정이 함께 쓰는 설정과 계정 목록. */
 class AppSettings(private val context: Context) {
@@ -331,6 +332,7 @@ class AppSettings(private val context: Context) {
         CARD_NOTES -> showNotes
         CARD_TILES -> showTiles
         CARD_CALENDAR -> showCalendar
+        CARD_RERUNS -> showReruns
         else -> true
     }
 
@@ -338,6 +340,7 @@ class AppSettings(private val context: Context) {
         CARD_NOTES -> showNotes = shown
         CARD_TILES -> showTiles = shown
         CARD_CALENDAR -> showCalendar = shown
+        CARD_RERUNS -> showReruns = shown
         else -> Unit
     }
 
@@ -359,6 +362,9 @@ class AppSettings(private val context: Context) {
     var showCalendar: Boolean
         get() = prefs.getBoolean("show_calendar", true)
         set(value) = prefs.edit { putBoolean("show_calendar", value) }
+    var showReruns: Boolean
+        get() = prefs.getBoolean("show_reruns", true)
+        set(value) = prefs.edit { putBoolean("show_reruns", value) }
 
     /** 서버 시각 - 폰 시각(ms). 앱을 다시 켜도 서버 기준으로 계산하려고 남겨 둔다. */
     var clockOffset: Long

@@ -114,6 +114,7 @@ class MainEditor(
         CARD_CHECK_IN -> "출석"
         CARD_NOTES -> "레진"
         CARD_TILES -> "리딤 코드"
+        CARD_RERUNS -> "복각표"
         else -> "출석 달력"
     }
 
@@ -121,6 +122,7 @@ class MainEditor(
         CARD_CHECK_IN -> R.drawable.ic_item_primogem
         CARD_NOTES -> R.drawable.ic_item_resin
         CARD_TILES -> R.drawable.ic_item_gift
+        CARD_RERUNS -> R.drawable.ic_rerun
         else -> R.drawable.ic_calendar
     }
 
@@ -164,7 +166,7 @@ class MainEditor(
                 setOnClickListener { onOptions(card, screen.slot(card)) }
                 if (card != CARD_CHECK_IN) setOnTouchListener(CardDrag(card))
             }, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT).apply { topMargin = top })
-            if (card != CARD_CALENDAR) addView(TextView(context).apply {
+            if (card != CARD_CALENDAR && card != CARD_RERUNS) addView(TextView(context).apply {
                 text = "⚙ 옵션"
                 textSize = 13f
                 gravity = Gravity.CENTER

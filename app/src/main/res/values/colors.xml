@@ -31,4 +31,16 @@
 
     <color name="icon_bg_top">#2A3560</color>
     <color name="icon_bg_bottom">#151B30</color>
+    <!-- 복각표: 원소 색(그림 대신 점으로)과 지난 버전 수에 따른 색 -->
+    <color name="element_anemo">#3BA88F</color>
+    <color name="element_geo">#C99A2E</color>
+    <color name="element_electro">#9A63CF</color>
+    <color name="element_dendro">#6FA83A</color>
+    <color name="element_hydro">#3A86D6</color>
+    <color name="element_pyro">#D9573A</color>
+    <color name="element_cryo">#5DB7D3</color>
+    <color name="rerun_recent">#4E8A55</color>
+    <color name="rerun_mid">#A87B22</color>
+    <color name="rerun_old">#C2662A</color>
+    <color name="rerun_oldest">#B04A2A</color>
 </resources>

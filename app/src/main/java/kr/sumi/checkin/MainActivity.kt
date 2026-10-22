@@ -70,6 +70,7 @@ class MainActivity : Activity() {
         screen.settingsButton.setOnClickListener { showSettings(true) }
         screen.settingsBack.setOnClickListener { showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
+        screen.rerunCard.setOnClickListener { startActivity(RerunActivity.intent(this)) }
         screen.tileHistory.setOnClickListener {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
         }
@@ -139,6 +140,30 @@ class MainActivity : Activity() {
         loadNicknamesIfMissing()
         loadCalendarIfStale()
         loadNotes()
+        loadRerunsIfStale()
+    }
+
+    private var loadingReruns = false
+
+    /** 복각표 자료를 하루 한 번 조용히 받아 온다(작은 파일, 바뀌지 않았으면 받지 않는다). */
+    private fun loadRerunsIfStale() {
+        if (!settings.showReruns || loadingReruns || Reruns.isFresh(this)) return
+        loadingReruns = true
+        Thread {
+            val changed = try { Reruns.refresh(this) } catch (e: IOException) { false }
+            runOnUiThread {
+                loadingReruns = false
+                if (changed) refresh()
+            }
+        }.start()
+    }
+
+    /** 복각표 버튼의 한 줄: 가장 오래 안 나온 캐릭터(같으면 여럿 중 첫 명과 인원). */
+    private fun rerunTop(): String? {
+        val ranked = Reruns.cached(this)?.ranked(ServerClock.today(), standard = false) ?: return null
+        val (first, since) = ranked.firstOrNull() ?: return null
+        val same = ranked.count { it.second == since }
+        return "${first.ko}${if (same > 1) " 외 ${same - 1}명" else ""} · ${since}버전째 기다리는 중"
     }
 
     /**
@@ -399,6 +424,10 @@ class MainActivity : Activity() {
                 })
                 "리딤 코드·보상 내역"
             }
+            CARD_RERUNS -> {
+                label("캐릭터마다 마지막 픽업 뒤 몇 버전이 지났는지 보여 줘요. 따로 바꿀 옵션은 없어요.")
+                "복각표"
+            }
             else -> {
                 label("이번 달 출석 보상을 칸으로 보여 줘요. 따로 바꿀 옵션은 없어요.")
                 "출석 보상 달력"
@@ -507,6 +536,8 @@ class MainActivity : Activity() {
                 gameAppCount = Game.installed(this).size,
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
+                showReruns = settings.showReruns,
+                rerunTop = rerunTop(),
                 cardOrder = settings.cardOrder,
                 editing = editing,
             )

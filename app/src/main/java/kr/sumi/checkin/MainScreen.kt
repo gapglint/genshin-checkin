@@ -92,6 +92,9 @@ data class MainUiState(
     val gameAppCount: Int = 0,
     val showTiles: Boolean = true,
     val showCalendar: Boolean = true,
+    val showReruns: Boolean = true,
+    /** 복각표 버튼에 보일 한 줄(가장 오래 안 나온 캐릭터). 자료가 아직 없으면 null. */
+    val rerunTop: String? = null,
     /** 출석 카드 아래 카드 순서(CARDS의 이름). */
     val cardOrder: List<String> = CARDS,
     /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
@@ -141,6 +144,8 @@ class MainScreen(val root: View) {
     private val tileHistorySub: TextView = root.findViewById(R.id.tileHistorySub)
     private val tileHistoryDot: View = root.findViewById(R.id.tileHistoryDot)
     private val calendarCard: View = root.findViewById(R.id.calendarCard)
+    val rerunCard: View = root.findViewById(R.id.rerunCard)
+    private val rerunValue: TextView = root.findViewById(R.id.rerunValue)
     private val calendarTitle: TextView = root.findViewById(R.id.calendarTitle)
     private val calendarCount: TextView = root.findViewById(R.id.calendarCount)
     private val calendarGrid: LinearLayout = root.findViewById(R.id.calendarGrid)
@@ -169,6 +174,7 @@ class MainScreen(val root: View) {
         CARD_NOTES -> listOf(notesCard)
         CARD_TILES -> listOf(tileRedeem, tileHistory)
         CARD_CALENDAR -> listOf(calendarCard)
+        CARD_RERUNS -> listOf(rerunCard)
         else -> listOf(root.findViewById(R.id.heroCard))
     }
     val rowGameApp: View = root.findViewById(R.id.rowGameApp)
@@ -185,6 +191,7 @@ class MainScreen(val root: View) {
         wrap(CARD_NOTES, notesCard)
         wrap(CARD_TILES, tiles)
         wrap(CARD_CALENDAR, calendarCard)
+        wrap(CARD_RERUNS, rerunCard)
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
@@ -193,6 +200,7 @@ class MainScreen(val root: View) {
         root.findViewById<View>(R.id.notesGroup).clipToOutline = true
         tileRedeem.clipToOutline = true
         tileHistory.clipToOutline = true
+        rerunCard.clipToOutline = true
         setupBanner.clipToOutline = true
         makeUpCard.clipToOutline = true
         settingsPanel.findViewById<TextView>(R.id.headerTitle).text = "설정"
@@ -416,6 +424,8 @@ class MainScreen(val root: View) {
      */
     private fun renderCalendar(s: MainUiState) {
         calendarCard.visibility = if (s.loggedIn && s.showCalendar && (s.calendar.isNotEmpty() || s.editing)) View.VISIBLE else View.GONE
+        rerunCard.visibility = if (s.loggedIn && s.showReruns) View.VISIBLE else View.GONE
+        rerunValue.text = s.rerunTop ?: "캐릭터별 마지막 픽업 보기"
         if (s.calendar.isEmpty()) {
             // 편집 중에 아직 못 받았으면 제목만.
             calendarTitle.text = "${s.month}월 출석 보상"
