@@ -159,20 +159,22 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** 복각표 버튼: 지금 픽업 중인 캐릭터와 끝나는 날. 진행 중인 픽업을 모르면 가장 오래 기다린 캐릭터. */
-    private fun rerunTop(): Pair<String, String>? {
+    /** 복각표 카드: 지금 픽업(없으면 다음 픽업) 캐릭터와 기간, 그리고 가장 오래 기다린 캐릭터. */
+    private fun rerunCard(): RerunCardUi? {
         val data = Reruns.cached(this) ?: return null
         val today = ServerClock.today()
+        fun day(d: java.time.LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
         val live = data.live(today)
-        if (live.isNotEmpty()) {
-            val names = live.flatMap { it.chars }.distinct().mapNotNull { data.character(it)?.ko }
-            val end = live.minOf { it.end }
-            val left = java.time.temporal.ChronoUnit.DAYS.between(today, end)
-            return "지금 픽업 · ${names.joinToString(" · ")}" to "${end.monthValue}월 ${end.dayOfMonth}일까지 (${left}일 남음) · 눌러서 복각표"
+        val next = if (live.isEmpty()) data.upcoming(today) else emptyList()
+        val shown = live.ifEmpty { next }
+        val chars = shown.flatMap { it.chars }.distinct().mapNotNull { data.character(it) }.map { it.ko to it.element }
+        val period = when {
+            live.isNotEmpty() -> live.minOf { it.end }.let { "${day(it)}까지 · ${java.time.temporal.ChronoUnit.DAYS.between(today, it)}일 남음" }
+            next.isNotEmpty() -> "${day(next.minOf { it.start })}부터"
+            else -> ""
         }
-        val ranked = data.ranked(today, standard = false)
-        val (first, since) = ranked.firstOrNull() ?: return null
-        return "${first.ko} · ${since}버전째 기다리는 중" to "눌러서 복각표"
+        val oldest = data.ranked(today, standard = false).firstOrNull()?.let { (c, since) -> "가장 오래 기다린 캐릭터 · ${c.ko} ${since}버전째" }
+        return RerunCardUi(if (live.isNotEmpty()) "지금 픽업" else if (next.isNotEmpty()) "다음 픽업" else "복각표", period, chars, oldest)
     }
 
     /**
@@ -546,7 +548,7 @@ class MainActivity : Activity() {
                 showTiles = settings.showTiles,
                 showCalendar = settings.showCalendar,
                 showReruns = settings.showReruns,
-                rerunTop = rerunTop(),
+                reruns = rerunCard(),
                 cardOrder = settings.cardOrder,
                 editing = editing,
             )

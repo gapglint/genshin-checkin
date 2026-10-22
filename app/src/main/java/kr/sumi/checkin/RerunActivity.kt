@@ -118,6 +118,12 @@ class RerunActivity : Activity() {
             else -> null
         }
 
+        /** 남색 바탕 위 이름 글자색: 원소 색을 밝게. */
+        fun light(c: Int): Int {
+            fun mix(v: Int) = v + ((255 - v) * 0.45f).toInt()
+            return (0xFF shl 24) or (mix(c shr 16 and 0xFF) shl 16) or (mix(c shr 8 and 0xFF) shl 8) or mix(c and 0xFF)
+        }
+
         fun elementName(element: String) = when (element) {
             "Anemo" -> "바람"
             "Geo" -> "바위"

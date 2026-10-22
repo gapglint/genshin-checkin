@@ -93,8 +93,8 @@ data class MainUiState(
     val showTiles: Boolean = true,
     val showCalendar: Boolean = true,
     val showReruns: Boolean = true,
-    /** 복각표 버튼에 보일 한 줄(가장 오래 안 나온 캐릭터). 자료가 아직 없으면 null. */
-    val rerunTop: Pair<String, String>? = null,
+    /** 복각표 카드: 지금(없으면 다음) 픽업 캐릭터, 기간 문구, 가장 오래 기다린 캐릭터. 자료가 아직 없으면 null. */
+    val reruns: RerunCardUi? = null,
     /** 출석 카드 아래 카드 순서(CARDS의 이름). */
     val cardOrder: List<String> = CARDS,
     /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
@@ -102,6 +102,14 @@ data class MainUiState(
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
+/** 메인 복각표 카드에 보일 것. chars는 (이름, 원소). */
+data class RerunCardUi(
+    val title: String,
+    val period: String,
+    val chars: List<Pair<String, String>>,
+    val oldest: String?,
+)
+
 class MainScreen(val root: View) {
     private val MATCH = android.view.ViewGroup.LayoutParams.MATCH_PARENT
     private val context = root.context
@@ -145,8 +153,10 @@ class MainScreen(val root: View) {
     private val tileHistoryDot: View = root.findViewById(R.id.tileHistoryDot)
     private val calendarCard: View = root.findViewById(R.id.calendarCard)
     val rerunCard: View = root.findViewById(R.id.rerunCard)
-    private val rerunValue: TextView = root.findViewById(R.id.rerunValue)
-    private val rerunSub: TextView = root.findViewById(R.id.rerunSub)
+    private val rerunTitle: TextView = root.findViewById(R.id.rerunTitle)
+    private val rerunPeriod: TextView = root.findViewById(R.id.rerunPeriod)
+    private val rerunChars: LinearLayout = root.findViewById(R.id.rerunChars)
+    private val rerunOldest: TextView = root.findViewById(R.id.rerunOldest)
     private val calendarTitle: TextView = root.findViewById(R.id.calendarTitle)
     private val calendarCount: TextView = root.findViewById(R.id.calendarCount)
     private val calendarGrid: LinearLayout = root.findViewById(R.id.calendarGrid)
@@ -426,8 +436,7 @@ class MainScreen(val root: View) {
     private fun renderCalendar(s: MainUiState) {
         calendarCard.visibility = if (s.loggedIn && s.showCalendar && (s.calendar.isNotEmpty() || s.editing)) View.VISIBLE else View.GONE
         rerunCard.visibility = if (s.loggedIn && s.showReruns) View.VISIBLE else View.GONE
-        rerunValue.text = s.rerunTop?.first ?: "캐릭터별 마지막 픽업 보기"
-        rerunSub.text = s.rerunTop?.second ?: "눌러서 복각표"
+        renderReruns(s.reruns)
         if (s.calendar.isEmpty()) {
             // 편집 중에 아직 못 받았으면 제목만.
             calendarTitle.text = "${s.month}월 출석 보상"
@@ -562,5 +571,46 @@ class MainScreen(val root: View) {
         val density = context.resources.displayMetrics.density
         statusChip.setPadding((12 * density).toInt(), (5 * density).toInt(), (12 * density).toInt(), (5 * density).toInt())
         statusChip.setTextColor(context.getColor(textColor))
+    }
+
+    /** 복각표 카드: 픽업 캐릭터를 원소 동그라미와 원소 색 이름으로. 자료가 없으면 안내만. */
+    private fun renderReruns(r: RerunCardUi?) {
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        rerunChars.removeAllViews()
+        rerunTitle.text = r?.title ?: "복각표"
+        rerunPeriod.text = r?.period ?: ""
+        rerunOldest.text = r?.oldest ?: "캐릭터마다 마지막 픽업 뒤 몇 버전 지났는지 봐요"
+        rerunChars.visibility = if (r?.chars.isNullOrEmpty()) View.GONE else View.VISIBLE
+        for ((name, element) in r?.chars.orEmpty().take(4)) {
+            val base = context.getColor(RerunActivity.elementColor(element))
+            rerunChars.addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+                addView(android.widget.ImageView(context).apply {
+                    RerunActivity.elementIcon(element)?.let { setImageResource(it) }
+                    setPadding(dp(9), dp(9), dp(9), dp(9))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                        setColor(base)
+                        setStroke(dp(2), context.getColor(R.color.gold))
+                    }
+                }, LinearLayout.LayoutParams(dp(52), dp(52)))
+                addView(TextView(context).apply {
+                    text = name.trim().split(" ").last()
+                    textSize = 13f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setTextColor(RerunActivity.light(base))
+                    maxLines = 1
+                    setPadding(0, dp(6), 0, 0)
+                })
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        // 한 줄을 넷으로 나눠, 둘이면 왼쪽부터 같은 간격으로 놓인다.
+        repeat((4 - (r?.chars?.size ?: 0)).coerceAtLeast(0)) {
+            rerunChars.addView(View(context), LinearLayout.LayoutParams(0, 0, 1f))
+        }
+        rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, "눌러서 복각표").joinToString(", ")
     }
 }

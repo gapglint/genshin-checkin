@@ -34,7 +34,7 @@ class MainScreenSnapshotTest {
             expeditions = "2/5 완료", expeditionsSub = "2시간 뒤 모두 끝나요", coin = "1,840", coinSub = "/ 2,400",
             commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준",
         ),
-        rerunTop = "지금 픽업 · 에스코피에 · 스커크" to "11월 3일까지 (12일 남음) · 눌러서 복각표",
+        reruns = RerunCardUi("지금 픽업", "11월 3일까지 · 12일 남음", listOf("에스코피에" to "Cryo", "스커크" to "Cryo"), "가장 오래 기다린 캐릭터 · 호두 17버전째"),
     )
     private val waiting = MainUiState(
         loggedIn = true, uid = "800000000", totalDays = 16, month = 10, lastChecked = "10월 18일 03:00",
@@ -57,6 +57,13 @@ class MainScreenSnapshotTest {
     @Test fun notesExpanded() = snap(signed.copy(notesExpanded = true, gameInstalled = true), night = false)
     /** 접힌 레진 카드에도 원신 켜기가 보인다. */
     @Test fun notesCompactWithGame() = snap(signed.copy(gameInstalled = true), night = false)
+    /** 맨 아래 복각표 카드(지금 픽업). */
+    @Test fun rerunCard() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6)
+        val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
+        MainScreen(view).render(signed.copy(makeUpMissed = null, showCalendar = false, showTiles = false))
+        paparazzi.snapshot(view)
+    }
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 
