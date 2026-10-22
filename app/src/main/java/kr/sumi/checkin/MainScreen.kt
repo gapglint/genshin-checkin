@@ -95,6 +95,8 @@ data class MainUiState(
     val showReruns: Boolean = true,
     /** 복각표 카드: 지금(없으면 다음) 픽업 캐릭터, 기간 문구, 가장 오래 기다린 캐릭터. 자료가 아직 없으면 null. */
     val reruns: RerunCardUi? = null,
+    /** 아직 목록에서 보지 않은 진행 중 이벤트 수(아이콘의 점). */
+    val eventsUnseen: Int = 0,
     /** 출석 카드 아래 카드 순서(CARDS의 이름). */
     val cardOrder: List<String> = CARDS,
     /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
@@ -174,6 +176,8 @@ class MainScreen(val root: View) {
     val notesPlay: View = root.findViewById(R.id.notesPlay)
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
+    val eventsButton: View = root.findViewById(R.id.eventsButton)
+    private val eventsDot: View = root.findViewById(R.id.eventsDot)
     val editDone: View = root.findViewById(R.id.editDone)
     val cards: LinearLayout = root.findViewById(R.id.cards)
     /** 카드마다 감싸는 틀. 편집할 때 그 위에 편집 층을 겹친다(MainEditor). 태그는 카드 이름. */
@@ -437,6 +441,9 @@ class MainScreen(val root: View) {
         calendarCard.visibility = if (s.loggedIn && s.showCalendar && (s.calendar.isNotEmpty() || s.editing)) View.VISIBLE else View.GONE
         rerunCard.visibility = if (s.loggedIn && s.showReruns) View.VISIBLE else View.GONE
         renderReruns(s.reruns)
+        eventsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
+        eventsDot.visibility = if (s.eventsUnseen > 0) View.VISIBLE else View.GONE
+        eventsButton.contentDescription = if (s.eventsUnseen > 0) "이벤트, 새 이벤트 ${s.eventsUnseen}개" else "이벤트"
         if (s.calendar.isEmpty()) {
             // 편집 중에 아직 못 받았으면 제목만.
             calendarTitle.text = "${s.month}월 출석 보상"

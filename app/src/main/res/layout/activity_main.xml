@@ -59,6 +59,32 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
 
+            <!-- 이벤트: 누르면 진행 중인 호요랩 이벤트 목록. 아직 안 본 이벤트가 있으면 점 -->
+            <FrameLayout
+                android:id="@+id/eventsButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="이벤트">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_events" />
+
+                <View
+                    android:id="@+id/eventsDot"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="9dp"
+                    android:background="@drawable/bg_new_dot"
+                    android:visibility="gone" />
+            </FrameLayout>
+
             <ImageButton
                 android:id="@+id/editButton"
                 android:layout_width="48dp"

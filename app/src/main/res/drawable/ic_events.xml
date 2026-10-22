@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 이벤트(선물 상자와 별). 메인 위쪽 아이콘. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="@color/ink">
+    <path android:fillColor="#FF000000" android:fillType="evenOdd"
+        android:pathData="M4,9h16v3H4z M5,12.5h14V21H5z M11,9h2v12h-2z M12,8.6C10.4,6.2 7.4,5.4 6.9,7.1c-0.4,1.4 2.6,1.9 5.1,1.5z M12,8.6c1.6,-2.4 4.6,-3.2 5.1,-1.5c0.4,1.4 -2.6,1.9 -5.1,1.5z" />
+    <path android:fillColor="#FF000000" android:pathData="M19.5,1.5l0.6,1.4 1.4,0.6 -1.4,0.6 -0.6,1.4 -0.6,-1.4 -1.4,-0.6 1.4,-0.6z" />
+</vector>

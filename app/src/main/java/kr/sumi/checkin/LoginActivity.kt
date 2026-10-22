@@ -38,6 +38,8 @@ class LoginActivity : Activity() {
     private lateinit var status: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val pageAccountId by lazy { intent.getStringExtra(EXTRA_ACCOUNT) }
+    /** 페이지 모드에서 열 주소. 없으면 출석 페이지(이벤트 목록에서 웹이벤트를 열 때 쓴다). */
+    private val pageUrl by lazy { intent.getStringExtra(EXTRA_URL) ?: CheckInClient.CHECK_IN_PAGE }
     private val loginMode get() = pageAccountId == null
     /** 마지막으로 서버에 유효성을 물어본 로그인 토큰. 같은 토큰은 다시 묻지 않아 요청이 몰리지 않는다. */
     private var checkedTokens: String? = null
@@ -71,7 +73,11 @@ class LoginActivity : Activity() {
         super.onCreate(savedInstanceState)
         MainActivity.drawBehindSystemBars(window)
         val pageStore = pageAccountId?.let { AppSettings(this).account(it) }
-        val screenTitle = if (loginMode) "호요랩 로그인" else "원신 출석체크 · ${pageStore?.displayName ?: ""}"
+        val screenTitle = when {
+            loginMode -> "호요랩 로그인"
+            intent.hasExtra(EXTRA_URL) -> intent.getStringExtra(EXTRA_TITLE) ?: "이벤트"
+            else -> "원신 출석체크 · ${pageStore?.displayName ?: ""}"
+        }
         title = screenTitle
 
         val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
@@ -80,6 +86,8 @@ class LoginActivity : Activity() {
         status = header.findViewById(R.id.headerStatus)
         status.text = if (loginMode) {
             "호요랩 계정이나 구글·애플 등으로 로그인해 주세요. 로그인되면 자동으로 닫혀요.\n호요랩 앱 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
+        } else if (intent.hasExtra(EXTRA_URL)) {
+            "${pageStore?.displayName ?: ""} 계정으로 로그인해서 열었어요. 페이지에서 보상 받기까지 눌러 주세요."
         } else {
             "오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요."
         }
@@ -151,8 +159,8 @@ class LoginActivity : Activity() {
                 handler.postDelayed(pollCookie, 1000)
             } else {
                 val cookie = pageStore?.cookie
-                if (cookie == null) webView.loadUrl(CheckInClient.CHECK_IN_PAGE)
-                else injectCookie(cookie) { webView.loadUrl(CheckInClient.CHECK_IN_PAGE) }
+                if (cookie == null) webView.loadUrl(pageUrl)
+                else injectCookie(cookie) { webView.loadUrl(pageUrl) }
             }
         }
     }
@@ -237,16 +245,18 @@ class LoginActivity : Activity() {
     }
 
     /**
-     * 저장해 둔 계정 쿠키를 WebView에 넣고, 다 들어간 뒤에 then을 부른다.
+     * 저장해 둔 계정 쿠키를 WebView에 넣고(호요랩·호요버스 도메인), 다 들어간 뒤에 then을 부른다.
      * setCookie는 비동기라 바로 페이지를 열면 쿠키가 들어가기 전에 요청이 나가 로그인 안 된 화면이 뜬다.
      */
     private fun injectCookie(cookie: String, then: () -> Unit) {
         val manager = CookieManager.getInstance()
         val values = cookieValues(cookie).filterKeys { it.isNotEmpty() }
-        var pending = values.size
+        // 웹이벤트는 act.hoyoverse.com에서 열리기도 해서 두 도메인에 다 넣는다.
+        val domains = listOf("hoyolab.com", "hoyoverse.com")
+        var pending = values.size * domains.size
         if (pending == 0) return then()
-        for ((name, value) in values) {
-            manager.setCookie("https://www.hoyolab.com", "$name=$value; Domain=.hoyolab.com; Path=/; Secure") {
+        for (domain in domains) for ((name, value) in values) {
+            manager.setCookie("https://www.$domain", "$name=$value; Domain=.$domain; Path=/; Secure") {
                 if (--pending == 0) {
                     manager.flush()
                     then()
@@ -288,6 +298,8 @@ class LoginActivity : Activity() {
 
     companion object {
         private const val EXTRA_ACCOUNT = "account"
+        private const val EXTRA_URL = "url"
+        private const val EXTRA_TITLE = "title"
         /** 로그인하지 않았으면 가운데에 「로그인」 버튼이 크게 보이는 호요랩 모바일 페이지. */
         private const val HOYOLAB_MOBILE = "https://m.hoyolab.com/#/timeline"
 
@@ -307,6 +319,10 @@ class LoginActivity : Activity() {
 
         fun checkInPageIntent(context: Context, accountId: String) =
             Intent(context, LoginActivity::class.java).putExtra(EXTRA_ACCOUNT, accountId)
+
+        /** 이 계정으로 로그인된 상태에서 주소(웹이벤트 등)를 연다. */
+        fun pageIntent(context: Context, accountId: String, url: String, title: String) =
+            checkInPageIntent(context, accountId).putExtra(EXTRA_URL, url).putExtra(EXTRA_TITLE, title)
 
         private fun cookieValues(cookie: String): Map<String, String> =
             cookie.split(";").associate { it.substringBefore("=").trim() to it.substringAfter("=", "").trim() }

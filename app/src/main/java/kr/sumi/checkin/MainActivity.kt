@@ -71,6 +71,7 @@ class MainActivity : Activity() {
         screen.settingsBack.setOnClickListener { showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
         screen.rerunCard.setOnClickListener { startActivity(RerunActivity.intent(this)) }
+        screen.eventsButton.setOnClickListener { startActivity(EventsActivity.intent(this)) }
         screen.tileHistory.setOnClickListener {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
         }
@@ -141,6 +142,22 @@ class MainActivity : Activity() {
         loadCalendarIfStale()
         loadNotes()
         loadRerunsIfStale()
+        loadEventsIfStale()
+    }
+
+    private var loadingEvents = false
+
+    /** 호요랩 이벤트 목록을 6시간에 한 번 조용히 받아 온다(새 이벤트가 있으면 아이콘에 점). */
+    private fun loadEventsIfStale() {
+        if (loadingEvents || Events.isFresh(this)) return
+        loadingEvents = true
+        Thread {
+            val changed = try { Events.refresh(this) } catch (e: IOException) { false }
+            runOnUiThread {
+                loadingEvents = false
+                if (changed) refresh()
+            }
+        }.start()
     }
 
     private var loadingReruns = false
@@ -549,6 +566,7 @@ class MainActivity : Activity() {
                 showCalendar = settings.showCalendar,
                 showReruns = settings.showReruns,
                 reruns = rerunCard(),
+                eventsUnseen = Events.unseen(this),
                 cardOrder = settings.cardOrder,
                 editing = editing,
             )

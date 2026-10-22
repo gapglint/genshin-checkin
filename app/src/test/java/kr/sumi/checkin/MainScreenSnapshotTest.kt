@@ -61,7 +61,7 @@ class MainScreenSnapshotTest {
     @Test fun rerunCard() {
         paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6)
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
-        MainScreen(view).render(signed.copy(makeUpMissed = null, showCalendar = false, showTiles = false))
+        MainScreen(view).render(signed.copy(makeUpMissed = null, showCalendar = false, showTiles = false, eventsUnseen = 2))
         paparazzi.snapshot(view)
     }
     @Test fun waitingLight() = snap(waiting, night = false)
