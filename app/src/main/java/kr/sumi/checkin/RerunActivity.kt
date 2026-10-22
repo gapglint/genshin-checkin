@@ -94,6 +94,18 @@ class RerunActivity : Activity() {
             else -> R.color.ink_muted
         }
 
+        /** 원소를 떠올리게 하는 직접 그린 아이콘(불꽃·물방울·번개·눈송이·바람·보석·잎). */
+        fun elementIcon(element: String) = when (element) {
+            "Anemo" -> R.drawable.ic_element_anemo
+            "Geo" -> R.drawable.ic_element_geo
+            "Electro" -> R.drawable.ic_element_electro
+            "Dendro" -> R.drawable.ic_element_dendro
+            "Hydro" -> R.drawable.ic_element_hydro
+            "Pyro" -> R.drawable.ic_element_pyro
+            "Cryo" -> R.drawable.ic_element_cryo
+            else -> null
+        }
+
         fun elementName(element: String) = when (element) {
             "Anemo" -> "바람"
             "Geo" -> "바위"
@@ -110,7 +122,7 @@ class RerunActivity : Activity() {
 /**
  * 복각표 목록을 그린다(화면 스냅숏 테스트에서도 쓰려고 액티비티와 나눴다).
  * 맨 위는 가장 오래 기다린 캐릭터를 출석 카드처럼 큰 숫자로, 아래는 같은 버전 수끼리 캐릭터 동그라미를 격자로 놓는다.
- * 캐릭터 그림 대신 원소 색 동그라미에 이름 첫 글자를 쓴다.
+ * 캐릭터 그림 대신 원소 색 동그라미에 원소 아이콘(불꽃·물방울 등)을 넣는다.
  */
 class RerunList(private val context: Context) {
     private val density = context.resources.displayMetrics.density
@@ -123,7 +135,7 @@ class RerunList(private val context: Context) {
         this.list = list
         val ranked = data.ranked(today, standard = false)
         ranked.firstOrNull()?.let { (_, top) -> list.addView(hero(data, top, ranked.filter { it.second == top }.map { it.first })) }
-        list.addView(text("동그라미 색은 원소, 금색 테두리는 집대성 기원으로 나온 캐릭터예요.", 12f, R.color.ink_muted).apply {
+        list.addView(text("아이콘은 원소, 금색 테두리는 집대성 기원으로 나온 캐릭터예요.", 12f, R.color.ink_muted).apply {
             setPadding(dp(4), dp(10), dp(4), 0)
         })
         for ((since, group) in ranked.groupBy { it.second }.filterKeys { it != ranked.firstOrNull()?.second }) {
@@ -207,18 +219,16 @@ class RerunList(private val context: Context) {
         })
     }
 
-    /** 캐릭터 동그라미: 원소 색으로 칠하고 이름 첫 글자, 아래에 짧은 이름(과 마지막 픽업 버전). 집대성으로 나온 캐릭터는 금색 테두리. */
+    /** 캐릭터 동그라미: 원소 색으로 칠하고 원소 아이콘, 아래에 짧은 이름(과 마지막 픽업 버전). 집대성으로 나온 캐릭터는 금색 테두리. */
     private fun token(data: RerunData?, c: RerunCharacter, onDark: Boolean) = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         val short = shortName(c.ko)
         val base = color(RerunActivity.elementColor(c.element))
-        addView(TextView(context).apply {
-            text = short.take(1)
-            textSize = 20f
-            gravity = Gravity.CENTER
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(0xFFFFFFFF.toInt())
+        addView(android.widget.ImageView(context).apply {
+            RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
+            setPadding(dp(13), dp(13), dp(13), dp(13))
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 intArrayOf(lighten(base), base),
