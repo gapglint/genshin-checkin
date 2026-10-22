@@ -65,9 +65,8 @@ class RerunActivity : Activity() {
             status.text = error?.let { "불러오지 못했어요: $it" } ?: "불러오는 중..."
             return
         }
-        val current = data.current(today)
-        status.text = "마지막 픽업 뒤 지난 버전 수예요. 오래될수록 복각이 가까울 수 있어요." +
-            (current?.let { "\n지금 버전: ${it.label}" } ?: "")
+        // 설명과 지금 버전은 판 위에 있어서 머리말 아래 안내는 짧게.
+        status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
 
         RerunList(this).fill(list, data, today)
     }
@@ -131,35 +130,99 @@ class RerunList(private val context: Context) {
     private fun color(id: Int) = context.getColor(id)
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
 
+    private var current: String? = null
+
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
-        val ranked = data.ranked(today, standard = false)
-        list.addView(text("숫자는 마지막 픽업 뒤 지난 버전 수예요. 금색 테두리는 집대성으로 나온 캐릭터예요.", 12f, R.color.ink_muted).apply {
-            setPadding(dp(4), 0, dp(4), dp(10))
-        })
-        list.addView(board(data, ranked))
+        current = data.current(today)?.v
+        list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }))
         val standard = data.ranked(today, standard = true)
         if (standard.isNotEmpty()) {
-            list.addView(text("상시 캐릭터", 16f, R.color.ink, bold = true).apply { setPadding(dp(4), dp(24), 0, 0) })
-            list.addView(text("상시 기원에서도 나와요", 12f, R.color.ink_muted).apply { setPadding(dp(4), dp(2), 0, dp(10)) })
-            list.addView(board(data, standard))
+            list.addView(board(data, standard, "상시 캐릭터", legend = false, note = "상시 기원에서도 나와요").apply {
+                (layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(16)
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
         list.addView(text(
             "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.",
             12f, R.color.ink_muted,
-        ).apply { setPadding(dp(4), dp(24), dp(4), 0) })
+        ).apply { setPadding(dp(4), dp(20), dp(4), 0) })
     }
 
-    /** 남색 판 위에 캐릭터를 한 줄에 5명씩 오래된 순으로. */
-    private fun board(data: RerunData, ranked: List<Pair<RerunCharacter, Int>>) = LinearLayout(context).apply {
+    /**
+     * 남색 판: 위에 제목과 '숫자가 무엇인지' 설명(같은 모양의 작은 표시로), 아래에 캐릭터를 한 줄에 5명씩 오래된 순으로.
+     */
+    private fun board(
+        data: RerunData, ranked: List<Pair<RerunCharacter, Int>>, title: String,
+        legend: Boolean, now: String? = null, note: String? = null,
+    ) = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundResource(R.drawable.bg_hero)
         clipToOutline = true
-        setPadding(dp(6), dp(16), dp(6), dp(6))
+        setPadding(dp(6), dp(18), dp(6), dp(6))
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), 0, dp(12), 0)
+            addView(text(title, 18f, R.color.hero_ink, bold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            now?.let { addView(pill("지금 $it", R.color.hero_line, R.color.hero_ink, 12f)) }
+        })
+        if (legend) {
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), dp(10), dp(12), 0)
+                addView(badge(12, small = true))
+                addView(text("마지막 픽업 뒤 지난 버전 수", 13f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) })
+            })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(dp(12), dp(8), dp(12), 0)
+                addView(pill("신규", R.color.rerun_recent, R.color.on_action, 11f))
+                addView(pill("집대성", R.color.gold, R.color.on_gold, 11f).apply { (layoutParams as? LinearLayout.LayoutParams) }, gap())
+                addView(pill("복각 없음", R.color.element_hydro, R.color.on_action, 11f), gap())
+                addView(text("표시가 붙어요", 12f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) }, gap())
+            })
+        }
+        note?.let { addView(text(it, 13f, R.color.hero_muted).apply { setPadding(dp(12), dp(6), dp(12), 0) }) }
+        addView(View(context), LinearLayout.LayoutParams(MATCH_PARENT, dp(16)))
         for (row in ranked.chunked(COLUMNS)) addView(LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             for ((c, since) in row) addView(tile(data, c, since), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             repeat(COLUMNS - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(12) })
+    }
+
+    private fun gap() = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(6) }
+
+    private fun pill(value: String, bg: Int, fg: Int, size: Float) = TextView(context).apply {
+        text = value
+        textSize = size
+        setTypeface(typeface, Typeface.BOLD)
+        setTextColor(color(fg))
+        includeFontPadding = false
+        setPadding(dp(7), dp(3), dp(7), dp(3))
+        background = GradientDrawable().apply { cornerRadius = dp(10).toFloat(); setColor(color(bg)) }
+    }
+
+    /** 지난 버전 수 표시: 오래될수록 진한 색, 9 이상은 더 크게. */
+    private fun badge(since: Int, small: Boolean = false) = TextView(context).apply {
+        text = if (since == 0) "NOW" else "$since"
+        textSize = when {
+            since == 0 -> 10f
+            small -> 13f
+            since >= 9 -> 17f
+            else -> 14f
+        }
+        typeface = if (since == 0) Typeface.DEFAULT_BOLD else numerals
+        includeFontPadding = false
+        gravity = Gravity.CENTER
+        minWidth = dp(24)
+        setTextColor(0xFFFFFFFF.toInt())
+        setPadding(dp(6), dp(2), dp(6), dp(2))
+        background = GradientDrawable().apply {
+            cornerRadius = dp(12).toFloat()
+            setColor(color(RerunActivity.tone(since)))
+            setStroke(dp(2), color(R.color.hero))
+        }
     }
 
     /** 캐릭터 한 칸: 원소 동그라미 + 오른쪽 아래 지난 버전 수 + 원소 색 이름. 최근에 나온 캐릭터는 흐리게. */
@@ -180,25 +243,9 @@ class RerunList(private val context: Context) {
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(lighten(base, 0.35f), base)).apply {
                     shape = GradientDrawable.OVAL
-                    if (c.chronicled) setStroke(dp(2), color(R.color.gold))
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
-            // 지난 버전 수: 오래될수록 진한 색, 9 이상은 더 크게.
-            addView(TextView(context).apply {
-                text = if (since == 0) "NOW" else "$since"
-                textSize = if (since == 0) 10f else if (strong) 17f else 14f
-                typeface = if (since == 0) Typeface.DEFAULT_BOLD else numerals
-                includeFontPadding = false
-                gravity = Gravity.CENTER
-                minWidth = dp(24)
-                setTextColor(0xFFFFFFFF.toInt())
-                setPadding(dp(6), dp(2), dp(6), dp(2))
-                background = GradientDrawable().apply {
-                    cornerRadius = dp(12).toFloat()
-                    setColor(color(RerunActivity.tone(since)))
-                    setStroke(dp(2), color(R.color.hero))
-                }
-            }, android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
+            addView(badge(since), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
         }, LinearLayout.LayoutParams(dp(62), dp(58)))
         addView(text(shortName(c.ko), if (strong) 13f else 12f, 0, bold = strong).apply {
             setTextColor(lighten(base, 0.45f))
@@ -207,9 +254,18 @@ class RerunList(private val context: Context) {
             gravity = Gravity.CENTER
             setPadding(dp(2), dp(4), dp(2), 0)
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        addView(text(data.label(c.last), 10f, R.color.hero_muted).apply { gravity = Gravity.CENTER })
+        // 신규 > 집대성 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
+        val tag = when {
+            c.first != null && c.first == current -> pill("신규", R.color.rerun_recent, R.color.on_action, 10f)
+            c.chronicled -> pill("집대성", R.color.gold, R.color.on_gold, 10f)
+            !c.standard && c.runs <= 1 -> pill("복각 없음", R.color.element_hydro, R.color.on_action, 10f)
+            else -> null
+        }
+        addView(tag ?: text(data.label(c.last), 10f, R.color.hero_muted).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(2) })
         contentDescription = "${c.ko}, ${RerunActivity.elementName(c.element)}, " +
-            (if (since == 0) "지금 픽업 중" else "${since}버전 전") + (if (c.chronicled) ", 집대성" else "")
+            (if (since == 0) "지금 픽업 중" else "${since}버전 전") + ", 마지막 ${data.label(c.last)}" +
+            (if (c.chronicled) ", 집대성" else "")
     }
 
     /** '카에데하라 카즈하' → '카즈하'처럼 성을 뗀 이름. 한 단어면 그대로. */

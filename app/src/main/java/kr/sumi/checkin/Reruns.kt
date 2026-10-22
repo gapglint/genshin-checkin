@@ -10,7 +10,10 @@ import java.time.LocalDate
 /** 복각표에 쓰는 버전 하나. label은 화면에 보일 이름(6.x는 'Luna I'처럼). */
 data class GameVersion(val v: String, val label: String, val start: LocalDate)
 
-/** 5성 캐릭터의 마지막 픽업. chronicled는 집대성(여러 5성 모음) 기원, standard는 상시 기원에도 나오는 캐릭터. */
+/**
+ * 5성 캐릭터의 마지막 픽업. chronicled는 집대성(여러 5성 모음) 기원, standard는 상시 기원에도 나오는 캐릭터.
+ * first는 처음 픽업된 버전, runs는 혼자 픽업된 횟수(1이면 아직 복각 없음).
+ */
 data class RerunCharacter(
     val name: String,
     val ko: String,
@@ -18,6 +21,8 @@ data class RerunCharacter(
     val last: String,
     val chronicled: Boolean,
     val standard: Boolean,
+    val first: String? = null,
+    val runs: Int = 0,
 )
 
 data class RerunData(val versions: List<GameVersion>, val characters: List<RerunCharacter>) {
@@ -101,6 +106,8 @@ object Reruns {
                     last = it.getString("last"),
                     chronicled = it.optBoolean("chronicled"),
                     standard = it.optBoolean("standard"),
+                    first = it.optString("first").ifEmpty { null },
+                    runs = it.optInt("runs"),
                 )
             }
         }
