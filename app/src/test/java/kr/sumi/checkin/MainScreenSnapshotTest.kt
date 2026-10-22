@@ -34,7 +34,7 @@ class MainScreenSnapshotTest {
             expeditions = "2/5 완료", expeditionsSub = "2시간 뒤 모두 끝나요", coin = "1,840", coinSub = "/ 2,400",
             commissions = "3/4", commissionsSub = "1개 남았어요", updated = "오전 7:36 기준",
         ),
-        rerunTop = "호두 · 17버전째 기다리는 중",
+        rerunTop = "지금 픽업 · 에스코피에 · 스커크" to "11월 3일까지 (12일 남음) · 눌러서 복각표",
     )
     private val waiting = MainUiState(
         loggedIn = true, uid = "800000000", totalDays = 16, month = 10, lastChecked = "10월 18일 03:00",

@@ -68,7 +68,20 @@ class RerunActivity : Activity() {
         // 설명과 지금 버전은 판 위에 있어서 머리말 아래 안내는 짧게.
         status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
 
-        RerunList(this).fill(list, data, today)
+        RerunList(this, Reruns.watched(this)) { c -> toggleWatch(c) }.fill(list, data, today)
+    }
+
+    /** 캐릭터를 누르면 픽업 알림을 켜고 끈다. 이미 올라온 픽업이 있으면 바로 한 번 알린다. */
+    private fun toggleWatch(c: RerunCharacter) {
+        val on = c.name !in Reruns.watched(this)
+        Reruns.setWatched(this, c.name, on)
+        android.widget.Toast.makeText(
+            this,
+            if (on) "${c.ko} 픽업이 뜨면 알려 드릴게요" else "${c.ko} 픽업 알림을 껐어요",
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
+        if (on) Reruns.checkWatch(this)
+        render()
     }
 
     companion object {
@@ -124,17 +137,31 @@ class RerunActivity : Activity() {
  * 오래 기다린 캐릭터일수록 숫자 색이 진하고 크게, 최근에 나온 캐릭터는 흐리게 그려 눈이 먼저 가게 한다.
  * 캐릭터 그림 대신 원소 색 동그라미에 원소 아이콘을 넣고, 이름도 원소 색으로 쓴다.
  */
-class RerunList(private val context: Context) {
+class RerunList(
+    private val context: Context,
+    /** 픽업 알림을 받기로 한 캐릭터(종 표시). */
+    private val watched: Set<String> = emptySet(),
+    /** 캐릭터를 누르면 알림 받기를 켜고 끈다. null이면 누를 수 없다(스냅숏 등). */
+    private val onToggle: ((RerunCharacter) -> Unit)? = null,
+) {
     private val density = context.resources.displayMetrics.density
     private fun dp(v: Int) = (v * density).toInt()
     private fun color(id: Int) = context.getColor(id)
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
 
     private var current: String? = null
+    private var liveNames: Set<String> = emptySet()
 
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
         current = data.current(today)?.v
-        list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }))
+        val live = data.live(today)
+        liveNames = live.flatMap { it.chars }.toSet()
+        pickups(data, live, today, "지금 픽업 중")?.let { list.addView(it) }
+        pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
+            list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
+        }
+        list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }),
+            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty()) 0 else dp(16) })
         val standard = data.ranked(today, standard = true)
         if (standard.isNotEmpty()) {
             list.addView(board(data, standard, "상시 캐릭터", legend = false, note = "상시 기원에서도 나와요").apply {
@@ -145,6 +172,38 @@ class RerunList(private val context: Context) {
             "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.",
             12f, R.color.ink_muted,
         ).apply { setPadding(dp(4), dp(20), dp(4), 0) })
+    }
+
+    /** 진행 중(또는 다음) 픽업: 금색 테두리 판에 캐릭터와 기간. 픽업이 없으면 null. */
+    private fun pickups(data: RerunData, banners: List<Banner>, today: java.time.LocalDate, title: String): View? {
+        val chars = banners.flatMap { it.chars }.distinct().mapNotNull { data.character(it) }
+        if (chars.isEmpty()) return null
+        val start = banners.minOf { it.start }
+        val end = banners.minOf { it.end }
+        fun day(d: java.time.LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
+        val period = if (start.isAfter(today)) "${day(start)} ~ ${day(end)}"
+            else "${day(end)}까지 · ${java.time.temporal.ChronoUnit.DAYS.between(today, end)}일 남음"
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                cornerRadius = dp(24).toFloat()
+                setColor(color(R.color.hero))
+                setStroke(dp(2), color(R.color.gold))
+            }
+            setPadding(dp(6), dp(16), dp(6), dp(4))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), 0, dp(12), dp(12))
+                addView(text(title, 18f, R.color.gold, bold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(text(period, 13f, R.color.hero_ink))
+            })
+            for (row in chars.chunked(COLUMNS)) addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                for (c in row) addView(tile(data, c, data.since(c, today) ?: 0), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                repeat(COLUMNS - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }
+            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(12) })
+        }
     }
 
     /**
@@ -181,6 +240,9 @@ class RerunList(private val context: Context) {
                 addView(pill("복각 없음", R.color.element_hydro, R.color.on_action, 11f), gap())
                 addView(text("표시가 붙어요", 12f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) }, gap())
             })
+            if (onToggle != null) addView(text("캐릭터를 누르면 그 캐릭터 픽업이 뜰 때 알려 드려요 🔔", 12f, R.color.hero_muted).apply {
+                setPadding(dp(12), dp(8), dp(12), 0)
+            })
         }
         note?.let { addView(text(it, 13f, R.color.hero_muted).apply { setPadding(dp(12), dp(6), dp(12), 0) }) }
         addView(View(context), LinearLayout.LayoutParams(MATCH_PARENT, dp(16)))
@@ -204,15 +266,15 @@ class RerunList(private val context: Context) {
     }
 
     /** 지난 버전 수 표시: 오래될수록 진한 색, 9 이상은 더 크게. */
-    private fun badge(since: Int, small: Boolean = false) = TextView(context).apply {
-        text = if (since == 0) "NOW" else "$since"
+    private fun badge(since: Int, small: Boolean = false, live: Boolean = since == 0) = TextView(context).apply {
+        text = if (live) "NOW" else "$since"
         textSize = when {
             since == 0 -> 10f
             small -> 13f
             since >= 9 -> 17f
             else -> 14f
         }
-        typeface = if (since == 0) Typeface.DEFAULT_BOLD else numerals
+        typeface = if (live) Typeface.DEFAULT_BOLD else numerals
         includeFontPadding = false
         gravity = Gravity.CENTER
         minWidth = dp(24)
@@ -232,6 +294,7 @@ class RerunList(private val context: Context) {
         val base = color(RerunActivity.elementColor(c.element))
         val strong = since >= 9
         alpha = when {
+            c.name in liveNames -> 1f // 지금 픽업 중이면 흐리게 하지 않는다
             since <= 2 -> 0.55f
             since <= 5 -> 0.85f
             else -> 1f
@@ -245,7 +308,14 @@ class RerunList(private val context: Context) {
                     shape = GradientDrawable.OVAL
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
-            addView(badge(since), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
+            addView(badge(since, live = c.name in liveNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
+            // 픽업 알림을 받기로 한 캐릭터: 왼쪽 위에 종.
+            if (c.name in watched) addView(TextView(context).apply {
+                text = "🔔"
+                textSize = 12f
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color(R.color.gold)); setStroke(dp(2), color(R.color.hero)) }
+            }, android.widget.FrameLayout.LayoutParams(dp(24), dp(24), Gravity.TOP or Gravity.START))
         }, LinearLayout.LayoutParams(dp(62), dp(58)))
         addView(text(shortName(c.ko), if (strong) 13f else 12f, 0, bold = strong).apply {
             setTextColor(lighten(base, 0.45f))
@@ -263,7 +333,12 @@ class RerunList(private val context: Context) {
         }
         addView(tag ?: text(data.label(c.last), 10f, R.color.hero_muted).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(2) })
-        contentDescription = "${c.ko}, ${RerunActivity.elementName(c.element)}, " +
+        onToggle?.let { toggle ->
+            isClickable = true
+            foreground = context.getDrawable(android.R.drawable.list_selector_background)
+            setOnClickListener { toggle(c) }
+        }
+        contentDescription = (if (c.name in watched) "픽업 알림 받는 중, " else "") + "${c.ko}, ${RerunActivity.elementName(c.element)}, " +
             (if (since == 0) "지금 픽업 중" else "${since}버전 전") + ", 마지막 ${data.label(c.last)}" +
             (if (c.chronicled) ", 집록" else "")
     }

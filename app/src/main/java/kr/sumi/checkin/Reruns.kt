@@ -25,7 +25,25 @@ data class RerunCharacter(
     val runs: Int = 0,
 )
 
-data class RerunData(val versions: List<GameVersion>, val characters: List<RerunCharacter>) {
+/** 픽업 하나(시작~종료일, 5성 캐릭터들). 5성이 여럿이면 집록 기원. */
+data class Banner(val version: String, val start: LocalDate, val end: LocalDate, val chars: List<String>, val chronicled: Boolean)
+
+data class RerunData(
+    val versions: List<GameVersion>,
+    val characters: List<RerunCharacter>,
+    val banners: List<Banner> = emptyList(),
+) {
+    /** 오늘 진행 중인 픽업. */
+    fun live(today: LocalDate) = banners.filter { !it.start.isAfter(today) && !it.end.isBefore(today) }
+
+    /** 아직 시작하지 않은, 위키에 미리 올라온 픽업 중 가장 가까운 묶음(같은 날 시작하는 것들). */
+    fun upcoming(today: LocalDate): List<Banner> {
+        val next = banners.filter { it.start.isAfter(today) }.minOfOrNull { it.start } ?: return emptyList()
+        return banners.filter { it.start == next }
+    }
+
+    fun character(name: String) = characters.firstOrNull { it.name == name }
+
     /** today 기준 지금 버전: 시작일이 지난 버전 중 가장 늦은 것. */
     fun current(today: LocalDate): GameVersion? = versions.lastOrNull { !it.start.isAfter(today) }
 
@@ -111,7 +129,42 @@ object Reruns {
                 )
             }
         }
-        return RerunData(versions, characters)
+        val banners = json.optJSONArray("banners")?.let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.map { b ->
+                val chars = b.getJSONArray("chars").let { c -> (0 until c.length()).map { c.getString(it) } }
+                Banner(b.optString("version"), LocalDate.parse(b.getString("start")), LocalDate.parse(b.getString("end")), chars, b.optBoolean("chronicled"))
+            }
+        }.orEmpty()
+        return RerunData(versions, characters, banners)
+    }
+
+    /** 픽업 알림을 받을 캐릭터(영어 이름). */
+    fun watched(context: Context): Set<String> = prefs(context).getStringSet("watch", emptySet()).orEmpty()
+
+    fun setWatched(context: Context, name: String, on: Boolean) {
+        val now = watched(context).toMutableSet().apply { if (on) add(name) else remove(name) }
+        prefs(context).edit().putStringSet("watch", now).apply()
+    }
+
+    /**
+     * 기다리는 캐릭터의 픽업이 자료에 올라왔으면(앞으로 열리거나 지금 진행 중) 한 번만 알린다.
+     * 같은 캐릭터·같은 픽업은 다시 알리지 않는다. 알릴 것: (캐릭터, 픽업) 목록을 돌려주고 알린 것으로 기억한다.
+     */
+    internal fun dueAlerts(data: RerunData, watched: Set<String>, notified: Set<String>, today: LocalDate): List<Pair<RerunCharacter, Banner>> =
+        data.banners.filter { !it.end.isBefore(today) }
+            .flatMap { b -> b.chars.filter { it in watched && "$it|${b.start}" !in notified }.mapNotNull { n -> data.character(n)?.let { it to b } } }
+
+    /** 자료를 받은 뒤 부른다. 알림이 꺼져 있거나 기다리는 캐릭터가 없으면 아무것도 안 한다. */
+    fun checkWatch(context: Context) {
+        val watched = watched(context)
+        if (watched.isEmpty() || !AppSettings(context).rerunAlert) return
+        val data = cached(context) ?: return
+        val prefs = prefs(context)
+        val notified = prefs.getStringSet("notified", emptySet()).orEmpty()
+        val due = dueAlerts(data, watched, notified, ServerClock.today())
+        if (due.isEmpty()) return
+        for ((c, b) in due) Notifier.notifyRerun(context, c, b, ServerClock.today())
+        prefs.edit().putStringSet("notified", notified + due.map { (c, b) -> "${c.name}|${b.start}" }).apply()
     }
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

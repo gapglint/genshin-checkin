@@ -746,6 +746,16 @@
                     android:textColor="@color/ink"
                     android:textSize="16sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/rerunSub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/ink_muted"
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <ImageView

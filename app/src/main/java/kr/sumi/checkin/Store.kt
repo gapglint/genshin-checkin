@@ -362,6 +362,10 @@ class AppSettings(private val context: Context) {
     var showCalendar: Boolean
         get() = prefs.getBoolean("show_calendar", true)
         set(value) = prefs.edit { putBoolean("show_calendar", value) }
+    /** 기다리는 캐릭터의 픽업이 뜨면 알릴지. */
+    var rerunAlert: Boolean
+        get() = prefs.getBoolean("rerun_alert", true)
+        set(value) = prefs.edit { putBoolean("rerun_alert", value) }
     var showReruns: Boolean
         get() = prefs.getBoolean("show_reruns", true)
         set(value) = prefs.edit { putBoolean("show_reruns", value) }

@@ -37,4 +37,18 @@ class RerunsTest {
         // 7.1이 시작하기 전날은 7.0이 지금 버전
         assertEquals("7.0", data.current(LocalDate.of(2026, 9, 22))!!.v)
     }
+
+    @Test fun liveAndUpcomingBanners() {
+        assertEquals(setOf("Escoffier", "Skirk"), data.live(day).flatMap { it.chars }.toSet())
+        assertTrue(data.upcoming(day).isEmpty())
+    }
+
+    @Test fun watchedCharacterAlertsOncePerBanner() {
+        val due = Reruns.dueAlerts(data, setOf("Skirk", "Hu Tao"), emptySet(), day)
+        assertEquals(listOf("Skirk"), due.map { it.first.name })
+        val key = "Skirk|${due.single().second.start}"
+        assertTrue(Reruns.dueAlerts(data, setOf("Skirk"), setOf(key), day).isEmpty())
+        // 끝난 픽업은 알리지 않는다
+        assertTrue(Reruns.dueAlerts(data, setOf("Vesna"), emptySet(), day).isEmpty())
+    }
 }

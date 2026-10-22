@@ -22,7 +22,7 @@ class RerunSnapshotTest {
             val d = context.resources.displayMetrics.density
             setPadding((16 * d).toInt(), 0, (16 * d).toInt(), (24 * d).toInt())
         }
-        RerunList(context).fill(list, data, LocalDate.of(2026, 10, 22))
+        RerunList(context, watched = setOf("Hu Tao", "Furina")) {}.fill(list, data, LocalDate.of(2026, 10, 22))
         paparazzi.snapshot(ScrollView(context).apply { setBackgroundResource(R.color.bg); addView(list) })
     }
 }

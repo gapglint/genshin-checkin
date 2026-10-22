@@ -147,10 +147,11 @@ class MainActivity : Activity() {
 
     /** 복각표 자료를 하루 한 번 조용히 받아 온다(작은 파일, 바뀌지 않았으면 받지 않는다). */
     private fun loadRerunsIfStale() {
-        if (!settings.showReruns || loadingReruns || Reruns.isFresh(this)) return
+        if ((!settings.showReruns && Reruns.watched(this).isEmpty()) || loadingReruns || Reruns.isFresh(this)) return
         loadingReruns = true
         Thread {
             val changed = try { Reruns.refresh(this) } catch (e: IOException) { false }
+            Reruns.checkWatch(this)
             runOnUiThread {
                 loadingReruns = false
                 if (changed) refresh()
@@ -158,12 +159,20 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** 복각표 버튼의 한 줄: 가장 오래 안 나온 캐릭터(같으면 여럿 중 첫 명과 인원). */
-    private fun rerunTop(): String? {
-        val ranked = Reruns.cached(this)?.ranked(ServerClock.today(), standard = false) ?: return null
+    /** 복각표 버튼: 지금 픽업 중인 캐릭터와 끝나는 날. 진행 중인 픽업을 모르면 가장 오래 기다린 캐릭터. */
+    private fun rerunTop(): Pair<String, String>? {
+        val data = Reruns.cached(this) ?: return null
+        val today = ServerClock.today()
+        val live = data.live(today)
+        if (live.isNotEmpty()) {
+            val names = live.flatMap { it.chars }.distinct().mapNotNull { data.character(it)?.ko }
+            val end = live.minOf { it.end }
+            val left = java.time.temporal.ChronoUnit.DAYS.between(today, end)
+            return "지금 픽업 · ${names.joinToString(" · ")}" to "${end.monthValue}월 ${end.dayOfMonth}일까지 (${left}일 남음) · 눌러서 복각표"
+        }
+        val ranked = data.ranked(today, standard = false)
         val (first, since) = ranked.firstOrNull() ?: return null
-        val same = ranked.count { it.second == since }
-        return "${first.ko}${if (same > 1) " 외 ${same - 1}명" else ""} · ${since}버전째 기다리는 중"
+        return "${first.ko} · ${since}버전째 기다리는 중" to "눌러서 복각표"
     }
 
     /**

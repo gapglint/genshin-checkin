@@ -17,6 +17,7 @@ object Notifier {
     private const val CHANNEL_REDEEM = "redeem"
     private const val CHANNEL_QUIET = "quiet_night"
     private const val CHANNEL_NOTES = "notes"
+    private const val CHANNEL_RERUN = "rerun"
     private const val ID_REDEEM = 3
     private const val ID_CHECK_IN = 1
     private const val ID_MAKE_UP = 2
@@ -24,6 +25,7 @@ object Notifier {
     private const val ID_RESIN = 5
     private const val ID_EXPEDITIONS = 6
     private const val ID_HOME_COIN = 7
+    private const val ID_RERUN = 8
 
     fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -31,6 +33,7 @@ object Notifier {
         manager.createNotificationChannel(NotificationChannel(CHANNEL_MAKE_UP, "보충 출석", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_REDEEM, "리딤 코드", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_NOTES, "레진·탐사 파견", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_RERUN, "기다리는 캐릭터 픽업", NotificationManager.IMPORTANCE_DEFAULT))
         manager.createNotificationChannel(NotificationChannel(CHANNEL_QUIET, "밤 알림(소리 없음)", NotificationManager.IMPORTANCE_LOW))
     }
 
@@ -198,6 +201,31 @@ object Notifier {
         if (alerts.coin) {
             post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.")
         }
+    }
+
+    /** 기다리던 캐릭터의 픽업이 열리거나(예정) 진행 중일 때. 누르면 복각표를 연다. 캐릭터·픽업마다 한 번(Reruns가 기억). */
+    @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
+    fun notifyRerun(context: Context, c: RerunCharacter, b: Banner, today: java.time.LocalDate) {
+        if (!canNotify(context)) return
+        fun day(d: java.time.LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
+        val (title, text) = if (b.start.isAfter(today)) {
+            "기다리던 ${c.ko} 픽업이 열려요" to "${day(b.start)}부터 ${day(b.end)}까지" + (if (b.chronicled) " · 집록 기원" else "")
+        } else {
+            "기다리던 ${c.ko} 픽업 중이에요" to "${day(b.end)}까지" + (if (b.chronicled) " · 집록 기원" else "")
+        }
+        val id = ID_RERUN * 10_000 + (c.name.hashCode() and 0x1FFF)
+        val pending = PendingIntent.getActivity(
+            context, id, RerunActivity.intent(context).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = Notification.Builder(context, channel(context, CHANNEL_RERUN))
+            .setSmallIcon(R.drawable.ic_notify)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        context.getSystemService(NotificationManager::class.java).notify(id, notification)
     }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */

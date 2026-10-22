@@ -88,7 +88,14 @@ class CheckInJobService : JobService() {
                         if (AppSettings(app).hasAccounts) DailyAlarm.schedule(app)
                         val limited = CheckIn.runAll(app).any { it is Outcome.RateLimited }
                         // 6시간 주기 작업에 실시간 메모 확인도 얹는다. 알람이 밀렸어도 여기서 다시 잡힌다.
-                        if (params.jobId == Jobs.PERIODIC) Notes.checkAll(app)
+                        if (params.jobId == Jobs.PERIODIC) {
+                            Notes.checkAll(app)
+                            // 기다리는 캐릭터가 있으면 복각표 자료도 확인한다(작은 파일, 12시간에 한 번).
+                            if (Reruns.watched(app).isNotEmpty()) {
+                                try { Reruns.refresh(app) } catch (e: IOException) {}
+                                Reruns.checkWatch(app)
+                            }
+                        }
                         limited
                     }
                 }

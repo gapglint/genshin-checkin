@@ -94,7 +94,7 @@ data class MainUiState(
     val showCalendar: Boolean = true,
     val showReruns: Boolean = true,
     /** 복각표 버튼에 보일 한 줄(가장 오래 안 나온 캐릭터). 자료가 아직 없으면 null. */
-    val rerunTop: String? = null,
+    val rerunTop: Pair<String, String>? = null,
     /** 출석 카드 아래 카드 순서(CARDS의 이름). */
     val cardOrder: List<String> = CARDS,
     /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
@@ -146,6 +146,7 @@ class MainScreen(val root: View) {
     private val calendarCard: View = root.findViewById(R.id.calendarCard)
     val rerunCard: View = root.findViewById(R.id.rerunCard)
     private val rerunValue: TextView = root.findViewById(R.id.rerunValue)
+    private val rerunSub: TextView = root.findViewById(R.id.rerunSub)
     private val calendarTitle: TextView = root.findViewById(R.id.calendarTitle)
     private val calendarCount: TextView = root.findViewById(R.id.calendarCount)
     private val calendarGrid: LinearLayout = root.findViewById(R.id.calendarGrid)
@@ -425,7 +426,8 @@ class MainScreen(val root: View) {
     private fun renderCalendar(s: MainUiState) {
         calendarCard.visibility = if (s.loggedIn && s.showCalendar && (s.calendar.isNotEmpty() || s.editing)) View.VISIBLE else View.GONE
         rerunCard.visibility = if (s.loggedIn && s.showReruns) View.VISIBLE else View.GONE
-        rerunValue.text = s.rerunTop ?: "캐릭터별 마지막 픽업 보기"
+        rerunValue.text = s.rerunTop?.first ?: "캐릭터별 마지막 픽업 보기"
+        rerunSub.text = s.rerunTop?.second ?: "눌러서 복각표"
         if (s.calendar.isEmpty()) {
             // 편집 중에 아직 못 받았으면 제목만.
             calendarTitle.text = "${s.month}월 출석 보상"
