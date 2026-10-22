@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 복각표 카드 바탕: 출석 카드와 같은 남색에 오른쪽 위 별 장식. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/bg_hero" />
+    <item
+        android:width="140dp"
+        android:height="140dp"
+        android:drawable="@drawable/hero_motif"
+        android:gravity="top|end"
+        android:right="-28dp"
+        android:top="-22dp" />
+</layer-list>

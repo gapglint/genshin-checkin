@@ -600,16 +600,14 @@ class MainScreen(val root: View) {
                 addView(TextView(context).apply {
                     text = name.trim().split(" ").last()
                     textSize = 13f
+                    gravity = android.view.Gravity.CENTER
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                     setTextColor(RerunActivity.light(base))
                     maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
                     setPadding(0, dp(6), 0, 0)
-                })
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        }
-        // 한 줄을 넷으로 나눠, 둘이면 왼쪽부터 같은 간격으로 놓인다.
-        repeat((4 - (r?.chars?.size ?: 0)).coerceAtLeast(0)) {
-            rerunChars.addView(View(context), LinearLayout.LayoutParams(0, 0, 1f))
+                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            }, LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
         }
         rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, "눌러서 복각표").joinToString(", ")
     }
