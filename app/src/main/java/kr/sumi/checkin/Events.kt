@@ -7,8 +7,8 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** 호요랩 원신 이벤트 하나. path는 웹이벤트 주소(https://…) 또는 안내 글(/article/번호). 시각은 초. */
-data class GameEvent(val id: String, val name: String, val start: Long, val end: Long, val path: String, val live: Boolean)
+/** 호요랩 원신 이벤트 하나. path는 웹이벤트 주소(https://…) 또는 안내 글(/article/번호). 시각은 초. banner는 호요랩 배너 그림 주소. */
+data class GameEvent(val id: String, val name: String, val start: Long, val end: Long, val path: String, val live: Boolean, val banner: String = "")
 
 /**
  * 호요랩 원신 이벤트 목록(웹이벤트, 원석 보상 토론 등). 로그인 없이 받는 공개 목록이다.
@@ -88,6 +88,7 @@ object Events {
                 path = it.optString("web_path").ifEmpty { it.optString("app_path") },
                 // 3 = 진행 중, 4 = 끝남 (호요랩 표시)
                 live = it.optInt("status") == 3,
+                banner = it.optString("banner_url").takeIf { u -> u.startsWith("https://") }.orEmpty(),
             )
         }.filter { it.id.isNotEmpty() && it.name.isNotEmpty() }
     }

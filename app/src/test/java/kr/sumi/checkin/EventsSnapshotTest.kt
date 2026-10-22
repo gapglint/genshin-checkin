@@ -21,7 +21,14 @@ class EventsSnapshotTest {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.color.bg)
             setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), 0)
-            addView(EventsList(c, now) {}.build(live))
+            // 배너 그림은 저장소에 넣지 않는다. EVENT_BANNERS 폴더(이벤트id.jpg)가 있으면 미리보기용으로 넣어 본다.
+            val dir = System.getenv("EVENT_BANNERS")?.let { java.io.File(it) }
+            val images = { url: String, view: android.widget.ImageView ->
+                val id = live.firstOrNull { it.banner == url }?.id
+                val file = dir?.let { java.io.File(it, "$id.jpg") }
+                if (file != null && file.exists()) view.setImageBitmap(android.graphics.BitmapFactory.decodeFile(file.path))
+            }
+            addView(EventsList(c, now, images) {}.build(live))
         })
     }
 }
