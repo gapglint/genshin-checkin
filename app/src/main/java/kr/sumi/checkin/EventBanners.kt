@@ -14,12 +14,12 @@ import java.util.concurrent.Executors
 
 /**
  * 이벤트 배너 그림. 호요랩 주소에서 그때그때 받아 보여 준다(앱에 넣지 않는다).
- * 받은 파일은 캐시 폴더에 두고(이벤트가 끝나면 3주 뒤 지운다), 화면 폭에 맞게 줄여 읽는다.
+ * 받은 파일은 캐시 폴더에 두고(3주 안 쓰면 지운다), 해상도는 줄이지 않는다.
  */
 object EventBanners {
     private val pool = Executors.newFixedThreadPool(2)
     private val main = Handler(Looper.getMainLooper())
-    private val memory = object : LruCache<String, Bitmap>(12 * 1024 * 1024) {
+    private val memory = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 8).toInt()) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
     private const val KEEP_MS = 21 * 24 * 60 * 60_000L
@@ -30,9 +30,8 @@ object EventBanners {
         view.tag = url
         memory.get(url)?.let { view.setImageBitmap(it); return }
         val app = context.applicationContext
-        val width = app.resources.displayMetrics.widthPixels
         pool.execute {
-            val bitmap = runCatching { decode(fetch(app, url), width) }.getOrNull() ?: return@execute
+            val bitmap = runCatching { decode(fetch(app, url)) }.getOrNull() ?: return@execute
             memory.put(url, bitmap)
             main.post { if (view.tag == url) view.setImageBitmap(bitmap) }
         }
@@ -46,13 +45,12 @@ object EventBanners {
         val todo = urls.filter { it.isNotEmpty() && memory.get(it) == null }.distinct()
         if (todo.isEmpty()) { done(); return }
         val app = context.applicationContext
-        val width = app.resources.displayMetrics.widthPixels
         var called = false
         val finish = Runnable { if (!called) { called = true; done() } }
         var left = todo.size
         main.postDelayed(finish, timeoutMs)
         for (url in todo) pool.execute {
-            runCatching { decode(fetch(app, url), width) }.getOrNull()?.let { memory.put(url, it) }
+            runCatching { decode(fetch(app, url)) }.getOrNull()?.let { memory.put(url, it) }
             main.post { if (--left == 0) { main.removeCallbacks(finish); finish.run() } }
         }
     }
@@ -69,7 +67,7 @@ object EventBanners {
             if (conn.responseCode !in 200..299) throw java.io.IOException("HTTP ${conn.responseCode}")
             val tmp = File(dir, file.name + ".part")
             conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            compact(tmp, context.resources.displayMetrics.widthPixels)
+            compact(tmp)
             tmp.renameTo(file)
             return file
         } finally {
@@ -78,23 +76,16 @@ object EventBanners {
     }
 
     /**
-     * 받은 그림을 화면 폭에 맞춰 JPEG(품질 92)로 다시 저장해 본다. 원본보다 20% 넘게 작아질 때만 바꾼다.
-     * 사진 같은 PNG 배너는 크게 줄고, 이미 JPEG인 배너는 다시 저장해도 줄지 않아 원본을 그대로 둔다(화질 손해 없음).
+     * 받은 그림을 같은 해상도 그대로 JPEG(품질 92)로 다시 저장해 본다. 원본보다 20% 넘게 작아질 때만 바꾼다.
+     * 해상도는 줄이지 않는다(폰마다 화면이 달라서). 사진 같은 PNG 배너는 크게 줄고, 이미 JPEG인 배너는 원본을 그대로 둔다.
      */
-    private fun compact(file: File, width: Int) {
-        val bitmap = runCatching { decode(file, width) }.getOrNull() ?: return
-        val scaled = if (bitmap.width > width) Bitmap.createScaledBitmap(bitmap, width, bitmap.height * width / bitmap.width, true) else bitmap
+    private fun compact(file: File) {
+        val bitmap = runCatching { BitmapFactory.decodeFile(file.path) }.getOrNull() ?: return
         val out = java.io.ByteArrayOutputStream()
-        if (!scaled.compress(Bitmap.CompressFormat.JPEG, 92, out)) return
+        if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)) return
         if (out.size() < file.length() * 0.8) file.writeBytes(out.toByteArray())
     }
 
-    internal fun decode(file: File, width: Int): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, bounds)
-        if (bounds.outWidth <= 0) return null
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= width) sample *= 2
-        return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
-    }
+    internal fun decode(file: File): Bitmap? = BitmapFactory.decodeFile(file.path)
+
 }
