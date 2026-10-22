@@ -11,7 +11,7 @@ import java.time.LocalDate
 data class GameVersion(val v: String, val label: String, val start: LocalDate)
 
 /**
- * 5성 캐릭터의 마지막 픽업. chronicled는 집대성(여러 5성 모음) 기원, standard는 상시 기원에도 나오는 캐릭터.
+ * 5성 캐릭터의 마지막 픽업. chronicled는 집록(여러 5성 모음) 기원, standard는 상시 기원에도 나오는 캐릭터.
  * first는 처음 픽업된 버전, runs는 혼자 픽업된 횟수(1이면 아직 복각 없음).
  */
 data class RerunCharacter(

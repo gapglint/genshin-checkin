@@ -177,7 +177,7 @@ class RerunList(private val context: Context) {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(dp(12), dp(8), dp(12), 0)
                 addView(pill("신규", R.color.rerun_recent, R.color.on_action, 11f))
-                addView(pill("집대성", R.color.gold, R.color.on_gold, 11f).apply { (layoutParams as? LinearLayout.LayoutParams) }, gap())
+                addView(pill("집록", R.color.gold, R.color.on_gold, 11f).apply { (layoutParams as? LinearLayout.LayoutParams) }, gap())
                 addView(pill("복각 없음", R.color.element_hydro, R.color.on_action, 11f), gap())
                 addView(text("표시가 붙어요", 12f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) }, gap())
             })
@@ -254,10 +254,10 @@ class RerunList(private val context: Context) {
             gravity = Gravity.CENTER
             setPadding(dp(2), dp(4), dp(2), 0)
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        // 신규 > 집대성 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
+        // 신규 > 집록 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
         val tag = when {
             c.first != null && c.first == current -> pill("신규", R.color.rerun_recent, R.color.on_action, 10f)
-            c.chronicled -> pill("집대성", R.color.gold, R.color.on_gold, 10f)
+            c.chronicled -> pill("집록", R.color.gold, R.color.on_gold, 10f)
             !c.standard && c.runs <= 1 -> pill("복각 없음", R.color.element_hydro, R.color.on_action, 10f)
             else -> null
         }
@@ -265,7 +265,7 @@ class RerunList(private val context: Context) {
             LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(2) })
         contentDescription = "${c.ko}, ${RerunActivity.elementName(c.element)}, " +
             (if (since == 0) "지금 픽업 중" else "${since}버전 전") + ", 마지막 ${data.label(c.last)}" +
-            (if (c.chronicled) ", 집대성" else "")
+            (if (c.chronicled) ", 집록" else "")
     }
 
     /** '카에데하라 카즈하' → '카즈하'처럼 성을 뗀 이름. 한 단어면 그대로. */
