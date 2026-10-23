@@ -32,6 +32,8 @@ object DailyAlarm {
             // 정확한 알람 권한이 없으면 절전 중에도 울리되 시스템이 몇 분 늦출 수 있다.
             alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pendingIntent(context))
         }
+        // 금요일 밤 생방송 코드 확인도 출석 알람과 같은 때 함께 다시 건다(재부팅·업데이트 뒤 등).
+        RedeemAlarm.schedule(context)
         val settings = AppSettings(context)
         settings.nextRunAt = runAt
         if (ServerClock.offsetMs != 0L) settings.clockOffset = ServerClock.offsetMs
@@ -39,6 +41,7 @@ object DailyAlarm {
 
     fun cancel(context: Context) {
         context.getSystemService(AlarmManager::class.java).cancel(pendingIntent(context))
+        RedeemAlarm.cancel(context)
         AppSettings(context).nextRunAt = 0
     }
 

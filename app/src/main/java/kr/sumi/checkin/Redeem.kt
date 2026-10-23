@@ -54,6 +54,8 @@ data class RedeemReport(val found: Int, val attempts: List<RedeemAttempt>, val s
  */
 object Redeem {
     private const val BBS = "https://bbs-api-os.hoyolab.com"
+    /** 호요랩 공식 코드 목록. 생방송 코드도 방송 중에 여기 올라온다. */
+    private const val OFFICIAL_URL = "$BBS/community/painter/wapi/circle/channel/guide/material?game_id=2"
     private const val GAME_BIZ = "hk4e_global"
     private const val CODE_GAP_MS = 6_000L
     /**
@@ -201,7 +203,7 @@ object Redeem {
         val codes = linkedSetOf<String>()
         progress("공식 코드 목록 보는 중...", 0.1f)
         try {
-            codes += parseOfficialCodes(client.get("$BBS/community/painter/wapi/circle/channel/guide/material?game_id=2", BBS_HEADERS))
+            codes += parseOfficialCodes(client.get(OFFICIAL_URL, BBS_HEADERS))
         } catch (e: Exception) {
         }
         try {
@@ -241,13 +243,14 @@ object Redeem {
         return fetchPublic(WIKI_URL).also { wikiCache = System.currentTimeMillis() to it }
     }
 
-    /** 호요랩 쿠키를 보내면 안 되는 외부 공개 페이지(위키)를 받는다. */
-    private fun fetchPublic(url: String): JSONObject {
+    /** 로그인 쿠키 없이 공개 페이지(위키, 호요랩 공식 코드 목록)를 받는다. */
+    private fun fetchPublic(url: String, headers: Map<String, String> = emptyMap()): JSONObject {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 15_000
             conn.readTimeout = 15_000
             conn.setRequestProperty("User-Agent", "SumiLab-Checkin/1.0 (Android)")
+            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
             if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
             return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
         } finally {
@@ -442,14 +445,19 @@ object Redeem {
     /** 출석이 끝난 뒤 따로 돌린다. 코드 사이 6초 대기 때문에 알람 처리 시간 안에 넣지 않는다. */
     fun scheduleSoon(context: Context) = Jobs.scheduleOnce(context, Jobs.REDEEM, delayMs = 10_000, replace = false)
 
-    /** 예약 실행: 리딤 자동 입력이 켜져 있으면 계정마다 하루 한 번 입력한다. 네트워크 오류가 있었으면 true(다시 시도). */
+    /**
+     * 예약 실행(새벽 출석 뒤, 6시간마다, 금요일 밤 알람). 리딤 자동 입력이 켜져 있으면 계정마다
+     * 하루 첫 번째는 커뮤니티 글까지 다 찾아 입력하고, 그 뒤로는 위키·공식 코드 목록에 아직 안 넣은 코드가 생겼을 때만 다시 돈다.
+     * 새 코드 확인은 로그인 정보 없이 공개 목록만 본다. 네트워크 오류가 있었으면 true(다시 시도).
+     */
     fun runScheduled(context: Context): Boolean {
         val settings = AppSettings(context)
         if (!settings.redeemEnabled) return false
         var retry = false
+        val published by lazy { publishedCodes() }
         for (store in settings.accounts()) {
-            // 계정마다 하루 한 번이면 충분하다.
-            if (store.lastRedeemAt > 0 && ServerClock.dayOf(store.lastRedeemAt) == ServerClock.today()) continue
+            val ranToday = store.lastRedeemAt > 0 && ServerClock.dayOf(store.lastRedeemAt) == ServerClock.today()
+            if (ranToday && !hasUntried(store, published)) continue
             try {
                 Notifier.notifyRedeem(context, store, run(store))
             } catch (e: IOException) {
@@ -458,4 +466,26 @@ object Redeem {
         }
         return retry
     }
+
+    /** 어느 계정이든 아직 안 넣은 공개 코드가 있는지(알람에서 빠르게 확인할 때). */
+    fun hasNewCodes(context: Context): Boolean {
+        val published = publishedCodes()
+        return AppSettings(context).accounts().any { hasUntried(it, published) }
+    }
+
+    /** 공개된 코드: 위키 문서와 호요랩 공식 목록. 둘 다 못 받으면 (null, 빈 목록). */
+    private fun publishedCodes(): Pair<JSONObject?, List<String>> {
+        val wiki = runCatching { wikiPage() }.getOrNull()
+        val official = runCatching { parseOfficialCodes(fetchPublic(OFFICIAL_URL, BBS_HEADERS)) }.getOrDefault(emptyList())
+        return wiki to official
+    }
+
+    private fun hasUntried(store: Store, published: Pair<JSONObject?, List<String>>): Boolean {
+        val role = store.redeemRole ?: return false
+        val (wiki, official) = published
+        return untried(codeGroups(wiki, official, role.region, ServerClock.today()), store.redeemTried(role))
+    }
+
+    /** 아직 시도하지 않은 코드가 있는 묶음이 하나라도 있는지(입력할 때와 같은 기준). */
+    internal fun untried(groups: List<List<String>>, tried: Set<String>) = groups.any { group -> group.any { it !in tried } }
 }

@@ -64,6 +64,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".RedeemAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".ResinWidget"
             android:exported="false"
             android:label="@string/widget_label">

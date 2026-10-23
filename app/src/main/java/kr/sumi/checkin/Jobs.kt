@@ -14,7 +14,7 @@ import java.io.IOException
  */
 object Jobs {
     // 예전 버전(WorkManager)이 남긴 작업 번호와 겹치지 않게 큰 번호를 쓴다.
-    /** 6시간마다 출석 확인. 새벽 1시 알람이 밀리거나 실패했을 때의 안전장치. */
+    /** 6시간마다 출석·새 리딤 코드 확인. 새벽 1시 알람이 밀리거나 실패했을 때의 안전장치. */
     const val PERIODIC = 0x6C0001
     /** 지금 바로 한 번 출석(로그인 직후, 알람 시각 실패 후). */
     const val RETRY = 0x6C0002
@@ -90,6 +90,8 @@ class CheckInJobService : JobService() {
                         // 6시간 주기 작업에 실시간 메모 확인도 얹는다. 알람이 밀렸어도 여기서 다시 잡힌다.
                         if (params.jobId == Jobs.PERIODIC) {
                             Notes.checkAll(app)
+                            // 오늘 이미 입력했어도 새 리딤 코드가 올라왔으면 넣는다(없으면 공개 목록만 보고 끝).
+                            Redeem.runScheduled(app)
                             // 기다리는 캐릭터가 있으면 복각표 자료도 확인한다(작은 파일, 12시간에 한 번).
                             if (Reruns.watched(app).isNotEmpty()) {
                                 try { Reruns.refresh(app) } catch (e: IOException) {}
