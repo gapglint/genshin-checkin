@@ -240,7 +240,11 @@ class LoginActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        if (!engineGone) webView.destroy()
+        if (!engineGone) {
+            // 호요랩 페이지가 남긴 그림·스크립트 캐시(수 MB)를 지운다. 로그인 쿠키는 따로 있어 그대로 남는다.
+            webView.clearCache(true)
+            webView.destroy()
+        }
         super.onDestroy()
     }
 
