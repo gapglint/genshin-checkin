@@ -6,7 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
-import java.io.IOException
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalTime
