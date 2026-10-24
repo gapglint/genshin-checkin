@@ -130,10 +130,13 @@ object Redeem {
             val groups = codeGroups(wiki, extra, role.region, ServerClock.today())
                 .map { group -> group.filter { it !in tried } }.filter { it.isNotEmpty() }
             found += groups.sumOf { it.size }
-            // 묶음에서 앞 코드가 통하면 나머지는 건너뛰므로, 진행률은 묶음 단위로 센다.
-            for ((index, group) in groups.withIndex()) {
-                progress("새 코드 입력 중 (${index + 1}/${groups.size})", 0.4f + 0.6f * index / groups.size)
+            // 진행 표시는 코드 단위로 센다(끝난 뒤 결과 창의 개수와 맞게). 묶음에서 앞 코드가 통해 건너뛴 코드도 센 것으로 친다.
+            val total = groups.sumOf { it.size }
+            var counted = 0
+            for (group in groups) {
                 for (code in group) {
+                    counted++
+                    progress("코드 넣어 보는 중 ($counted/$total)", 0.4f + 0.6f * (counted - 1) / total)
                     if (attempts.isNotEmpty()) Thread.sleep(CODE_GAP_MS)
                     var attempt = redeem(client, role, code)
                     if (attempt.status == RedeemStatus.TOO_FAST) {
@@ -151,6 +154,7 @@ object Redeem {
                     }
                     if (attempt.status == RedeemStatus.REDEEMED || attempt.status == RedeemStatus.USED) {
                         store.setRedeemTried(role, store.redeemTried(role) + group)
+                        counted += group.size - group.indexOf(code) - 1
                         break
                     }
                     store.setRedeemTried(role, store.redeemTried(role) + code)
@@ -275,7 +279,19 @@ object Redeem {
         report.redeemed.isNotEmpty() -> "새 코드 ${report.redeemed.size}개 입력" +
             (if (report.redeemedRoles > 1) " · 캐릭터 ${report.redeemedRoles}명" else "") + ": ${report.redeemed.joinToString(", ")}"
         report.attempts.isEmpty() -> "새 코드 없음"
-        else -> "새 코드 ${report.attempts.size}개를 확인했지만 받을 수 있는 게 없었어요"
+        // 앞부분(':' 앞)은 타일·위젯에 짧게 보인다.
+        else -> "받을 코드 없음: ${report.attempts.size}개 넣어 봄 (" + report.attempts.groupingBy { shortStatus(it.status) }.eachCount()
+            .entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" } + ")"
+    }
+
+    private fun shortStatus(status: RedeemStatus) = when (status) {
+        RedeemStatus.REDEEMED -> "받음"
+        RedeemStatus.USED -> "이미 사용"
+        RedeemStatus.EXPIRED -> "만료"
+        RedeemStatus.INVALID -> "잘못된 코드"
+        RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
+        RedeemStatus.TOO_FAST -> "너무 빠름"
+        RedeemStatus.OTHER -> "기타"
     }
 
     /** 결과 창에 보일 자세한 내용. */

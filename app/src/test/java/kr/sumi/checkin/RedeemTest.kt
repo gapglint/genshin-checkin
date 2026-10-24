@@ -192,4 +192,11 @@ class CheckInCalendarTest {
         assertEquals(listOf("QYJWQVRI39BE", "NOTONWIKI12"), Redeem.siteCodes(json))
         assertEquals(emptyList<String>(), Redeem.siteCodes(JSONObject("{}")))
     }
+
+    @Test fun summaryWhenNothingRedeemed() {
+        val attempts = listOf(RedeemStatus.USED, RedeemStatus.EXPIRED, RedeemStatus.USED).mapIndexed { i, st -> RedeemAttempt("CODE$i", st, "", null) }
+        val text = Redeem.summary(RedeemReport(3, attempts))
+        assertEquals("받을 코드 없음: 3개 넣어 봄 (이미 사용 2 · 만료 1)", text)
+        assertEquals("받을 코드 없음", text.substringBefore(":"))
+    }
 }
