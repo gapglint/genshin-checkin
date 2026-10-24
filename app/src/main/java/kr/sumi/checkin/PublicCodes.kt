@@ -17,6 +17,8 @@ data class PublicCode(
     val discovered: LocalDate? = null,
     val expiry: LocalDate? = null,
     val official: Boolean = false,
+    /** 만료일을 모르는 채 오래된 코드(만료됐을 수 있음). */
+    val old: Boolean = false,
 )
 
 /**
@@ -26,14 +28,16 @@ data class PublicCode(
  */
 object PublicCodes {
     private const val PREFS = "public_codes"
-    private const val KEY = "json_v3"
+    private const val KEY = "json_v4"
+    /** 사이트가 1시간마다 정리해 두는 목록(제보된 만료 코드 제외, 한국어 보상 이름). */
+    private const val SITE_URL = "https://apps.sumi.kr/checkin/data/codes.json"
     private const val REFRESH_MS = 6 * 60 * 60_000L
     private val SERVER_NAMES = mapOf("SEA" to "아시아", "NA" to "미국", "EU" to "유럽", "SAR" to "TW·HK·MO")
 
     fun giftUrl(code: String) = "https://genshin.hoyoverse.com/m/ko/gift?code=$code"
 
     /** 화면에 보일 보상 요약(아이템 이름은 한국어로, 최대 3가지). */
-    fun rewardText(raw: String?) = raw?.let { RewardHistory.formatTotals(Redeem.rewardItems(it), max = 3) }
+    fun rewardText(raw: String?) = raw?.let { if ('*' in it) RewardHistory.formatTotals(Redeem.rewardItems(it), max = 3) else it }
 
     fun cached(context: Context): List<PublicCode> =
         prefs(context).getString(KEY, null)?.let { runCatching { fromJson(JSONArray(it)) }.getOrNull() }.orEmpty()
@@ -41,13 +45,47 @@ object PublicCodes {
     fun isFresh(context: Context) =
         prefs(context).contains(KEY) && System.currentTimeMillis() - prefs(context).getLong("checked_at", 0) < REFRESH_MS
 
+    /**
+     * 사이트의 정리된 목록을 받는다(위키에 남은 만료 코드를 걸러 둔 것). 사이트에 못 닿으면 위키와 공식 목록에서 직접 만든다.
+     * 둘 다 안 되면 지난 목록을 그대로 둔다(코드가 사라졌다 생기는 일 없게).
+     */
     @Throws(IOException::class)
     fun refresh(context: Context) {
-        val (wiki, official) = Redeem.publishedCodes()
-        // 위키가 주된 목록이라, 위키를 못 받았으면 지난 목록을 그대로 둔다(코드가 사라졌다 생기는 일 없게).
-        if (wiki == null) throw IOException("코드 목록을 받지 못했어요")
-        val codes = from(wiki, official, ServerClock.today())
+        val codes = runCatching { fromSite(fetch(SITE_URL)) }.getOrNull() ?: run {
+            val (wiki, official) = Redeem.publishedCodes()
+            if (wiki == null) throw IOException("코드 목록을 받지 못했어요")
+            from(wiki, official, ServerClock.today())
+        }
         prefs(context).edit().putString(KEY, toJson(codes).toString()).putLong("checked_at", System.currentTimeMillis()).apply()
+    }
+
+    /** 사이트 codes.json의 codes 배열. 보상은 이미 한국어 요약이다. */
+    internal fun fromSite(json: JSONObject): List<PublicCode> {
+        val a = json.getJSONArray("codes")
+        return (0 until a.length()).map { a.getJSONObject(it) }.map {
+            PublicCode(
+                code = it.getString("code"),
+                reward = it.optString("reward").takeIf { r -> r.isNotEmpty() && r != "null" },
+                server = it.optString("server").ifEmpty { "전 서버" },
+                discovered = it.optString("discovered").takeIf { d -> d.length == 10 }?.let(LocalDate::parse),
+                expiry = it.optString("expiry").takeIf { d -> d.length == 10 }?.let(LocalDate::parse),
+                official = it.optBoolean("live"),
+                old = it.optBoolean("old"),
+            )
+        }
+    }
+
+    private fun fetch(url: String): JSONObject {
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        try {
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 15_000
+            conn.setRequestProperty("User-Agent", "SumiLab-Checkin/1.0 (Android)")
+            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+        } finally {
+            conn.disconnect()
+        }
     }
 
     /**
@@ -122,6 +160,7 @@ object PublicCodes {
     private fun toJson(codes: List<PublicCode>) = JSONArray(codes.map {
         JSONObject().put("code", it.code).put("reward", it.reward ?: "").put("server", it.server)
             .put("discovered", it.discovered?.toString() ?: "").put("expiry", it.expiry?.toString() ?: "").put("official", it.official)
+            .put("old", it.old)
     })
 
     private fun fromJson(a: JSONArray) = (0 until a.length()).map { a.getJSONObject(it) }.map {
@@ -132,6 +171,7 @@ object PublicCodes {
             discovered = it.optString("discovered").ifEmpty { null }?.let(LocalDate::parse),
             expiry = it.optString("expiry").ifEmpty { null }?.let(LocalDate::parse),
             official = it.optBoolean("official"),
+            old = it.optBoolean("old"),
         )
     }
 

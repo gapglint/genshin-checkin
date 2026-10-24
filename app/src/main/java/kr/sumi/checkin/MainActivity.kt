@@ -219,13 +219,14 @@ class MainActivity : Activity() {
     }
 
     /** 로그인 전 리딤 코드 줄: 최근 3일 안에 올라왔으면 NEW, 만료일이 있으면 'M월 D일까지'(이틀 안이면 강조). */
-    private fun codeRows(codes: List<PublicCode>, opened: Set<String>, today: java.time.LocalDate) = codes.map { c ->
+    private fun codeRows(codes: List<PublicCode>, opened: Set<String>, today: java.time.LocalDate) = codes.sortedBy { it.old }.map { c ->
         CodeRowUi(
             code = c.code,
             reward = PublicCodes.rewardText(c.reward),
             server = c.server,
             isNew = c.discovered?.let { !it.isBefore(today.minusDays(3)) } == true,
-            until = c.expiry?.let { if (it == today) "오늘까지" else "${it.monthValue}월 ${it.dayOfMonth}일까지" },
+            until = c.expiry?.let { if (it == today) "오늘까지" else "${it.monthValue}월 ${it.dayOfMonth}일까지" }
+                ?: "만료됐을 수 있어요".takeIf { c.old },
             soon = c.expiry?.let { !it.isAfter(today.plusDays(2)) } == true,
             live = c.official,
             opened = c.code in opened,

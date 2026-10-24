@@ -166,4 +166,16 @@ class CheckInCalendarTest {
         assertEquals(emptyList<PublicCode>(), PublicCodes.newCodes(codes, emptySet(), first = true))
         assertEquals(listOf("BBB222"), PublicCodes.newCodes(codes, setOf("AAA111"), first = false).map { it.code })
     }
+
+    @Test fun siteCodesList() {
+        val json = JSONObject("""{"codes":[
+          {"code":"HOUROFRUIN","server":"전 서버","reward":"원석 ×100 · 정제용 마법 광석 ×10","discovered":"2026-10-23","expiry":"2026-10-26","live":true,"old":false},
+          {"code":"OLDCODE1234","server":"아시아","reward":null,"discovered":"2026-08-01","expiry":null,"live":false,"old":true}]}""")
+        val codes = PublicCodes.fromSite(json)
+        assertEquals(listOf("HOUROFRUIN", "OLDCODE1234"), codes.map { it.code })
+        assertTrue(codes[0].official && !codes[0].old)
+        assertEquals(java.time.LocalDate.of(2026, 10, 26), codes[0].expiry)
+        assertEquals("원석 ×100 · 정제용 마법 광석 ×10", PublicCodes.rewardText(codes[0].reward))
+        assertTrue(codes[1].old && codes[1].reward == null && codes[1].expiry == null)
+    }
 }
