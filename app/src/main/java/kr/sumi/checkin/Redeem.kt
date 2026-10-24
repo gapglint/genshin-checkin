@@ -460,6 +460,7 @@ object Redeem {
             if (ranToday && !hasUntried(store, published)) continue
             try {
                 Notifier.notifyRedeem(context, store, run(store))
+                TodayWidget.updateAll(context)
             } catch (e: IOException) {
                 retry = true
             }

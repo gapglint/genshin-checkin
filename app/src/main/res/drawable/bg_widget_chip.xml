@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯의 작은 상태 표시(출석 완료). 위젯은 코드로 모양을 못 만들어 따로 둔다. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/gold" />
+    <corners android:radius="10dp" />
+</shape>

@@ -71,6 +71,7 @@ object CheckIn {
         }
         store.lastRunAt = ServerClock.now()
         Notifier.notify(context, store, outcome)
+        AppWidgets.updateAll(context)
         if (outcome is Outcome.Signed || outcome is Outcome.AlreadySigned) {
             checkMakeUp(context, settings, store, client, today)
             if (settings.redeemEnabled) Redeem.scheduleSoon(context)

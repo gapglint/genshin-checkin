@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 픽업 위젯의 캐릭터 동그라미. 색은 원소에 맞춰 코드에서 칠한다(setColorFilter). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#FFFFFF" />
+</shape>

@@ -3,4 +3,8 @@
     <string name="app_name">원신 출첵</string>
     <string name="widget_label">레진</string>
     <string name="widget_description">레진과 가득 차는 시각. 넓게 늘리면 탐사 파견·주전자·일일 의뢰도 보여요.</string>
+    <string name="widget_today_label">오늘</string>
+    <string name="widget_today_description">오늘 출석과 이번 달 누적 일수, 레진, 마지막 리딤 코드 결과.</string>
+    <string name="widget_pickup_label">지금 픽업</string>
+    <string name="widget_pickup_description">지금 픽업 중인 캐릭터와 남은 날, 가장 오래 기다린 캐릭터.</string>
 </resources>

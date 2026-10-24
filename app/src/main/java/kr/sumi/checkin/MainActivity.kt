@@ -177,22 +177,7 @@ class MainActivity : Activity() {
     }
 
     /** 복각표 카드: 지금 픽업(없으면 다음 픽업) 캐릭터와 기간, 그리고 가장 오래 기다린 캐릭터. */
-    private fun rerunCard(): RerunCardUi? {
-        val data = Reruns.cached(this) ?: return null
-        val today = ServerClock.today()
-        fun day(d: java.time.LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
-        val live = data.live(today)
-        val next = if (live.isEmpty()) data.upcoming(today) else emptyList()
-        val shown = live.ifEmpty { next }
-        val chars = shown.flatMap { it.chars }.distinct().mapNotNull { data.character(it) }.map { it.ko to it.element }
-        val period = when {
-            live.isNotEmpty() -> live.minOf { it.end }.let { "${day(it)}까지 · ${java.time.temporal.ChronoUnit.DAYS.between(today, it)}일 남음" }
-            next.isNotEmpty() -> "${day(next.minOf { it.start })}부터"
-            else -> ""
-        }
-        val oldest = data.ranked(today, standard = false).firstOrNull()?.let { (c, since) -> "가장 오래 기다린 캐릭터 · ${c.ko} ${since}버전째" }
-        return RerunCardUi(if (live.isNotEmpty()) "지금 픽업" else if (next.isNotEmpty()) "다음 픽업" else "복각표", period, chars, oldest)
-    }
+    private fun rerunCard(): RerunCardUi? = Reruns.cached(this)?.card(ServerClock.today())
 
     /**
      * 방금 로그인한 계정은 출석 상태를 아직 모른다(0일로 보인다). 예약 작업은 시스템이 늦게 돌릴 수 있어서,
@@ -206,7 +191,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         // 계정을 바꿨거나 메모를 새로 받았을 수 있으니 홈 화면 위젯도 맞춘다.
-        ResinWidget.updateAll(this)
+        AppWidgets.updateAll(this)
     }
 
     private var closePanel: Any? = null

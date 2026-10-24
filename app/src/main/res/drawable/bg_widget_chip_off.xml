@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯의 작은 상태 표시(출석 전·로그인 필요). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/hero_line" />
+    <corners android:radius="10dp" />
+</shape>

@@ -289,7 +289,7 @@ object Notes {
             is NoteResult.Ok -> {
                 store.note = result.note
                 store.noteProblem = null
-                ResinWidget.updateAll(context)
+                AppWidgets.updateAll(context)
                 val (alerts, flags) = evaluate(result.note, store.noteFlags, settings.noteAlerts)
                 store.noteFlags = flags
                 if (alerts.any) Notifier.notifyNote(context, store, result.note, alerts)
