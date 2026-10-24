@@ -71,7 +71,10 @@ class MainScreenSnapshotTest {
         val wiki = org.json.JSONObject(javaClass.getResource("/wiki_promotional_code.json")!!.readText())
         val codes = PublicCodes.from(wiki, emptyList(), java.time.LocalDate.of(2026, 10, 18))
         snap(loggedOut.copy(
-            publicCodes = codes.mapIndexed { i, c -> Triple(c.code, c.reward, i == 1) },
+            publicCodes = codes.mapIndexed { i, c ->
+                CodeRowUi(c.code, c.reward, if (i == 2) "아시아" else c.server, isNew = i == 0, until = if (i == 2) "10월 19일까지" else null,
+                    soon = i == 2, live = false, opened = i == 1)
+            }.let { listOf(CodeRowUi("LIVE7TVSHOW", "원석 ×100 · 모라 ×50,000", "전 서버", live = true)) + it },
             reruns = signed.reruns,
         ), night = false)
     }

@@ -354,6 +354,27 @@ object Redeem {
     private fun rewardOf(code: String): String? =
         try { wikiRewards(wikiPage())[code] } catch (e: Exception) { null }
 
+    /** 위키 코드 줄 하나: 코드(묶음이면 여럿), 서버 표기(G, A, SEA, NA, EU, SAR, CN), 보상, 올라온 날, 만료일. */
+    data class WikiCode(val codes: List<String>, val servers: List<String>, val reward: String?, val discovered: LocalDate?, val expiry: LocalDate?)
+
+    /** 로그인 전 화면처럼 서버를 가리지 않고 보여 줄 때 쓰는 위키 코드 목록(코드가 아닌 줄은 뺀다). */
+    internal fun wikiEntries(json: JSONObject): List<WikiCode> {
+        val text = json.optJSONObject("parse")?.optString("wikitext") ?: return emptyList()
+        return codeRows(text.replace(COMMENT, "")).mapNotNull { params ->
+            if (params.any { it.replace(" ", "").equals("notacode=yes", ignoreCase = true) }) return@mapNotNull null
+            val positional = params.filter { !NAMED_PARAM.matches(it) }
+            val codes = positional.getOrNull(0)?.split(";")?.map { it.trim().uppercase() }?.filter { CODE_TEXT.matches(it) }
+                ?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            WikiCode(
+                codes = codes,
+                servers = positional.getOrNull(1)?.split(SERVER_SPLIT)?.map { it.trim().uppercase() }?.filter { it.isNotEmpty() }.orEmpty(),
+                reward = positional.getOrNull(2)?.trim()?.takeIf { it.contains('*') },
+                discovered = positional.getOrNull(3)?.let { DATE.find(it)?.value }?.let(LocalDate::parse),
+                expiry = positional.getOrNull(4)?.let { DATE.find(it)?.value }?.let(LocalDate::parse),
+            )
+        }
+    }
+
     /** 위키의 코드별 보상 표기. {{Code Row|코드|서버|보상|...}}의 세 번째 인자다. */
     internal fun wikiRewards(json: JSONObject): Map<String, String> {
         val text = json.optJSONObject("parse")?.optString("wikitext") ?: return emptyMap()

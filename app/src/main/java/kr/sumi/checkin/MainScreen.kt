@@ -49,8 +49,8 @@ data class MainUiState(
     val needsHibernationExemption: Boolean = false,
     /** 출석이 안 됐을 때 마지막 결과(실패 이유 등). */
     val note: String? = null,
-    /** 로그인 전에만 보여 주는 지금 쓸 수 있는 리딤 코드(코드, 보상 요약, 입력 페이지를 열어 봤는지). */
-    val publicCodes: List<Triple<String, String?, Boolean>> = emptyList(),
+    /** 로그인 전에만 보여 주는 지금 쓸 수 있는 리딤 코드. */
+    val publicCodes: List<CodeRowUi> = emptyList(),
     /** 리딤 코드 카드를 펼쳤는지. 접혀 있으면 앞의 몇 개만 보인다. */
     val codesExpanded: Boolean = false,
     /** 오늘 보충 출석을 했으면 그 요약("보충 2일 · 모라 x5000"). 다음 자동 출석 줄 자리에 대신 보여 준다. */
@@ -111,6 +111,21 @@ data class MainUiState(
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
 /** 메인 복각표 카드에 보일 것. chars는 (이름, 원소). */
+/**
+ * 로그인 전 리딤 코드 한 줄. server는 '전 서버'·'아시아' 등, isNew는 최근 3일 안에 올라온 코드,
+ * until은 만료일 표시('10월 30일까지')이고 soon이면 이틀 안에 끝난다. live는 호요랩 공식 목록에만 있는 코드(대개 방송 코드).
+ */
+data class CodeRowUi(
+    val code: String,
+    val reward: String?,
+    val server: String,
+    val isNew: Boolean = false,
+    val until: String? = null,
+    val soon: Boolean = false,
+    val live: Boolean = false,
+    val opened: Boolean = false,
+)
+
 data class RerunCardUi(
     val title: String,
     val period: String,
@@ -618,7 +633,9 @@ class MainScreen(val root: View) {
         fun dp(v: Int) = (v * d).toInt()
         val ripple = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))
         val shown = if (s.codesExpanded) s.publicCodes else s.publicCodes.take(CODES_FOLDED)
-        for ((code, reward, opened) in shown) {
+        for (row in shown) {
+            val (code, reward) = row
+            val opened = row.opened
             codesList.addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
@@ -631,15 +648,39 @@ class MainScreen(val root: View) {
                 setOnLongClickListener { onCodeCopy(code); true }
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(TextView(context).apply {
-                        text = code
-                        textSize = 15f
-                        letterSpacing = 0.04f
-                        setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
-                        setTextColor(context.getColor(R.color.ink))
+                    addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        addView(TextView(context).apply {
+                            text = code
+                            textSize = 15f
+                            letterSpacing = 0.04f
+                            setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                            setTextColor(context.getColor(R.color.ink))
+                        })
+                        // 복각표의 신규·집록처럼 작은 표시: 방송 코드, 새 코드, 서버, 만료일.
+                        fun pill(label: String, bg: Int, fg: Int) = addView(TextView(context).apply {
+                            text = label
+                            textSize = 10f
+                            setTypeface(typeface, android.graphics.Typeface.BOLD)
+                            includeFontPadding = false
+                            setTextColor(context.getColor(fg))
+                            setPadding(dp(6), dp(3), dp(6), dp(3))
+                            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(context.getColor(bg)) }
+                        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
+                        if (row.live) pill("방송", R.color.rerun_recent, R.color.on_action)
+                        else if (row.isNew) pill("NEW", R.color.gold, R.color.on_gold)
+                        if (row.server == "전 서버") pill(row.server, R.color.item_tile, R.color.ink_muted)
+                        else pill(row.server, R.color.element_hydro, R.color.on_action)
                     })
-                    if (reward != null) addView(TextView(context).apply {
-                        text = reward
+                    // 만료일은 보상 앞에 적는다(곧 끝나면 붉게). 표시가 한 줄에 넘치지 않게 둘째 줄로.
+                    val detail = listOfNotNull(row.until, reward).joinToString(" · ")
+                    if (detail.isNotEmpty()) addView(TextView(context).apply {
+                        text = android.text.SpannableString(detail).apply {
+                            if (row.until != null && row.soon) setSpan(
+                                android.text.style.ForegroundColorSpan(context.getColor(R.color.warn)), 0, row.until.length, 0,
+                            )
+                        }
                         textSize = 12f
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END

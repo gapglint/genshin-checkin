@@ -152,8 +152,12 @@ class CheckInCalendarTest {
         val codes = PublicCodes.from(wiki, listOf("OFFICIAL1"), java.time.LocalDate.of(2026, 10, 18))
         assertTrue(codes.isNotEmpty())
         assertEquals(codes.map { it.code }.distinct(), codes.map { it.code })
-        assertTrue(codes.any { it.code == "OFFICIAL1" && it.reward == null })
-        assertTrue(codes.first().reward!!.isNotEmpty())
+        assertTrue(codes.first().code == "OFFICIAL1" && codes.first().official)
+        assertEquals("전 서버", PublicCodes.serverLabel(listOf("G")))
+        assertEquals("아시아", PublicCodes.serverLabel(listOf("SEA")))
+        assertEquals("미국·유럽", PublicCodes.serverLabel(listOf("NA", "EU")))
+        assertEquals(null, PublicCodes.serverLabel(listOf("CN")))
+        assertTrue(codes[1].reward!!.isNotEmpty())
         assertEquals("https://genshin.hoyoverse.com/m/ko/gift?code=OPERACOLLAB", PublicCodes.giftUrl("OPERACOLLAB"))
     }
 }

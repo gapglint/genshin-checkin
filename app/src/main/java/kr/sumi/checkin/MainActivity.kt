@@ -209,6 +209,20 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    /** 로그인 전 리딤 코드 줄: 최근 3일 안에 올라왔으면 NEW, 만료일이 있으면 'M월 D일까지'(이틀 안이면 강조). */
+    private fun codeRows(codes: List<PublicCode>, opened: Set<String>, today: java.time.LocalDate) = codes.map { c ->
+        CodeRowUi(
+            code = c.code,
+            reward = c.reward,
+            server = c.server,
+            isNew = c.discovered?.let { !it.isBefore(today.minusDays(3)) } == true,
+            until = c.expiry?.let { if (it == today) "오늘까지" else "${it.monthValue}월 ${it.dayOfMonth}일까지" },
+            soon = c.expiry?.let { !it.isAfter(today.plusDays(2)) } == true,
+            live = c.official,
+            opened = c.code in opened,
+        )
+    }
+
     /** 복각표 카드: 지금 픽업(없으면 다음 픽업) 캐릭터와 기간, 그리고 가장 오래 기다린 캐릭터. */
     private fun rerunCard(): RerunCardUi? = Reruns.cached(this)?.card(ServerClock.today())
 
@@ -585,9 +599,7 @@ class MainActivity : Activity() {
                 showCalendar = settings.showCalendar,
                 showReruns = settings.showReruns,
                 reruns = rerunCard(),
-                publicCodes = if (store != null) emptyList() else PublicCodes.opened(this).let { opened ->
-                    PublicCodes.cached(this).map { Triple(it.code, it.reward, it.code in opened) }
-                },
+                publicCodes = if (store != null) emptyList() else codeRows(PublicCodes.cached(this), PublicCodes.opened(this), ServerClock.today()),
                 codesExpanded = codesExpanded,
                 eventsUnseen = Events.unseen(this),
                 cardOrder = settings.cardOrder,
