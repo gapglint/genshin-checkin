@@ -188,7 +188,7 @@ object Redeem {
     }
 
     /**
-     * 위키 문서와, 공식 목록 + 최근 커뮤니티 글에서 찾은 코드를 모은다. 한쪽이 실패해도 나머지는 쓴다.
+     * 위키 문서와, 공식 목록 + 최근 커뮤니티 글 + 사이트 코드 목록에서 찾은 코드를 모은다. 한쪽이 실패해도 나머지는 쓴다.
      * 위키는 서버별로 걸러야 해서 문서째 돌려주고, 나머지 코드는 서버 정보가 없어 그대로 돌려준다.
      */
     private fun findSources(client: CheckInClient, store: Store, progress: (String, Float) -> Unit): Pair<JSONObject?, List<String>> {
@@ -223,6 +223,7 @@ object Redeem {
         } catch (e: Exception) {
         }
         progress("위키 보는 중...", 0.9f)
+        codes += runCatching { siteCodes(fetchPublic(PublicCodes.SITE_URL)) }.getOrDefault(emptyList())
         wikiThread.join()
         return wiki to codes.toList()
     }
@@ -523,11 +524,23 @@ object Redeem {
         return AppSettings(context).accounts().any { hasUntried(it, published) }
     }
 
-    /** 공개된 코드: 위키 문서와 호요랩 공식 목록. 둘 다 못 받으면 (null, 빈 목록). */
+    /** 공개된 코드: 위키 문서와 호요랩 공식 목록, 사이트 코드 목록. 다 못 받으면 (null, 빈 목록). */
     internal fun publishedCodes(): Pair<JSONObject?, List<String>> {
         val wiki = runCatching { wikiPage() }.getOrNull()
         val official = runCatching { parseOfficialCodes(fetchPublic(OFFICIAL_URL, BBS_HEADERS)) }.getOrDefault(emptyList())
-        return wiki to official
+        val site = runCatching { siteCodes(fetchPublic(PublicCodes.SITE_URL)) }.getOrDefault(emptyList())
+        return wiki to (official + site).distinct()
+    }
+
+    /**
+     * 사이트(apps.sumi.kr) 코드 목록에서 모든 서버용 코드. 위키에 늦게 오르는 코드와 확인 안 된 코드까지 들어 있다.
+     * 자동 입력은 안 되는 코드여도 한 번 실패하고 넘어가면 그만이라 다 넣어 본다. 서버가 정해진 코드는 위키에서 서버별로 고른다.
+     */
+    internal fun siteCodes(json: JSONObject): List<String> {
+        val a = json.optJSONArray("codes") ?: return emptyList()
+        return (0 until a.length()).map { a.getJSONObject(it) }
+            .filter { it.optString("server").ifEmpty { "전 서버" } == "전 서버" }
+            .map { it.getString("code").uppercase() }
     }
 
     private fun hasUntried(store: Store, published: Pair<JSONObject?, List<String>>): Boolean {

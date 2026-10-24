@@ -183,4 +183,13 @@ class CheckInCalendarTest {
         assertEquals("원석 ×100 · 정제용 마법 광석 ×10", PublicCodes.rewardText(codes[0].reward))
         assertTrue(codes[1].old && codes[1].reward == null && codes[1].expiry == null)
     }
+
+    @Test fun siteCodesForAutoRedeem() {
+        val json = JSONObject("""{"codes":[
+          {"code":"QYJWQVRI39BE","server":"전 서버","unverified":false},
+          {"code":"asiaonly123","server":"아시아"},
+          {"code":"NOTONWIKI12","server":"전 서버","unverified":true}]}""")
+        assertEquals(listOf("QYJWQVRI39BE", "NOTONWIKI12"), Redeem.siteCodes(json))
+        assertEquals(emptyList<String>(), Redeem.siteCodes(JSONObject("{}")))
+    }
 }

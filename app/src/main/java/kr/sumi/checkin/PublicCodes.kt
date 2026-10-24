@@ -32,7 +32,7 @@ object PublicCodes {
     private const val PREFS = "public_codes"
     private const val KEY = "json_v4"
     /** 사이트가 1시간마다 정리해 두는 목록(제보된 만료 코드 제외, 한국어 보상 이름). */
-    private const val SITE_URL = "https://apps.sumi.kr/checkin/data/codes.json"
+    internal const val SITE_URL = "https://apps.sumi.kr/checkin/data/codes.json"
     private const val REFRESH_MS = 6 * 60 * 60_000L
     private val SERVER_NAMES = mapOf("SEA" to "아시아", "NA" to "미국", "EU" to "유럽", "SAR" to "TW·HK·MO")
 
