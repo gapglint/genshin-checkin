@@ -49,6 +49,8 @@ data class MainUiState(
     val needsHibernationExemption: Boolean = false,
     /** 출석이 안 됐을 때 마지막 결과(실패 이유 등). */
     val note: String? = null,
+    /** 오늘 보충 출석을 했으면 그 요약("보충 2일 · 모라 x5000"). 다음 자동 출석 줄 자리에 대신 보여 준다. */
+    val makeUpToday: String? = null,
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
     val makeUpMissed: Int? = null,
     /** 알림 설정 요약, 예: "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이". */
@@ -245,8 +247,14 @@ class MainScreen(val root: View) {
             else -> "출석하면 표시돼요"
         }
         heroRewardIcon.setImageResource(itemIcon(s.reward))
-        heroNext.visibility = if (s.nextRun != null) View.VISIBLE else View.GONE
-        heroNext.text = "다음 자동 출석 · ${s.nextRun}"
+        // 보충한 날에는 같은 줄에 보충 결과를 띄운다(카드 높이는 그대로). '보충 N일'만 금색으로.
+        heroNext.visibility = if (s.makeUpToday != null || s.nextRun != null) View.VISIBLE else View.GONE
+        heroNext.text = s.makeUpToday?.let { text ->
+            android.text.SpannableString(text).apply {
+                val head = text.substringBefore(" · ").length
+                setSpan(android.text.style.ForegroundColorSpan(context.getColor(R.color.gold)), 0, head, 0)
+            }
+        } ?: "다음 자동 출석 · ${s.nextRun}"
 
         rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
         rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE

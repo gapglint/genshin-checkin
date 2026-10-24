@@ -43,4 +43,11 @@ class MakeUpTest {
         assertEquals("모라 x5000", MakeUp.rewardOf(JSONObject("""{"data":{"name":"모라","cnt":5000}}""")))
         assertNull(MakeUp.rewardOf(JSONObject("""{"data":{"code":"ok"}}""")))
     }
+
+    @Test fun todaySummary() {
+        assertEquals(null, MakeUp.todaySummary(emptyList()))
+        assertEquals("보충 2일 · 모라 x10000", MakeUp.todaySummary(listOf("모라 x5000", "모라 x5000")))
+        assertEquals("보충 2일 · 모라 x5000, 경험의 서 x3", MakeUp.todaySummary(listOf("모라 x5000", "경험의 서 x3")))
+        assertEquals("보충 1일 받음", MakeUp.todaySummary(listOf("보상")))
+    }
 }

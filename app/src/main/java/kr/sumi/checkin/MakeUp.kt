@@ -68,7 +68,13 @@ object MakeUp {
         val client = CheckInClient(cookie)
         val result = performWith(client, progress)
         store.makeUpDay = null
-        if (result is MakeUpResult.Done) store.signedTotal += result.days
+        if (result is MakeUpResult.Done) {
+            store.signedTotal += result.days
+            // 같은 날 여러 번 보충하면 이어 붙인다.
+            val today = Store.checkInDay().toString()
+            store.makeUpRewards = (if (store.makeUpDoneDay == today) store.makeUpRewards else emptyList()) + result.rewards
+            store.makeUpDoneDay = today
+        }
         result
     }
 
@@ -175,5 +181,22 @@ object MakeUp {
         val name = award.optString("name").takeIf { it.isNotEmpty() } ?: return null
         val cnt = award.optInt("cnt")
         return if (cnt > 0) "$name x$cnt" else name
+    }
+
+    /**
+     * 출석 카드에 띄울 오늘 보충 요약: "보충 2일 · 모라 x5000, 경험의 서 x3". 보상 이름을 모르면 날 수만.
+     * 같은 보상은 개수를 합친다.
+     */
+    internal fun todaySummary(rewards: List<String>): String? {
+        if (rewards.isEmpty()) return null
+        val totals = linkedMapOf<String, Int>()
+        val plain = linkedSetOf<String>()
+        for (r in rewards) {
+            val m = Regex("""^(.+) x(\d+)$""").find(r)
+            if (m != null) totals.merge(m.groupValues[1], m.groupValues[2].toInt(), Int::plus)
+            else if (r != "보상") plain += r
+        }
+        val names = totals.map { (name, n) -> "$name x$n" } + plain
+        return "보충 ${rewards.size}일" + if (names.isEmpty()) " 받음" else " · " + names.joinToString(", ")
     }
 }

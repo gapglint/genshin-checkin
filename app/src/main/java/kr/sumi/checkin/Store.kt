@@ -77,6 +77,14 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getInt("make_up_missed", 0)
         set(value) = prefs.edit { putInt("make_up_missed", value) }
 
+    /** 보충 출석을 한 날(서버 날짜)과 그날 받은 보상들. 그날만 출석 카드에 보여 준다. */
+    var makeUpDoneDay: String?
+        get() = prefs.getString("make_up_done_day", null)
+        set(value) = prefs.edit { putString("make_up_done_day", value) }
+    var makeUpRewards: List<String>
+        get() = prefs.getString("make_up_rewards", null)?.split("\n")?.filter { it.isNotEmpty() }.orEmpty()
+        set(value) = prefs.edit { putString("make_up_rewards", value.joinToString("\n")) }
+
     /** 같은 알림을 하루에 여러 번 보내지 않으려고 마지막으로 보낸 알림의 키를 기억한다. */
     var lastNotified: String?
         get() = prefs.getString("last_notified", null)

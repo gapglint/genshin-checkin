@@ -525,6 +525,7 @@ class MainActivity : Activity() {
                 totalDays = if (sameMonth) store?.signedTotal ?: 0 else 0,
                 month = today.monthValue,
                 reward = if (signedToday) store?.lastReward else null,
+                makeUpToday = store?.takeIf { it.makeUpDoneDay == Store.checkInDay().toString() }?.let { MakeUp.todaySummary(it.makeUpRewards) },
                 lastChecked = store?.lastRunAt?.takeIf { it > 0 }
                     ?.let { DateFormat.format("M월 d일 HH:mm", Date(it)).toString() },
                 loginExpiry = store?.loginExpiresAt?.let { DateFormat.format("yyyy년 M월 d일", Date(it)).toString() },

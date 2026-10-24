@@ -64,6 +64,8 @@ class MainScreenSnapshotTest {
         MainScreen(view).render(signed.copy(makeUpMissed = null, showCalendar = false, showTiles = false, eventsUnseen = 2))
         paparazzi.snapshot(view)
     }
+    /** 보충한 날: 다음 자동 출석 줄 자리에 보충 결과. */
+    @Test fun madeUpToday() = snap(signed.copy(makeUpMissed = null, makeUpToday = "보충 2일 · 모라 x5000, 경험의 서 x3"), night = false)
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 
