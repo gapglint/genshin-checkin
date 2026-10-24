@@ -290,7 +290,7 @@ object Redeem {
 
     private fun statusText(status: RedeemStatus) = when (status) {
         RedeemStatus.REDEEMED -> "받음"
-        RedeemStatus.USED -> "이미 받은 코드"
+        RedeemStatus.USED -> "이미 사용된 코드"
         RedeemStatus.EXPIRED -> "만료됨"
         RedeemStatus.INVALID -> "잘못된 코드"
         RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
