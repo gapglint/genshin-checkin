@@ -115,7 +115,8 @@ object Notifier {
             report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
             else -> return
         }
-        val key = "$title:${Store.checkInDay()}"
+        // 하루에 여러 번 돌 수 있어(새 코드가 올라올 때마다) 받은 코드까지 넣어 같은 알림만 거른다.
+        val key = "$title:${Store.checkInDay()}:${report.redeemed.joinToString(",")}"
         if (key == store.lastRedeemNotified || !canNotify(context)) return
         val id = idFor(ID_REDEEM, store)
         val pending = PendingIntent.getActivity(
