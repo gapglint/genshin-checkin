@@ -469,6 +469,15 @@ class MainActivity : Activity() {
                 "레진"
             }
             CARD_TILES -> {
+                body.addView(TextView(this).apply {
+                    text = "코드 직접 입력 ›"
+                    textSize = 15f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setTextColor(getColor(R.color.accent))
+                    minHeight = dp(48)
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setOnClickListener { popup?.dismiss(); enterCode() }
+                })
                 toggle("리딤 코드 자동 입력", settings.redeemEnabled) { settings.redeemEnabled = it }
                 toggle("리딤 코드를 받으면 알림", settings.notifyRedeem) { settings.notifyRedeem = it }
                 body.addView(LinearLayout(this).apply {
@@ -813,9 +822,41 @@ class MainActivity : Activity() {
                 .setTitle(if (report.redeemed.isNotEmpty()) "리딤 코드 ${report.redeemed.size}개를 받았어요" else "리딤 코드")
                 .setMessage(Redeem.details(report))
                 .setPositiveButton("확인")
+                .setNeutralButton("코드 직접 입력") { enterCode() }
                 .show()
         }
         return null
+    }
+
+    /** 앱이 못 찾은 코드(친구에게 받은 코드 등)를 직접 적어 입력한다. */
+    private fun enterCode() {
+        val store = store ?: return
+        if (store.redeemRole == null) return chooseRedeemRole()
+        val input = android.widget.EditText(this).apply {
+            hint = "리딤 코드"
+            isSingleLine = true
+            typeface = android.graphics.Typeface.MONOSPACE
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or
+                android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        }
+        AppDialog(this)
+            .setTitle("코드 직접 입력")
+            .setMessage("${store.redeemRole?.shortLabel()}(으)로 입력해요.")
+            .setView(input)
+            .setNegativeButton("취소")
+            .setPositiveButton("입력") {
+                val code = input.text.toString()
+                if (code.isBlank()) return@setPositiveButton
+                runInBackground("코드 입력 중...") {
+                    val attempt = Redeem.redeemOne(store, code)
+                    runOnUiThread {
+                        AppDialog(this).setTitle("코드 직접 입력").setMessage(Redeem.describeOne(attempt))
+                            .setPositiveButton("확인").setNeutralButton("하나 더") { enterCode() }.show()
+                    }
+                    null
+                }
+            }
+            .show()
     }
 
     private fun checkInNow() {

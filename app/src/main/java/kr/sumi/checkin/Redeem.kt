@@ -467,6 +467,30 @@ object Redeem {
         return CODE_IN_LINK.findAll(text).map { it.groupValues[1].uppercase() }.distinct().toList()
     }
 
+    /**
+     * 사용자가 직접 적은 코드 하나를 고른 캐릭터로 입력한다(친구에게 받은 코드 등). 결과는 자동 입력과 같은 기록에 남긴다.
+     * 네트워크 오류는 IOException.
+     */
+    @Throws(IOException::class)
+    fun redeemOne(store: Store, raw: String): RedeemAttempt = synchronized(this) {
+        val code = raw.trim().uppercase().filter { it.isLetterOrDigit() }
+        val client = CheckInClient(store.cookie ?: return RedeemAttempt(code, RedeemStatus.NOT_LOGGED_IN, "로그인이 필요해요."))
+        val role = store.redeemRole ?: chooseOnlyRole(client, store)
+            ?: return RedeemAttempt(code, RedeemStatus.OTHER, "리딤 보상을 받을 캐릭터를 골라 주세요.")
+        val attempt = redeem(client, role, code)
+        if (attempt.status == RedeemStatus.REDEEMED) {
+            store.redeemLog = listOf(RedeemedCode(code, ServerClock.now(), rewardOf(code), role.shortLabel())) + store.redeemLog
+        }
+        if (attempt.status in setOf(RedeemStatus.REDEEMED, RedeemStatus.USED, RedeemStatus.EXPIRED, RedeemStatus.INVALID)) {
+            store.setRedeemTried(role, store.redeemTried(role) + code)
+        }
+        attempt
+    }
+
+    /** 직접 입력 결과 한 줄: "PJ2KEBRAYSRM · 받음". 받지 못했으면 호요버스가 준 문구를 붙인다. */
+    fun describeOne(a: RedeemAttempt) = "${a.code} · ${statusText(a.status)}" +
+        if (a.status == RedeemStatus.OTHER && a.message.isNotEmpty()) "\n${a.message}" else ""
+
     /** 출석이 끝난 뒤 따로 돌린다. 코드 사이 6초 대기 때문에 알람 처리 시간 안에 넣지 않는다. */
     fun scheduleSoon(context: Context) = Jobs.scheduleOnce(context, Jobs.REDEEM, delayMs = 10_000, replace = false)
 
