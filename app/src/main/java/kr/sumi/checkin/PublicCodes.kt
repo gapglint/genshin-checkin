@@ -7,7 +7,7 @@ import java.io.IOException
 import java.time.LocalDate
 
 /**
- * 로그인 없이 보여 주는 리딤 코드 하나. reward는 화면에 보일 보상 요약(모르면 null).
+ * 로그인 없이 보여 주는 리딤 코드 하나. reward는 위키 보상 표기 그대로(모르면 null). 화면에 보일 때 한국어 이름으로 바꾼다.
  * server는 쓸 수 있는 서버('전 서버', '아시아' 등), official은 호요랩 공식 목록에만 있는 코드(대개 특별 방송 코드).
  */
 data class PublicCode(
@@ -26,11 +26,14 @@ data class PublicCode(
  */
 object PublicCodes {
     private const val PREFS = "public_codes"
-    private const val KEY = "json_v2"
+    private const val KEY = "json_v3"
     private const val REFRESH_MS = 6 * 60 * 60_000L
     private val SERVER_NAMES = mapOf("SEA" to "아시아", "NA" to "미국", "EU" to "유럽", "SAR" to "TW·HK·MO")
 
     fun giftUrl(code: String) = "https://genshin.hoyoverse.com/m/ko/gift?code=$code"
+
+    /** 화면에 보일 보상 요약(아이템 이름은 한국어로, 최대 3가지). */
+    fun rewardText(raw: String?) = raw?.let { RewardHistory.formatTotals(Redeem.rewardItems(it), max = 3) }
 
     fun cached(context: Context): List<PublicCode> =
         prefs(context).getString(KEY, null)?.let { runCatching { fromJson(JSONArray(it)) }.getOrNull() }.orEmpty()
@@ -59,7 +62,7 @@ object PublicCodes {
         val fromWiki = entries.map { (e, server) ->
             PublicCode(
                 code = e.codes.first(),
-                reward = e.reward?.let { RewardHistory.formatTotals(Redeem.rewardItems(it), max = 3) },
+                reward = e.reward,
                 server = server,
                 discovered = e.discovered,
                 expiry = e.expiry,

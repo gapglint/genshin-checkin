@@ -213,7 +213,7 @@ class MainActivity : Activity() {
     private fun codeRows(codes: List<PublicCode>, opened: Set<String>, today: java.time.LocalDate) = codes.map { c ->
         CodeRowUi(
             code = c.code,
-            reward = c.reward,
+            reward = PublicCodes.rewardText(c.reward),
             server = c.server,
             isNew = c.discovered?.let { !it.isBefore(today.minusDays(3)) } == true,
             until = c.expiry?.let { if (it == today) "오늘까지" else "${it.monthValue}월 ${it.dayOfMonth}일까지" },

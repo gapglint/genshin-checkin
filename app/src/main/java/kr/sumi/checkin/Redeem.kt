@@ -240,7 +240,11 @@ object Redeem {
 
     private fun wikiPage(): JSONObject {
         wikiCache?.let { (at, json) -> if (System.currentTimeMillis() - at < 10 * 60_000) return json }
-        return fetchPublic(WIKI_URL).also { wikiCache = System.currentTimeMillis() to it }
+        return fetchPublic(WIKI_URL).also {
+            wikiCache = System.currentTimeMillis() to it
+            // 처음 보는 보상 아이템의 한국어 이름을 배워 둔다(한 번 배우면 다시 묻지 않는다).
+            ItemNames.learnFromWiki(it, ITEM_NAMES.keys)
+        }
     }
 
     /** 로그인 쿠키 없이 공개 페이지(위키, 호요랩 공식 코드 목록)를 받는다. */
@@ -392,7 +396,7 @@ object Redeem {
         // 위키 링크·틀 괄호를 뗀다. 안드로이드의 정규식(ICU)은 짝 없는 '}'를 오류로 보므로 정규식을 쓰지 않는다.
         val name = listOf("[[", "]]", "{{", "}}").fold(part.substringBefore("*")) { text, mark -> text.replace(mark, "") }.trim()
         val count = part.substringAfter("*", "").trim().replace(",", "").toIntOrNull() ?: return@mapNotNull null
-        if (name.isEmpty()) null else (ITEM_NAMES[name] ?: name) to count
+        if (name.isEmpty()) null else (ITEM_NAMES[name] ?: ItemNames.korean(name) ?: name) to count
     }
 
     /** {{Code Row ...}} 틀마다 최상위 '|'로 나눈 인자 목록. 안쪽 {{ }}·[[ ]]의 '|'는 나누지 않는다. */
