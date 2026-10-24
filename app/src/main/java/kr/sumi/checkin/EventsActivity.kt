@@ -201,7 +201,8 @@ class EventsList(
 
     private fun until(e: GameEvent): String {
         if (e.end == 0L) return "상시 이벤트"
-        val end = java.time.Instant.ofEpochSecond(e.end).atZone(java.time.ZoneId.systemDefault())
+        // 이벤트는 서버 시각(UTC+8) 23:59에 끝나는 일이 많아, 한국 시간으로 적으면 다음 날 새벽 0:59가 된다. 서버 날짜로 적는다.
+        val end = java.time.Instant.ofEpochSecond(e.end).atZone(ServerClock.ZONE)
         return "${end.monthValue}월 ${end.dayOfMonth}일까지"
     }
 }
