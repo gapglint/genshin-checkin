@@ -475,7 +475,7 @@ object Redeem {
     }
 
     /** 공개된 코드: 위키 문서와 호요랩 공식 목록. 둘 다 못 받으면 (null, 빈 목록). */
-    private fun publishedCodes(): Pair<JSONObject?, List<String>> {
+    internal fun publishedCodes(): Pair<JSONObject?, List<String>> {
         val wiki = runCatching { wikiPage() }.getOrNull()
         val official = runCatching { parseOfficialCodes(fetchPublic(OFFICIAL_URL, BBS_HEADERS)) }.getOrDefault(emptyList())
         return wiki to official

@@ -49,6 +49,10 @@ data class MainUiState(
     val needsHibernationExemption: Boolean = false,
     /** 출석이 안 됐을 때 마지막 결과(실패 이유 등). */
     val note: String? = null,
+    /** 로그인 전에만 보여 주는 지금 쓸 수 있는 리딤 코드(코드, 보상 요약, 입력 페이지를 열어 봤는지). */
+    val publicCodes: List<Triple<String, String?, Boolean>> = emptyList(),
+    /** 리딤 코드 카드를 펼쳤는지. 접혀 있으면 앞의 몇 개만 보인다. */
+    val codesExpanded: Boolean = false,
     /** 오늘 보충 출석을 했으면 그 요약("보충 2일 · 모라 x5000"). 다음 자동 출석 줄 자리에 대신 보여 준다. */
     val makeUpToday: String? = null,
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
@@ -115,6 +119,11 @@ data class RerunCardUi(
 )
 
 class MainScreen(val root: View) {
+    private companion object {
+        /** 로그인 전 리딤 코드 카드에 처음 보이는 코드 수. 나머지는 '더 보기'로. */
+        const val CODES_FOLDED = 4
+    }
+
     private val MATCH = android.view.ViewGroup.LayoutParams.MATCH_PARENT
     private val context = root.context
     private val statusChip: TextView = root.findViewById(R.id.statusChip)
@@ -122,6 +131,13 @@ class MainScreen(val root: View) {
     private val accountChips: LinearLayout = root.findViewById(R.id.accountChips)
     /** 계정 칩을 누르면 그 계정 ID, '계정 추가'를 누르면 null. 액티비티가 정한다. */
     var onAccountChip: (String?) -> Unit = {}
+    /** 로그인 전 리딤 코드 줄: 누르면 입력 페이지, 길게 누르면 복사. 액티비티가 정한다. */
+    var onCodeOpen: (String) -> Unit = {}
+    var onCodeCopy: (String) -> Unit = {}
+    var onCodesMore: () -> Unit = {}
+    val codesCard: View = root.findViewById(R.id.codesCard)
+    val codesLogin: View = root.findViewById(R.id.codesLogin)
+    private val codesList: LinearLayout = root.findViewById(R.id.codesList)
     private val heroEyebrow: TextView = root.findViewById(R.id.heroEyebrow)
     private val heroDay: TextView = root.findViewById(R.id.heroDay)
     private val heroDayRow: View = root.findViewById(R.id.heroDayRow)
@@ -447,8 +463,10 @@ class MainScreen(val root: View) {
      */
     private fun renderCalendar(s: MainUiState) {
         calendarCard.visibility = if (s.loggedIn && s.showCalendar && (s.calendar.isNotEmpty() || s.editing)) View.VISIBLE else View.GONE
-        rerunCard.visibility = if (s.loggedIn && s.showReruns) View.VISIBLE else View.GONE
+        // 복각표는 로그인 없이도 쓸 수 있다.
+        rerunCard.visibility = if (s.showReruns) View.VISIBLE else View.GONE
         renderReruns(s.reruns)
+        renderCodes(s)
         eventsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
         eventsDot.visibility = if (s.eventsUnseen > 0) View.VISIBLE else View.GONE
         eventsButton.contentDescription = if (s.eventsUnseen > 0) "이벤트, 새 이벤트 ${s.eventsUnseen}개" else "이벤트"
@@ -586,6 +604,67 @@ class MainScreen(val root: View) {
         val density = context.resources.displayMetrics.density
         statusChip.setPadding((12 * density).toInt(), (5 * density).toInt(), (12 * density).toInt(), (5 * density).toInt())
         statusChip.setTextColor(context.getColor(textColor))
+    }
+
+    /**
+     * 로그인 전에만: 지금 쓸 수 있는 리딤 코드. 줄마다 코드와 보상, 오른쪽에 '입력'(열어 본 코드는 '열어 봄'으로 흐리게).
+     * 맨 아래 로그인 안내는 늘 보여서, 코드를 직접 넣는 것만 하고 로그인 기능을 모르고 지나치지 않게 한다.
+     */
+    private fun renderCodes(s: MainUiState) {
+        codesCard.visibility = if (!s.loggedIn && s.publicCodes.isNotEmpty() && !s.editing) View.VISIBLE else View.GONE
+        codesList.removeAllViews()
+        if (codesCard.visibility != View.VISIBLE) return
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        val ripple = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))
+        val shown = if (s.codesExpanded) s.publicCodes else s.publicCodes.take(CODES_FOLDED)
+        for ((code, reward, opened) in shown) {
+            codesList.addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                minimumHeight = dp(56)
+                setPadding(dp(18), dp(8), dp(18), dp(8))
+                foreground = ripple.getDrawable(0)
+                alpha = if (opened) 0.55f else 1f
+                contentDescription = "$code${reward?.let { ", $it" } ?: ""}. 누르면 입력 페이지"
+                setOnClickListener { onCodeOpen(code) }
+                setOnLongClickListener { onCodeCopy(code); true }
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(TextView(context).apply {
+                        text = code
+                        textSize = 15f
+                        letterSpacing = 0.04f
+                        setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                        setTextColor(context.getColor(R.color.ink))
+                    })
+                    if (reward != null) addView(TextView(context).apply {
+                        text = reward
+                        textSize = 12f
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setTextColor(context.getColor(R.color.ink_muted))
+                    })
+                }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                addView(TextView(context).apply {
+                    text = if (opened) "열어 봄" else "입력 ›"
+                    textSize = 13f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setTextColor(context.getColor(if (opened) R.color.ink_muted else R.color.accent))
+                })
+            })
+        }
+        val hidden = s.publicCodes.size - shown.size
+        if (hidden > 0) codesList.addView(TextView(context).apply {
+            text = "코드 ${hidden}개 더 보기"
+            textSize = 13f
+            gravity = android.view.Gravity.CENTER
+            minHeight = dp(44)
+            setTextColor(context.getColor(R.color.ink_muted))
+            foreground = ripple.getDrawable(0)
+            setOnClickListener { onCodesMore() }
+        })
+        ripple.recycle()
     }
 
     /** 복각표 카드: 픽업 캐릭터를 원소 동그라미와 원소 색 이름으로. 자료가 없으면 안내만. */

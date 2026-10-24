@@ -66,6 +66,15 @@ class MainScreenSnapshotTest {
     }
     /** 보충한 날: 다음 자동 출석 줄 자리에 보충 결과. */
     @Test fun madeUpToday() = snap(signed.copy(makeUpMissed = null, makeUpToday = "보충 2일 · 모라 x5000, 경험의 서 x3"), night = false)
+    /** 로그인 전: 리딤 코드 카드(위키 자료)와 복각표. 맨 위 로그인 안내는 그대로. */
+    @Test fun loggedOutCodes() {
+        val wiki = org.json.JSONObject(javaClass.getResource("/wiki_promotional_code.json")!!.readText())
+        val codes = PublicCodes.from(wiki, emptyList(), java.time.LocalDate.of(2026, 10, 18))
+        snap(loggedOut.copy(
+            publicCodes = codes.mapIndexed { i, c -> Triple(c.code, c.reward, i == 1) },
+            reruns = signed.reruns,
+        ), night = false)
+    }
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 

@@ -94,6 +94,22 @@ class MainActivity : Activity() {
         screen.primaryButton.setOnClickListener {
             if (store == null) startActivity(LoginActivity.loginIntent(this)) else checkInNow()
         }
+        screen.codesLogin.setOnClickListener { startActivity(LoginActivity.loginIntent(this)) }
+        screen.onCodeOpen = { code ->
+            PublicCodes.markOpened(this, code)
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PublicCodes.giftUrl(code))))
+            } catch (e: android.content.ActivityNotFoundException) {
+                Toast.makeText(this, PublicCodes.giftUrl(code), Toast.LENGTH_LONG).show()
+            }
+            refresh()
+        }
+        screen.onCodesMore = { codesExpanded = true; refresh() }
+        screen.onCodeCopy = { code ->
+            getSystemService(android.content.ClipboardManager::class.java)
+                .setPrimaryClip(android.content.ClipData.newPlainText("리딤 코드", code))
+            Toast.makeText(this, "$code 복사했어요", Toast.LENGTH_SHORT).show()
+        }
         screen.makeUpButton.setOnClickListener { makeUpNow() }
         screen.makeUpCard.setOnClickListener { explainMakeUp() }
         screen.rowNotifications.setOnClickListener { chooseNotifications() }
@@ -143,6 +159,23 @@ class MainActivity : Activity() {
         loadNotes()
         loadRerunsIfStale()
         loadEventsIfStale()
+        loadCodesIfStale()
+    }
+
+    private var loadingCodes = false
+    private var codesExpanded = false
+
+    /** 로그인 전에만: 지금 쓸 수 있는 리딤 코드를 6시간에 한 번 받아 온다(공개 목록, 로그인 정보 없음). */
+    private fun loadCodesIfStale() {
+        if (store != null || loadingCodes || PublicCodes.isFresh(this)) return
+        loadingCodes = true
+        Thread {
+            val ok = try { PublicCodes.refresh(this); true } catch (e: IOException) { false }
+            runOnUiThread {
+                loadingCodes = false
+                if (ok) refresh()
+            }
+        }.start()
     }
 
     private var loadingEvents = false
@@ -552,6 +585,10 @@ class MainActivity : Activity() {
                 showCalendar = settings.showCalendar,
                 showReruns = settings.showReruns,
                 reruns = rerunCard(),
+                publicCodes = if (store != null) emptyList() else PublicCodes.opened(this).let { opened ->
+                    PublicCodes.cached(this).map { Triple(it.code, it.reward, it.code in opened) }
+                },
+                codesExpanded = codesExpanded,
                 eventsUnseen = Events.unseen(this),
                 cardOrder = settings.cardOrder,
                 editing = editing,

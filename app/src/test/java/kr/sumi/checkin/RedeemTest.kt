@@ -2,6 +2,7 @@ package kr.sumi.checkin
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RedeemTest {
@@ -144,5 +145,15 @@ class CheckInCalendarTest {
         val slots = CheckInCalendar.parseAwards(home)
         assertEquals(listOf(CalendarSlot("원석", 20), CalendarSlot("모라", 5000)), slots)
         assertEquals(slots, CheckInCalendar.fromJson(CheckInCalendar.toJson(slots)))
+    }
+
+    @Test fun publicCodesForLoggedOutScreen() {
+        val wiki = JSONObject(javaClass.getResource("/wiki_promotional_code.json")!!.readText())
+        val codes = PublicCodes.from(wiki, listOf("OFFICIAL1"), java.time.LocalDate.of(2026, 10, 18))
+        assertTrue(codes.isNotEmpty())
+        assertEquals(codes.map { it.code }.distinct(), codes.map { it.code })
+        assertTrue(codes.any { it.code == "OFFICIAL1" && it.reward == null })
+        assertTrue(codes.first().reward!!.isNotEmpty())
+        assertEquals("https://genshin.hoyoverse.com/m/ko/gift?code=OPERACOLLAB", PublicCodes.giftUrl("OPERACOLLAB"))
     }
 }
