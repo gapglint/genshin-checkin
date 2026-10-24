@@ -165,14 +165,19 @@ class CheckInCalendarTest {
         val codes = listOf(PublicCode("AAA111", null, "전 서버"), PublicCode("BBB222", null, "전 서버"))
         assertEquals(emptyList<PublicCode>(), PublicCodes.newCodes(codes, emptySet(), first = true))
         assertEquals(listOf("BBB222"), PublicCodes.newCodes(codes, setOf("AAA111"), first = false).map { it.code })
+        // 다른 사이트에만 있는 확인 안 된 코드는 알리지 않는다.
+        val unverified = listOf(PublicCode("CCC333", null, "전 서버", unverified = true))
+        assertEquals(emptyList<PublicCode>(), PublicCodes.newCodes(unverified, emptySet(), first = false))
     }
 
     @Test fun siteCodesList() {
         val json = JSONObject("""{"codes":[
           {"code":"HOUROFRUIN","server":"전 서버","reward":"원석 ×100 · 정제용 마법 광석 ×10","discovered":"2026-10-23","expiry":"2026-10-26","live":true,"old":false},
-          {"code":"OLDCODE1234","server":"아시아","reward":null,"discovered":"2026-08-01","expiry":null,"live":false,"old":true}]}""")
+          {"code":"OLDCODE1234","server":"아시아","reward":null,"discovered":"2026-08-01","expiry":null,"live":false,"old":true},
+          {"code":"NOTONWIKI12","server":"전 서버","reward":"원석 ×60","discovered":null,"expiry":null,"live":false,"unverified":true,"old":false}]}""")
         val codes = PublicCodes.fromSite(json)
-        assertEquals(listOf("HOUROFRUIN", "OLDCODE1234"), codes.map { it.code })
+        assertEquals(listOf("HOUROFRUIN", "OLDCODE1234", "NOTONWIKI12"), codes.map { it.code })
+        assertTrue(codes[2].unverified && !codes[0].unverified)
         assertTrue(codes[0].official && !codes[0].old)
         assertEquals(java.time.LocalDate.of(2026, 10, 26), codes[0].expiry)
         assertEquals("원석 ×100 · 정제용 마법 광석 ×10", PublicCodes.rewardText(codes[0].reward))

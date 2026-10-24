@@ -19,6 +19,8 @@ data class PublicCode(
     val official: Boolean = false,
     /** 만료일을 모르는 채 오래된 코드(만료됐을 수 있음). */
     val old: Boolean = false,
+    /** 다른 코드 모음 사이트에만 있는 코드(안 될 수도 있음). 맨 아래에 두고 새 코드 알림은 보내지 않는다. */
+    val unverified: Boolean = false,
 )
 
 /**
@@ -71,6 +73,7 @@ object PublicCodes {
                 expiry = it.optString("expiry").takeIf { d -> d.length == 10 }?.let(LocalDate::parse),
                 official = it.optBoolean("live"),
                 old = it.optBoolean("old"),
+                unverified = it.optBoolean("unverified"),
             )
         }
     }
@@ -143,12 +146,13 @@ object PublicCodes {
         val fresh = newCodes(codes, seen, first)
         if (fresh.isNotEmpty() && AppSettings(context).codeAlerts) Notifier.notifyNewCodes(context, fresh)
         // 한쪽 출처가 잠깐 빠졌다 돌아와도 다시 알리지 않게 본 코드는 계속 기억한다(오래된 것부터 300개까지).
-        prefs.edit().putStringSet("alerted", (seen + codes.map { it.code }).toList().takeLast(300).toSet()).apply()
+        // 확인 안 된 코드는 기억하지 않아, 나중에 위키·공식 목록에 오르면 그때 알린다.
+        prefs.edit().putStringSet("alerted", (seen + codes.filter { !it.unverified }.map { it.code }).toList().takeLast(300).toSet()).apply()
     }
 
-    /** 알릴 새 코드: 처음이면 없음, 아니면 본 적 없는 코드. */
+    /** 알릴 새 코드: 처음이면 없음, 아니면 본 적 없는 확인된 코드. */
     internal fun newCodes(codes: List<PublicCode>, seen: Set<String>, first: Boolean) =
-        if (first) emptyList() else codes.filter { it.code !in seen }
+        if (first) emptyList() else codes.filter { !it.unverified && it.code !in seen }
 
     /** 입력 페이지를 열어 본 코드. 다시 볼 때 흐리게 보여 준다. */
     fun opened(context: Context): Set<String> = prefs(context).getStringSet("opened", emptySet()).orEmpty()
@@ -160,7 +164,7 @@ object PublicCodes {
     private fun toJson(codes: List<PublicCode>) = JSONArray(codes.map {
         JSONObject().put("code", it.code).put("reward", it.reward ?: "").put("server", it.server)
             .put("discovered", it.discovered?.toString() ?: "").put("expiry", it.expiry?.toString() ?: "").put("official", it.official)
-            .put("old", it.old)
+            .put("old", it.old).put("unverified", it.unverified)
     })
 
     private fun fromJson(a: JSONArray) = (0 until a.length()).map { a.getJSONObject(it) }.map {
@@ -172,6 +176,7 @@ object PublicCodes {
             expiry = it.optString("expiry").ifEmpty { null }?.let(LocalDate::parse),
             official = it.optBoolean("official"),
             old = it.optBoolean("old"),
+            unverified = it.optBoolean("unverified"),
         )
     }
 
