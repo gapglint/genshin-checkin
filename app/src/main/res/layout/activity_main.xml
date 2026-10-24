@@ -425,6 +425,47 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
+            <!-- 로그인 없이 새 코드 알림만 받기 -->
+            <LinearLayout
+                android:id="@+id/codesAlertRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_codes_login"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="18dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="새 코드 나오면 알림"
+                        android:textColor="@color/ink"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="로그인 없이도 받아요 · 금요일 방송 코드도"
+                        android:textColor="@color/ink_muted"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <kr.sumi.checkin.StarSwitch
+                    android:id="@+id/codesAlert"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="새 코드 나오면 알림" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/codesLogin"
                 android:layout_width="match_parent"

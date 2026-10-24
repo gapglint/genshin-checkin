@@ -95,6 +95,15 @@ class MainActivity : Activity() {
             if (store == null) startActivity(LoginActivity.loginIntent(this)) else checkInNow()
         }
         screen.codesLogin.setOnClickListener { startActivity(LoginActivity.loginIntent(this)) }
+        screen.codesAlert.setOnCheckedChangeListener { _, on ->
+            if (on == settings.codeAlerts) return@setOnCheckedChangeListener
+            settings.codeAlerts = on
+            PublicCodes.schedule(this)
+            if (on && Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            }
+            Toast.makeText(this, if (on) "새 코드가 나오면 알려 드릴게요" else "새 코드 알림을 껐어요", Toast.LENGTH_SHORT).show()
+        }
         screen.onCodeOpen = { code ->
             PublicCodes.markOpened(this, code)
             try {
@@ -139,7 +148,7 @@ class MainActivity : Activity() {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
         // 앱 업데이트 등으로 예약이 사라졌어도 다시 건다. 이미 있으면 그대로 둔다.
-        if (settings.hasAccounts) CheckIn.schedule(this)
+        if (settings.hasAccounts) CheckIn.schedule(this) else PublicCodes.schedule(this)
         handleIntent(intent)
     }
 
@@ -601,6 +610,7 @@ class MainActivity : Activity() {
                 reruns = rerunCard(),
                 publicCodes = if (store != null) emptyList() else codeRows(PublicCodes.cached(this), PublicCodes.opened(this), ServerClock.today()),
                 codesExpanded = codesExpanded,
+                codeAlerts = settings.codeAlerts,
                 eventsUnseen = Events.unseen(this),
                 cardOrder = settings.cardOrder,
                 editing = editing,
@@ -933,7 +943,10 @@ class MainActivity : Activity() {
             .setMessage("이 계정의 로그인과 기록을 지우고 이 계정은 자동 출석을 멈춰요. 다른 계정은 그대로예요.")
             .setPositiveButton("로그아웃") {
                 settings.remove(store.accountId)
-                if (!settings.hasAccounts) CheckIn.cancel(this)
+                if (!settings.hasAccounts) {
+                    CheckIn.cancel(this)
+                    PublicCodes.schedule(this)
+                }
                 refresh()
             }
             .setNegativeButton("취소")

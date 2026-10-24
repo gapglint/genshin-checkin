@@ -51,6 +51,8 @@ data class MainUiState(
     val note: String? = null,
     /** 로그인 전에만 보여 주는 지금 쓸 수 있는 리딤 코드. */
     val publicCodes: List<CodeRowUi> = emptyList(),
+    /** 로그인 전 새 코드 알림을 켰는지. */
+    val codeAlerts: Boolean = true,
     /** 리딤 코드 카드를 펼쳤는지. 접혀 있으면 앞의 몇 개만 보인다. */
     val codesExpanded: Boolean = false,
     /** 오늘 보충 출석을 했으면 그 요약("보충 2일 · 모라 x5000"). 다음 자동 출석 줄 자리에 대신 보여 준다. */
@@ -152,6 +154,7 @@ class MainScreen(val root: View) {
     var onCodesMore: () -> Unit = {}
     val codesCard: View = root.findViewById(R.id.codesCard)
     val codesLogin: View = root.findViewById(R.id.codesLogin)
+    val codesAlert: android.widget.CompoundButton = root.findViewById(R.id.codesAlert)
     private val codesList: LinearLayout = root.findViewById(R.id.codesList)
     private val heroEyebrow: TextView = root.findViewById(R.id.heroEyebrow)
     private val heroDay: TextView = root.findViewById(R.id.heroDay)
@@ -629,6 +632,7 @@ class MainScreen(val root: View) {
         codesCard.visibility = if (!s.loggedIn && s.publicCodes.isNotEmpty() && !s.editing) View.VISIBLE else View.GONE
         codesList.removeAllViews()
         if (codesCard.visibility != View.VISIBLE) return
+        if (codesAlert.isChecked != s.codeAlerts) codesAlert.isChecked = s.codeAlerts
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         val ripple = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))

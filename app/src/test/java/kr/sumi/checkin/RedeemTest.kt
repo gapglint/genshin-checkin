@@ -160,4 +160,10 @@ class CheckInCalendarTest {
         assertTrue(codes[1].reward!!.isNotEmpty())
         assertEquals("https://genshin.hoyoverse.com/m/ko/gift?code=OPERACOLLAB", PublicCodes.giftUrl("OPERACOLLAB"))
     }
+
+    @Test fun newCodeAlertsSkipFirstCheck() {
+        val codes = listOf(PublicCode("AAA111", null, "전 서버"), PublicCode("BBB222", null, "전 서버"))
+        assertEquals(emptyList<PublicCode>(), PublicCodes.newCodes(codes, emptySet(), first = true))
+        assertEquals(listOf("BBB222"), PublicCodes.newCodes(codes, setOf("AAA111"), first = false).map { it.code })
+    }
 }

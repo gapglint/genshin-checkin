@@ -44,7 +44,8 @@ object PublicCodes {
     @Throws(IOException::class)
     fun refresh(context: Context) {
         val (wiki, official) = Redeem.publishedCodes()
-        if (wiki == null && official.isEmpty()) throw IOException("코드 목록을 받지 못했어요")
+        // 위키가 주된 목록이라, 위키를 못 받았으면 지난 목록을 그대로 둔다(코드가 사라졌다 생기는 일 없게).
+        if (wiki == null) throw IOException("코드 목록을 받지 못했어요")
         val codes = from(wiki, official, ServerClock.today())
         prefs(context).edit().putString(KEY, toJson(codes).toString()).putLong("checked_at", System.currentTimeMillis()).apply()
     }
@@ -77,6 +78,39 @@ object PublicCodes {
         val names = servers.mapNotNull { SERVER_NAMES[it] }
         return names.takeIf { it.isNotEmpty() }?.joinToString("·")
     }
+
+    /**
+     * 로그인 전에도 새 코드 알림과 기다리는 캐릭터 알림이 오도록 6시간 확인 작업과 금요일 밤 확인을 건다.
+     * 로그인한 계정이 있으면 출석 예약이 같은 일을 하므로 건드리지 않는다. 둘 다 필요 없으면 끈다.
+     */
+    fun schedule(context: Context) {
+        val settings = AppSettings(context)
+        if (settings.hasAccounts) return
+        if (settings.codeAlerts || Reruns.watched(context).isNotEmpty()) Jobs.schedulePeriodic(context)
+        else Jobs.cancel(context, Jobs.PERIODIC)
+        if (settings.codeAlerts) RedeemAlarm.schedule(context) else RedeemAlarm.cancel(context)
+    }
+
+    /**
+     * 로그인 전 새 코드 알림: 목록을 새로 받고, 지난번에 본 적 없는 코드가 있으면 한 번 알린다.
+     * 처음 확인할 때는 이미 있던 코드를 알리지 않고 기억만 한다. 네트워크 오류는 IOException.
+     */
+    @Throws(IOException::class)
+    fun checkNew(context: Context) {
+        refresh(context)
+        val codes = cached(context)
+        val prefs = prefs(context)
+        val first = !prefs.contains("alerted")
+        val seen = prefs.getStringSet("alerted", emptySet()).orEmpty()
+        val fresh = newCodes(codes, seen, first)
+        if (fresh.isNotEmpty() && AppSettings(context).codeAlerts) Notifier.notifyNewCodes(context, fresh)
+        // 한쪽 출처가 잠깐 빠졌다 돌아와도 다시 알리지 않게 본 코드는 계속 기억한다(오래된 것부터 300개까지).
+        prefs.edit().putStringSet("alerted", (seen + codes.map { it.code }).toList().takeLast(300).toSet()).apply()
+    }
+
+    /** 알릴 새 코드: 처음이면 없음, 아니면 본 적 없는 코드. */
+    internal fun newCodes(codes: List<PublicCode>, seen: Set<String>, first: Boolean) =
+        if (first) emptyList() else codes.filter { it.code !in seen }
 
     /** 입력 페이지를 열어 본 코드. 다시 볼 때 흐리게 보여 준다. */
     fun opened(context: Context): Set<String> = prefs(context).getStringSet("opened", emptySet()).orEmpty()

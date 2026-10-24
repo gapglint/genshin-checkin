@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
+import java.io.IOException
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalTime
@@ -63,7 +64,16 @@ class RedeemAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext
         val settings = AppSettings(app)
-        if (!settings.hasAccounts) return
+        // 로그인 전: 새 코드 알림만(공개 목록 한두 번 확인이라 바로 끝난다).
+        if (!settings.hasAccounts) {
+            if (!settings.codeAlerts) return
+            RedeemAlarm.schedule(app)
+            val pending = goAsync()
+            Thread {
+                try { PublicCodes.checkNew(app) } catch (e: IOException) {} finally { pending.finish() }
+            }.start()
+            return
+        }
         RedeemAlarm.schedule(app)
         if (!settings.redeemEnabled) return
         val pending = goAsync()

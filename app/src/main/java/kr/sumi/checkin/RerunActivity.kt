@@ -75,6 +75,8 @@ class RerunActivity : Activity() {
     private fun toggleWatch(c: RerunCharacter) {
         val on = c.name !in Reruns.watched(this)
         Reruns.setWatched(this, c.name, on)
+        // 로그인 전이면 기다리는 캐릭터 알림을 위해 6시간 확인 작업을 켜거나 끈다.
+        PublicCodes.schedule(this)
         android.widget.Toast.makeText(
             this,
             if (on) "${c.ko} 픽업이 뜨면 알려 드릴게요" else "${c.ko} 픽업 알림을 껐어요",

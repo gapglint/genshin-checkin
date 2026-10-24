@@ -91,6 +91,8 @@ class RescheduleReceiver : BroadcastReceiver() {
         if (AppSettings(context).hasAccounts) {
             CheckIn.schedule(context)
             Notes.schedule(context)
+        } else {
+            PublicCodes.schedule(context)
         }
     }
 }

@@ -26,6 +26,7 @@ object Notifier {
     private const val ID_EXPEDITIONS = 6
     private const val ID_HOME_COIN = 7
     private const val ID_RERUN = 8
+    private const val ID_NEW_CODES = 9
 
     fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -227,6 +228,27 @@ object Notifier {
             .setAutoCancel(true)
             .build()
         context.getSystemService(NotificationManager::class.java).notify(id, notification)
+    }
+
+    /** 로그인 전 새 리딤 코드 알림. 누르면 앱의 코드 목록(입력 페이지로 가는 줄)을 연다. */
+    @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
+    fun notifyNewCodes(context: Context, codes: List<PublicCode>) {
+        if (!canNotify(context) || codes.isEmpty()) return
+        val title = "새 리딤 코드 ${codes.size}개" + if (codes.any { it.official }) " (방송)" else ""
+        val text = codes.joinToString("\n") { c -> c.code + (PublicCodes.rewardText(c.reward)?.let { " · $it" } ?: "") }
+        val pending = PendingIntent.getActivity(
+            context, ID_NEW_CODES, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
+            .setSmallIcon(R.drawable.ic_notify)
+            .setContentTitle(title)
+            .setContentText(text.substringBefore("\n") + if (codes.size > 1) " 외" else "")
+            .setStyle(Notification.BigTextStyle().bigText(text + "\n로그인하면 앱이 알아서 입력해요."))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        context.getSystemService(NotificationManager::class.java).notify(ID_NEW_CODES, notification)
     }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */

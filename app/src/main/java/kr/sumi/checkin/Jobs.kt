@@ -92,6 +92,10 @@ class CheckInJobService : JobService() {
                             Notes.checkAll(app)
                             // 오늘 이미 입력했어도 새 리딤 코드가 올라왔으면 넣는다(없으면 공개 목록만 보고 끝).
                             Redeem.runScheduled(app)
+                            // 로그인 전이면 새 코드가 생겼을 때 알림만 한다.
+                            if (!AppSettings(app).hasAccounts && AppSettings(app).codeAlerts) {
+                                try { PublicCodes.checkNew(app) } catch (e: IOException) {}
+                            }
                             // 기다리는 캐릭터가 있거나 픽업 위젯이 놓여 있으면 복각표 자료도 확인한다(작은 파일, 12시간에 한 번).
                             if (Reruns.watched(app).isNotEmpty() || PickupWidget.installed(app)) {
                                 try { Reruns.refresh(app) } catch (e: IOException) {}

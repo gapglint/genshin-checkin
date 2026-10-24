@@ -374,6 +374,10 @@ class AppSettings(private val context: Context) {
     var rerunAlert: Boolean
         get() = prefs.getBoolean("rerun_alert", true)
         set(value) = prefs.edit { putBoolean("rerun_alert", value) }
+    /** 로그인 전: 새 리딤 코드가 나오면 알림(공개 목록만 본다). 로그인하면 자동 입력으로 바뀐다. */
+    var codeAlerts: Boolean
+        get() = prefs.getBoolean("code_alerts", true)
+        set(value) = prefs.edit { putBoolean("code_alerts", value) }
     var showReruns: Boolean
         get() = prefs.getBoolean("show_reruns", true)
         set(value) = prefs.edit { putBoolean("show_reruns", value) }
