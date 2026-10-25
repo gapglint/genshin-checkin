@@ -327,6 +327,18 @@ object Lobby {
     data class VoiceLine(val title: String, val text: String, val audio: String?)
 
     /** 위키 문서의 음성(voice) 목록. 태그와 '돌파 Lv.… 개방' 같은 안내는 뗀다. */
+    /** 위키 대사 칸의 개방 조건(예: "호감도 Lv.4 달성 후 개방", "「물의 아이」 스토리 클리어"). 문단 하나가 통째로 조건(뒤에 ※주의가 붙기도)이거나 대사 끝에 붙어 있다. */
+    private val UNLOCK_TAIL = Regex("(호감도|돌파) Lv\\.?\\s*「?\\d+」?\\s*달성 후 개방$")
+    private val UNLOCK_PARAGRAPH = Regex("^((호감도|돌파) Lv|※|.{0,40}(스토리 (클리어|완료)|후 개방)$)")
+
+    /** 대사 칸(HTML)에서 대사만: 문단별로 끝에 붙은 조건을 지우고, 조건만 있는 문단은 뺀다. */
+    internal fun voiceText(desc: String): String =
+        desc.replace(Regex("<br\\s*/?>"), " ").replace("</p>", "\n").replace(Regex("<[^>]+>"), "").replace("&nbsp;", " ")
+            .split("\n")
+            .map { it.trim().replace(UNLOCK_TAIL, "").replace(Regex("\\(「[^」]*」 전용 음성\\)"), "").trim() }
+            .filter { it.isNotEmpty() && !UNLOCK_PARAGRAPH.containsMatchIn(it) }
+            .joinToString(" ")
+
     internal fun voiceLines(page: JSONObject): List<VoiceLine> {
         val modules = page.optJSONObject("data")?.optJSONObject("page")?.optJSONArray("modules") ?: return emptyList()
         for (i in 0 until modules.length()) {
@@ -336,9 +348,7 @@ object Lobby {
                 if (comp.optString("component_id") != "voice") continue
                 val list = JSONObject(comp.optString("data", "{}")).optJSONArray("list") ?: return emptyList()
                 return (0 until list.length()).map { list.getJSONObject(it) }.mapNotNull { v ->
-                    val text = v.optString("desc").replace(Regex("<br\\s*/?>"), " ").replace(Regex("<[^>]+>"), "")
-                        .replace(Regex("돌파 Lv\\.「\\d+」 달성 후 개방"), "").replace(Regex("\\(「[^」]*」 전용 음성\\)"), "")
-                        .replace("&nbsp;", " ").trim()
+                    val text = voiceText(v.optString("desc"))
                     val audios = v.optJSONArray("audios")
                     val ko = (0 until (audios?.length() ?: 0)).map { audios!!.getJSONObject(it) }.firstOrNull { it.optString("name") == "한국어" }?.optString("url")
                     if (text.isEmpty()) null else VoiceLine(v.optString("title").trim(), text, ko?.takeIf { it.startsWith("https://") })
@@ -348,7 +358,7 @@ object Lobby {
         return emptyList()
     }
 
-    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_${name.hashCode().toUInt()}.json")
+    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_v2_${name.hashCode().toUInt()}.json")
 
     private fun saveVoices(context: Context, name: String, lines: List<VoiceLine>) {
         if (lines.isEmpty()) return
