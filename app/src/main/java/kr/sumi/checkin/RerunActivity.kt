@@ -189,11 +189,14 @@ class RerunList(
 
     private var current: String? = null
     private var liveNames: Set<String> = emptySet()
+    private var upcomingNames: Set<String> = emptySet()
 
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
         current = data.current(today)?.v
         val live = data.live(today)
         liveNames = live.flatMap { it.chars + if (showFours) it.four else emptyList() }.toSet()
+        // 공식 발표된 다음 픽업(위키에 미리 올라온 것). 지난 버전 수 대신 '예정'으로.
+        upcomingNames = data.banners.filter { it.start.isAfter(today) }.flatMap { it.chars + it.four }.toSet() - liveNames
         pickups(data, live, today, "지금 픽업 중")?.let { list.addView(it) }
         pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
@@ -333,23 +336,33 @@ class RerunList(
     }
 
     /** 지난 버전 수 표시: 오래될수록 진한 색, 9 이상은 더 크게. */
-    private fun badge(since: Int, small: Boolean = false, live: Boolean = since == 0) = TextView(context).apply {
-        text = if (live) "NOW" else "$since"
+    /**
+     * 지난 버전 수 표시. 지금 픽업 중이면 NOW, 발표된 다음 픽업이면 예정,
+     * 이번 버전에 이미 나왔다 끝났으면(지난 버전 0) '이번'(숫자 0은 글꼴 때문에 O처럼 보여 헷갈린다).
+     */
+    private fun badge(since: Int, small: Boolean = false, live: Boolean = since == 0, upcoming: Boolean = false) = TextView(context).apply {
+        val word = live || upcoming || since == 0
+        text = when {
+            live -> "NOW"
+            upcoming -> "예정"
+            since == 0 -> "이번"
+            else -> "$since"
+        }
         textSize = when {
-            since == 0 -> 10f
+            word -> 10f
             small -> 13f
             since >= 9 -> 17f
             else -> 14f
         }
-        typeface = if (live) Typeface.DEFAULT_BOLD else numerals
+        typeface = if (word) Typeface.DEFAULT_BOLD else numerals
         includeFontPadding = false
         gravity = Gravity.CENTER
         minWidth = dp(24)
-        setTextColor(0xFFFFFFFF.toInt())
+        setTextColor(if (upcoming) color(R.color.on_gold) else 0xFFFFFFFF.toInt())
         setPadding(dp(6), dp(2), dp(6), dp(2))
         background = GradientDrawable().apply {
             cornerRadius = dp(12).toFloat()
-            setColor(color(RerunActivity.tone(since)))
+            setColor(color(if (upcoming) R.color.gold else RerunActivity.tone(since)))
             setStroke(dp(2), color(R.color.hero))
         }
     }
@@ -361,7 +374,7 @@ class RerunList(
         val base = color(RerunActivity.elementColor(c.element))
         val strong = since >= 9
         alpha = when {
-            c.name in liveNames -> 1f // 지금 픽업 중이면 흐리게 하지 않는다
+            c.name in liveNames || c.name in upcomingNames -> 1f // 지금·곧 픽업이면 흐리게 하지 않는다
             since <= 2 -> 0.55f
             since <= 5 -> 0.85f
             else -> 1f
@@ -385,7 +398,7 @@ class RerunList(
                     shape = GradientDrawable.OVAL
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
-            addView(badge(since, live = c.name in liveNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
+            addView(badge(since, live = c.name in liveNames, upcoming = c.name in upcomingNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
             // 픽업 알림을 받기로 한 캐릭터: 왼쪽 위에 종.
             if (c.name in watched) addView(TextView(context).apply {
                 text = "🔔"
