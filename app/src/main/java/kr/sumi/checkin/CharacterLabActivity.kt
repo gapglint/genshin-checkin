@@ -95,6 +95,25 @@ class CharacterLabActivity : Activity() {
 
     private fun addCharacter(c: JSONObject, images: List<Pair<String, String>>) {
         note("${c.optString("name")} · ${c.optString("element")} · ★${c.optInt("rarity")} · Lv.${c.optInt("level")}", 15f, true, top = 18)
+        list.addView(TextView(this).apply {
+            text = "▶ 위키 세로 그림으로 로비 보기"
+            textSize = 14f
+            setTextColor(getColor(R.color.accent))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, dp(8), 0, dp(4))
+            setOnClickListener {
+                text = "▶ 위키 그림 받는 중..."
+                val name = c.optString("name")
+                pool.execute {
+                    val result = try { wikiPortrait(name) } catch (e: Exception) { null }
+                    runOnUiThread {
+                        if (result == null) { text = "▶ 위키에서 그림을 못 찾았어요"; return@runOnUiThread }
+                        text = "▶ 위키 세로 그림 ${result.width}×${result.height} · 다시 보기"
+                        showLobby(result, c)
+                    }
+                }
+            }
+        })
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         list.addView(HorizontalScrollView(this).apply { addView(row) })
         for ((key, url) in images) {
@@ -119,8 +138,64 @@ class CharacterLabActivity : Activity() {
         }
     }
 
-    private fun fetch(url: String): Bitmap? {
+    /** 호요랩 위키 캐릭터 목록(이름 → 문서 번호). 한 번만 받는다. */
+    private var wikiIds: Map<String, String>? = null
+
+    /** 호요랩 위키 캐릭터 문서의 '갤러리' 세로 그림(대개 1080×1920 이상). */
+    private fun wikiPortrait(name: String): Bitmap? {
+        val ids = wikiIds ?: run {
+            val map = mutableMapOf<String, String>()
+            for (page in 1..6) {
+                val body = """{"filters":[],"menu_id":"2","page_num":$page,"page_size":50,"use_es":true}"""
+                val items = wikiJson("https://sg-wiki-api.hoyolab.com/hoyowiki/genshin/wapi/get_entry_page_list", body)
+                    .optJSONObject("data")?.optJSONArray("list") ?: break
+                for (i in 0 until items.length()) items.getJSONObject(i).let { map[it.optString("name")] = it.optString("entry_page_id") }
+                if (items.length() < 50) break
+            }
+            map.also { wikiIds = it }
+        }
+        val id = ids[name] ?: return null
+        val page = wikiJson("https://sg-wiki-api-static.hoyolab.com/hoyowiki/genshin/wapi/entry_page?entry_page_id=$id", null)
+            .optJSONObject("data")?.optJSONObject("page") ?: return null
+        val modules = page.optJSONArray("modules") ?: return null
+        for (i in 0 until modules.length()) {
+            val comps = modules.getJSONObject(i).optJSONArray("components") ?: continue
+            for (j in 0 until comps.length()) {
+                val comp = comps.getJSONObject(j)
+                if (comp.optString("component_id") != "gallery_character") continue
+                val pic = JSONObject(comp.optString("data")).optString("pic")
+                if (pic.isNotEmpty()) return fetch(pic)
+            }
+        }
+        return null
+    }
+
+    private fun wikiJson(url: String, body: String?): JSONObject {
         val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 15_000
+            conn.setRequestProperty("x-rpc-language", CheckInClient.LANG)
+            conn.setRequestProperty("Referer", "https://wiki.hoyolab.com/")
+            if (body != null) {
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.outputStream.use { it.write(body.toByteArray()) }
+            }
+            return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** 주소에 한자 등이 섞여 있으면 그 글자만 인코딩한다. */
+    private fun ascii(url: String) = buildString {
+        for (ch in url) if (ch.code < 128) append(ch) else append(java.net.URLEncoder.encode(ch.toString(), "UTF-8"))
+    }
+
+    private fun fetch(url: String): Bitmap? {
+        val conn = URL(ascii(url)).openConnection() as HttpURLConnection
         return try {
             conn.connectTimeout = 15_000
             conn.readTimeout = 15_000
