@@ -1204,7 +1204,7 @@ class MainActivity : Activity() {
             resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
             dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
             account = s.accounts.takeIf { it.size > 1 }?.firstOrNull { it.id == s.currentId }?.label,
-            quote = quote?.text, voice = quote?.audioFor(settings.voiceLanguage) != null,
+            quote = quote?.text, voice = Lobby.officialVoicesAllowed(this) && quote?.audioFor(settings.voiceLanguage) != null,
         )
         return when {
             s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }

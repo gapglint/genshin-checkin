@@ -118,8 +118,8 @@ class LobbyStyleActivity : Activity() {
         if (store != null && chars != null) waitingSection(chars, fav)
 
         section("캐릭터 음성")
-        voiceChips()
-        note("대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때 그 대사만 받고, 받은 건 폰에 두고 다시 써요. 최애나 언어를 바꾸면 이전 음성은 지워져요.")
+        if (!Lobby.officialVoicesAllowed(this)) note("지금은 캐릭터 음성을 쓸 수 없어요. 대사 글은 그대로 보여요.") else voiceChips()
+        note("기본은 꺼져 있어요. 대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때 그 대사만 받고, 받은 건 폰에 두고 다시 써요. 최애나 언어를 바꾸면 이전 음성은 지워져요.")
         val voiceBytes = Lobby.voiceCacheBytes(this)
         if (voiceBytes > 0) choice("저장된 음성 지우기", "지금 %.1fMB · 다시 들으면 다시 받아요".format(voiceBytes / 1_000_000.0), false) {
             Lobby.clearVoiceCache(this); render()

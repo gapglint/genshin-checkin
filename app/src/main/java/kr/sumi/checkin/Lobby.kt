@@ -61,6 +61,9 @@ object Lobby {
     /** 공식 그림을 써도 되는지(사이트 설정). 받아 둔 값이 없으면 true. */
     fun officialArtAllowed(context: Context) = prefs(context).getBoolean("official_art", true)
 
+    /** 캐릭터 음성을 써도 되는지: 공식 자료 전체 스위치와 음성만 따로 끄는 스위치(officialVoices) 둘 다 켜져 있을 때. */
+    fun officialVoicesAllowed(context: Context) = officialArtAllowed(context) && prefs(context).getBoolean("official_voices", true)
+
     /** 사이트 설정을 12시간에 한 번 받아 둔다. 실패하면 받아 둔 값을 그대로 쓴다. */
     fun refreshConfig(context: Context) {
         val p = prefs(context)
@@ -68,7 +71,10 @@ object Lobby {
         try {
             val json = JSONObject(get(CONFIG_URL))
             p.edit().putBoolean("official_art", json.optBoolean("lobbyOfficialArt", true))
+                .putBoolean("official_voices", json.optBoolean("officialVoices", true))
                 .putLong("config_at", System.currentTimeMillis()).apply()
+            // 음성이 꺼졌으면 폰에 둔 음성도 지운다.
+            if (!officialVoicesAllowed(context)) clearVoiceCache(context)
         } catch (e: Exception) {
         }
     }
@@ -485,7 +491,7 @@ object Lobby {
      * 시스템이 공간이 모자라면 비울 수 있고, 그러면 다음에 다시 받는다. 네트워크에서 받으니 배경 스레드에서 부른다. 실패하면 null.
      */
     fun voiceFile(context: Context, url: String, owner: String): File? {
-        if (!url.startsWith("https://")) return null
+        if (!url.startsWith("https://") || !officialVoicesAllowed(context)) return null
         val root = File(context.cacheDir, "voices")
         val dir = File(root, owner.hashCode().toUInt().toString())
         root.listFiles()?.filter { it != dir }?.forEach { it.deleteRecursively() }
