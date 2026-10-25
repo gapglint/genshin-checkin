@@ -129,7 +129,7 @@ object Lobby {
     fun face(context: Context, ko: String): Bitmap? {
         cachedFace(context, ko)?.let { return it }
         if (!officialArtAllowed(context)) return null
-        val url = faceUrls(context)[ko] ?: return null
+        val url = faceUrls(context, ko)[ko] ?: return null
         return try {
             val bytes = getBytes(url)
             val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
@@ -146,11 +146,16 @@ object Lobby {
         }
     }
 
-    /** 사이트의 얼굴 그림 주소 목록(일주일에 한 번 받는다). */
-    private fun faceUrls(context: Context): Map<String, String> {
+    /**
+     * 사이트의 얼굴 그림 주소 목록(일주일에 한 번 받는다). 찾는 캐릭터([want])가 목록에 없으면(새 캐릭터·새로 넣은 4성 등)
+     * 하루가 지났을 때 일찍 다시 받는다.
+     */
+    private fun faceUrls(context: Context, want: String? = null): Map<String, String> {
         val p = prefs(context)
         val cached = p.getString("faces", null)
-        val json = if (cached != null && System.currentTimeMillis() - p.getLong("faces_at", 0) < 7 * DAY_MS) JSONObject(cached)
+        val age = System.currentTimeMillis() - p.getLong("faces_at", 0)
+        val fresh = cached != null && age < 7 * DAY_MS && (want == null || JSONObject(cached).has(want) || age < DAY_MS)
+        val json = if (fresh) JSONObject(cached!!)
         else try {
             JSONObject(get(FACES_URL)).also { p.edit().putString("faces", it.toString()).putLong("faces_at", System.currentTimeMillis()).apply() }
         } catch (e: Exception) {
