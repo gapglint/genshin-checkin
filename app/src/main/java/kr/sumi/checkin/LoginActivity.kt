@@ -89,7 +89,12 @@ class LoginActivity : Activity() {
         header.findViewById<View>(R.id.headerBack).setOnClickListener { goBack() }
         status = header.findViewById(R.id.headerStatus)
         status.text = if (loginMode) {
-            "호요버스 계정 이메일과 비밀번호로 로그인해 주세요(구글 로그인은 구글이 막을 수 있어요). 로그인되면 자동으로 닫혀요.\n호요랩 앱 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
+            // 할 일(이메일·비밀번호 로그인)을 한 줄로 진하게, 나머지는 옅게.
+            android.text.SpannableStringBuilder().apply {
+                append(LOGIN_HINT_HEAD, android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0)
+                setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.ink)), 0, length, 0)
+                append("\n구글 로그인은 구글이 막아서 안 될 수 있어요. 로그인되면 자동으로 닫히고, 1년 동안 유지돼요.")
+            }
         } else if (intent.hasExtra(EXTRA_URL)) {
             "${pageStore?.displayName ?: ""} 계정으로 로그인해서 열었어요. 페이지에서 보상 받기까지 눌러 주세요."
         } else {
@@ -224,10 +229,10 @@ class LoginActivity : Activity() {
 
     private fun googleBlocked() {
         AppDialog(this)
-            .setTitle("구글이 앱 안 로그인을 막았어요")
-            .setMessage("구글은 앱 안의 로그인 화면에서 구글 로그인을 막기도 해요. 이 로그인 창에서 호요버스 계정 이메일과 비밀번호로 로그인해 주세요.\n\n" +
-                "구글로만 가입해서 비밀번호가 없다면, 로그인 창의 「문제 발생」에서 비밀번호를 찾으면 돼요. 구글 계정 이메일로 인증 메일이 오고, 비밀번호를 새로 정할 수 있어요.")
-            .setPositiveButton("확인")
+            .setTitle("구글 로그인이 막혔어요")
+            .setMessage("구글은 다른 앱 안에서 하는 구글 로그인을 막아요. 이 로그인 창에서 구글 이메일 주소와 호요버스 비밀번호로 로그인해 주세요.\n\n" +
+                "비밀번호가 없다면 로그인 창의 「문제 발생」에서 새로 만들 수 있어요. 같은 계정이라 게임 데이터는 그대로예요.")
+            .setPositiveButton("이메일로 로그인")
             .show()
     }
 
@@ -351,6 +356,7 @@ class LoginActivity : Activity() {
         private const val EXTRA_ACCOUNT = "account"
         private const val EXTRA_URL = "url"
         private const val EXTRA_TITLE = "title"
+        private const val LOGIN_HINT_HEAD = "호요버스 계정 이메일과 비밀번호로 로그인해 주세요"
         /** 구글의 '로그인할 수 없음(안전하지 않은 브라우저)' 화면인지. 주소(rejected·disallowed)나 문구로 본다. */
         private const val GOOGLE_BLOCKED_JS = """
             (function () {
