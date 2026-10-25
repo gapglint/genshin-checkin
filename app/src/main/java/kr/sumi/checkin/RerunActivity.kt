@@ -211,7 +211,10 @@ class RerunList(
         // '4성도 보기'는 찾기 쉽게 픽업 판 바로 아래(판들 위)에.
         // 자료에 4성이 아직 없어도(예전에 받은 자료) 줄은 보인다. 켜면 그때 새로 받는다.
         val toggle = onFours != null
-        if (toggle) list.addView(foursToggle(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (list.childCount == 0) 0 else dp(12) })
+        if (toggle) list.addView(foursToggle(), LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            gravity = Gravity.END
+            topMargin = if (list.childCount == 0) 0 else dp(12)
+        })
         list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }),
             LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty() && !toggle) 0 else dp(16) })
         val standard = data.ranked(today, standard = true)
@@ -222,7 +225,7 @@ class RerunList(
         }
         val fours = data.rankedFours(today)
         if (showFours && fours.isNotEmpty()) {
-            list.addView(board(data, fours, "4성 캐릭터", legend = false, note = "5성 픽업에 함께 나와요 · 숫자는 마지막 픽업 뒤 지난 버전"),
+            list.addView(board(data, fours, "4성 캐릭터", legend = false, note = "5성 픽업에 함께 나와요 · 누르면 4성도 픽업 알림"),
                 LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
 
@@ -234,22 +237,29 @@ class RerunList(
     }
 
     /** 진행 중(또는 다음) 픽업: 금색 테두리 판에 캐릭터와 기간. 픽업이 없으면 null. */
-    /** '4성도 보기' 줄(누르면 켜고 끈다). */
+    /** '4성도 보기' 토글 칩: 남색 바탕에 4성 보라색, 켜면 스위치가 오른쪽으로. 판들 위 오른쪽에 작게. */
     private fun foursToggle(): View = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(16), dp(12), dp(16), dp(12))
-        background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(color(R.color.surface)) }
+        setPadding(dp(14), dp(8), dp(10), dp(8))
+        background = GradientDrawable().apply {
+            cornerRadius = dp(99).toFloat()
+            setColor(color(R.color.hero))
+            setStroke(dp(2), if (showFours) color(R.color.rarity4) else 0x40FFFFFF)
+        }
         isClickable = true
         foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
         setOnClickListener { onFours?.invoke() }
-        contentDescription = "4성도 보기, " + if (showFours) "켜짐" else "꺼짐"
-        addView(LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(text("4성도 보기", 14f, R.color.ink, bold = true))
-            addView(text("픽업 4성과 마지막 픽업 시기 · 누르면 4성도 알림 받기", 12f, R.color.ink_muted))
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        addView(text(if (showFours) "켜짐" else "꺼짐", 13f, if (showFours) R.color.action else R.color.ink_muted, bold = true))
+        contentDescription = "4성 캐릭터도 보기, " + if (showFours) "켜짐" else "꺼짐"
+        addView(text("★4", 12f, R.color.rarity4, bold = true).apply { setPadding(0, 0, dp(6), 0) })
+        addView(text("4성 캐릭터도 보기", 13f, R.color.hero_ink, bold = true).apply { setPadding(0, 0, dp(10), 0) })
+        // 작은 스위치: 켜지면 보라색 길에 흰 손잡이가 오른쪽
+        addView(android.widget.FrameLayout(context).apply {
+            background = GradientDrawable().apply { cornerRadius = dp(99).toFloat(); setColor(if (showFours) color(R.color.rarity4) else 0x44FFFFFF) }
+            addView(View(context).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(android.graphics.Color.WHITE) }
+            }, android.widget.FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER_VERTICAL or if (showFours) Gravity.END else Gravity.START).apply { setMargins(dp(3), 0, dp(3), 0) })
+        }, LinearLayout.LayoutParams(dp(34), dp(20)))
     }
 
     private fun pickups(data: RerunData, banners: List<Banner>, today: java.time.LocalDate, title: String): View? {

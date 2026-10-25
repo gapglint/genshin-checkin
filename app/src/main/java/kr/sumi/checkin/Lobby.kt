@@ -154,13 +154,13 @@ object Lobby {
 
     /**
      * 사이트의 얼굴 그림 주소 목록(일주일에 한 번 받는다). 찾는 캐릭터([want])가 목록에 없으면(새 캐릭터·새로 넣은 4성 등)
-     * 하루가 지났을 때 일찍 다시 받는다.
+     * 받은 지 한 시간이 지났을 때 일찍 다시 받는다.
      */
     private fun faceUrls(context: Context, want: String? = null): Map<String, String> {
         val p = prefs(context)
         val cached = p.getString("faces", null)
         val age = System.currentTimeMillis() - p.getLong("faces_at", 0)
-        val fresh = cached != null && age < 7 * DAY_MS && (want == null || JSONObject(cached).has(want) || age < DAY_MS)
+        val fresh = cached != null && age < 7 * DAY_MS && (want == null || JSONObject(cached).has(want) || age < 60 * 60_000L)
         val json = if (fresh) JSONObject(cached!!)
         else try {
             JSONObject(get(FACES_URL)).also { p.edit().putString("faces", it.toString()).putLong("faces_at", System.currentTimeMillis()).apply() }
