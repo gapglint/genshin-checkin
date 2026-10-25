@@ -397,7 +397,7 @@ class RerunList(
                 // 테두리 색으로 등급(5성 금색, 4성 보라색).
                 background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(lighten(base, 0.35f), base)).apply {
                     shape = GradientDrawable.OVAL
-                    setStroke(dp(2), color(if (c.rarity == 4) R.color.rarity4 else R.color.rarity5))
+                    setStroke(dp(3), color(if (c.rarity == 4) R.color.rarity4 else R.color.rarity5))
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
             addView(badge(since, live = c.name in liveNames, upcoming = c.name in upcomingNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))

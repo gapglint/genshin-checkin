@@ -114,7 +114,8 @@ class LobbyStyleActivity : Activity() {
             store == null -> note("로그인하면 내 캐릭터 중에서 고를 수 있어요.")
             chars == null -> note(loadError ?: "내 캐릭터를 불러오는 중이에요...")
             chars.isEmpty() -> note("호요랩 전적에서 캐릭터를 찾지 못했어요.")
-            else -> characterGrid(chars.sortedWith(compareByDescending<OwnedCharacter> { it.name == fav?.name }.thenByDescending { it.rarity }.thenByDescending { it.level })
+            // 순서는 등급·레벨로 고정한다(고른 최애를 앞으로 옮기면 누를 때 칸이 순간이동해 보인다).
+            else -> characterGrid(chars.sortedWith(compareByDescending<OwnedCharacter> { it.rarity % 100 }.thenByDescending { it.level })
                 .map { Pick(it.name, it.element, it.image, it.id, it.rarity) }, fav)
         }
         if (store != null && chars != null) waitingSection(chars, fav)
@@ -162,7 +163,7 @@ class LobbyStyleActivity : Activity() {
         when {
             all == null -> note("캐릭터 목록을 불러오는 중이에요...")
             all.isEmpty() -> note("캐릭터 목록을 불러오지 못했어요.")
-            else -> characterGrid(all.filter { it.name !in ownedNames }.sortedByDescending { it.name == fav?.name }
+            else -> characterGrid(all.filter { it.name !in ownedNames }
                 .map { Pick(it.name, it.element, it.icon, 0, it.rarity) }, fav)
         }
     }
@@ -197,7 +198,7 @@ class LobbyStyleActivity : Activity() {
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(LobbyTheme.blend(color, Color.WHITE, 0.55f))
-                        setStroke(dp(if (selected) 3 else 2), ring)
+                        setStroke(dp(3), ring)
                     }
                     clipToOutline = true
                     outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
