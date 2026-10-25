@@ -68,7 +68,27 @@ class RerunActivity : Activity() {
         // 설명과 지금 버전은 판 위에 있어서 머리말 아래 안내는 짧게.
         status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
 
-        RerunList(this, Reruns.watched(this)) { c -> toggleWatch(c) }.fill(list, data, today)
+        RerunList(this, Reruns.watched(this), faces) { c -> toggleWatch(c) }.fill(list, data, today)
+        loadFaces(data)
+    }
+
+    /** 얼굴 그림(공식 그림, 받아서 폰에만 저장). 저장된 것은 바로, 없는 것은 받아서 다 모이면 다시 그린다. */
+    private val faces = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
+    private var loadingFaces = false
+
+    private fun loadFaces(data: RerunData) {
+        if (loadingFaces || !Lobby.officialArtAllowed(this)) return
+        val missing = data.characters.map { it.ko }.filter { !faces.containsKey(it) }
+        if (missing.isEmpty()) return
+        loadingFaces = true
+        Thread {
+            var added = 0
+            for (ko in missing) {
+                if (isDestroyed) break
+                Lobby.face(this, ko)?.let { faces[ko] = it; added++ }
+            }
+            runOnUiThread { loadingFaces = false; if (added > 0 && !isDestroyed) render() }
+        }.start()
     }
 
     /** 캐릭터를 누르면 픽업 알림을 켜고 끈다. 이미 올라온 픽업이 있으면 바로 한 번 알린다. */
@@ -149,6 +169,8 @@ class RerunList(
     private val context: Context,
     /** 픽업 알림을 받기로 한 캐릭터(종 표시). */
     private val watched: Set<String> = emptySet(),
+    /** 공식 얼굴 그림(한국어 이름 → 그림). 없는 캐릭터는 원소 아이콘으로 그린다. */
+    private val faces: Map<String, android.graphics.Bitmap> = emptyMap(),
     /** 캐릭터를 누르면 알림 받기를 켜고 끈다. null이면 누를 수 없다(스냅숏 등). */
     private val onToggle: ((RerunCharacter) -> Unit)? = null,
 ) {
@@ -177,7 +199,8 @@ class RerunList(
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
         list.addView(text(
-            "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.",
+            "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요." +
+                if (faces.isNotEmpty()) "\n캐릭터 그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구" else "",
             12f, R.color.ink_muted,
         ).apply { setPadding(dp(4), dp(20), dp(4), 0) })
     }
@@ -309,8 +332,18 @@ class RerunList(
         }
         addView(android.widget.FrameLayout(context).apply {
             addView(android.widget.ImageView(context).apply {
-                RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
-                setPadding(dp(8), dp(8), dp(8), dp(8))
+                val face = faces[c.ko]
+                if (face != null) {
+                    // 얼굴 그림: 원소 색 테두리 안에 동그랗게
+                    setImageBitmap(face)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                    setPadding(dp(2), dp(2), dp(2), dp(2))
+                    clipToOutline = true
+                    outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                } else {
+                    RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                }
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(lighten(base, 0.35f), base)).apply {
                     shape = GradientDrawable.OVAL

@@ -109,6 +109,56 @@ object Lobby {
         return parseCharacters(json)
     }
 
+    // ---------- 복각표 얼굴 그림 ----------
+
+    private const val FACES_URL = "https://apps.sumi.kr/checkin/data/faces.json"
+    private val faceMemory = android.util.LruCache<String, Bitmap>(128)
+
+    /** 저장해 둔 얼굴 그림만(받지 않는다). 공식 그림이 꺼져 있으면 null. 화면을 바로 그릴 때 쓴다. */
+    fun cachedFace(context: Context, ko: String): Bitmap? {
+        if (!officialArtAllowed(context)) return null
+        faceMemory.get(ko)?.let { return it }
+        val file = File(File(dir(context), "faces"), "${ko.hashCode().toUInt()}.webp")
+        return if (file.exists()) BitmapFactory.decodeFile(file.path)?.also { faceMemory.put(ko, it) } else null
+    }
+
+    /**
+     * 복각표 얼굴 그림(호요랩 위키의 공식 그림, 사이트의 faces.json에 주소). 받아서 128px로 줄여 폰에만 저장한다(장당 수 KB).
+     * 공식 그림이 꺼져 있거나 주소가 없으면 null(원소 아이콘으로 보인다).
+     */
+    fun face(context: Context, ko: String): Bitmap? {
+        cachedFace(context, ko)?.let { return it }
+        if (!officialArtAllowed(context)) return null
+        val url = faceUrls(context)[ko] ?: return null
+        return try {
+            val bytes = getBytes(url)
+            val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+            val small = Bitmap.createScaledBitmap(src, 128, 128 * src.height / src.width, true)
+            val dir = File(dir(context), "faces").apply { mkdirs() }
+            File(dir, "${ko.hashCode().toUInt()}.webp").outputStream().use {
+                @Suppress("DEPRECATION")
+                small.compress(if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP, 85, it)
+            }
+            faceMemory.put(ko, small)
+            small
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** 사이트의 얼굴 그림 주소 목록(일주일에 한 번 받는다). */
+    private fun faceUrls(context: Context): Map<String, String> {
+        val p = prefs(context)
+        val cached = p.getString("faces", null)
+        val json = if (cached != null && System.currentTimeMillis() - p.getLong("faces_at", 0) < 7 * DAY_MS) JSONObject(cached)
+        else try {
+            JSONObject(get(FACES_URL)).also { p.edit().putString("faces", it.toString()).putLong("faces_at", System.currentTimeMillis()).apply() }
+        } catch (e: Exception) {
+            cached?.let { JSONObject(it) } ?: return emptyMap()
+        }
+        return json.keys().asSequence().associateWith { json.optString(it) }
+    }
+
     // ---------- 그림 ----------
 
     /** 로비 배경으로 쓸 그림. 정한 방식대로 받거나(캐시) 읽고, 쓸 수 없으면 null(원소 무늬로 그린다). */

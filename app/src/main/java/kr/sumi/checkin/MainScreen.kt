@@ -718,6 +718,9 @@ class MainScreen(val root: View) {
         ripple.recycle()
     }
 
+    /** 캐릭터 얼굴 그림(한국어 이름으로). 없으면 null이고 원소 아이콘을 그린다. 액티비티가 정한다. */
+    var faceFor: (String) -> android.graphics.Bitmap? = { null }
+
     /** 복각표 카드: 픽업 캐릭터를 원소 동그라미와 원소 색 이름으로. 자료가 없으면 안내만. */
     private fun renderReruns(r: RerunCardUi?) {
         val d = context.resources.displayMetrics.density
@@ -729,12 +732,21 @@ class MainScreen(val root: View) {
         rerunChars.visibility = if (r?.chars.isNullOrEmpty()) View.GONE else View.VISIBLE
         for ((name, element) in r?.chars.orEmpty().take(4)) {
             val base = context.getColor(RerunActivity.elementColor(element))
+            val face = faceFor(name)
             rerunChars.addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = android.view.Gravity.CENTER_HORIZONTAL
                 addView(android.widget.ImageView(context).apply {
-                    RerunActivity.elementIcon(element)?.let { setImageResource(it) }
-                    setPadding(dp(9), dp(9), dp(9), dp(9))
+                    if (face != null) {
+                        setImageBitmap(face)
+                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        setPadding(dp(2), dp(2), dp(2), dp(2))
+                        clipToOutline = true
+                        outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                    } else {
+                        RerunActivity.elementIcon(element)?.let { setImageResource(it) }
+                        setPadding(dp(9), dp(9), dp(9), dp(9))
+                    }
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                     background = android.graphics.drawable.GradientDrawable().apply {
                         shape = android.graphics.drawable.GradientDrawable.OVAL

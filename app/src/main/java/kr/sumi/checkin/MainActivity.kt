@@ -71,6 +71,7 @@ class MainActivity : Activity() {
         screen.settingsBack.setOnClickListener { showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
         screen.rerunCard.setOnClickListener { startActivity(RerunActivity.intent(this)) }
+        screen.faceFor = { ko -> Lobby.cachedFace(this, ko) }
         screen.eventsButton.setOnClickListener { startActivity(EventsActivity.intent(this)) }
         screen.tileHistory.setOnClickListener {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
@@ -172,6 +173,21 @@ class MainActivity : Activity() {
         loadEventsIfStale()
         loadCodesIfStale()
         loadLobbyIfStale()
+        loadPickupFaces()
+    }
+
+    private var loadingFaces = false
+
+    /** 메인 복각표 카드의 픽업 캐릭터 얼굴 그림을 받아 둔다(없을 때만). */
+    private fun loadPickupFaces() {
+        val chars = rerunCard()?.chars?.map { it.first }.orEmpty()
+        val missing = chars.filter { Lobby.cachedFace(this, it) == null }
+        if (loadingFaces || missing.isEmpty() || !Lobby.officialArtAllowed(this)) return
+        loadingFaces = true
+        Thread {
+            val got = missing.count { Lobby.face(this, it) != null }
+            runOnUiThread { loadingFaces = false; if (got > 0) refresh() }
+        }.start()
     }
 
     private var loadingCodes = false
