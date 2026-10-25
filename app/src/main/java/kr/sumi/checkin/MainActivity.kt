@@ -1246,7 +1246,7 @@ class MainActivity : Activity() {
             lobbyLine = line
             lobbyLineKey = "tap"
             refresh()
-            playVoice(line.audioFor(settings.voiceLanguage))
+            playVoice(line.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
         }
         override fun onAccount() {
             val accounts = settings.accounts()
@@ -1343,14 +1343,15 @@ class MainActivity : Activity() {
 
     /**
      * 대사 음성(말풍선이나 캐릭터를 눌렀을 때만). 공식 서버에서 한 번 받아 임시 저장 공간에 두고([Lobby.voiceFile]) 그 파일을 재생한다.
+     * [owner]는 지금 최애·음성 언어(바뀌면 이전 음성은 지운다).
      */
-    private fun playVoice(url: String?) {
+    private fun playVoice(url: String?, owner: String) {
         voicePlayer?.release()
         voicePlayer = null
         val request = ++voiceRequest
         if (url == null) return
         Thread {
-            val file = Lobby.voiceFile(this, url)
+            val file = Lobby.voiceFile(this, url, owner)
             runOnUiThread { if (file != null && request == voiceRequest && !isDestroyed) startVoice(file.path) }
         }.start()
     }

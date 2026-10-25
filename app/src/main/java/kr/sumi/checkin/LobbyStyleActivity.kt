@@ -119,7 +119,11 @@ class LobbyStyleActivity : Activity() {
 
         section("캐릭터 음성")
         voiceChips()
-        note("대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때만 받아서, 한 번 받은 건 폰에 잠시 두고 다시 써요(최대 10MB).")
+        note("대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때 그 대사만 받고, 받은 건 폰에 두고 다시 써요. 최애나 언어를 바꾸면 이전 음성은 지워져요.")
+        val voiceBytes = Lobby.voiceCacheBytes(this)
+        if (voiceBytes > 0) choice("저장된 음성 지우기", "지금 %.1fMB · 다시 들으면 다시 받아요".format(voiceBytes / 1_000_000.0), false) {
+            Lobby.clearVoiceCache(this); render()
+        }
 
         section("로비 배경")
         val official = Lobby.officialArtAllowed(this)
@@ -174,6 +178,7 @@ class LobbyStyleActivity : Activity() {
                 setPadding(0, dp(8), 0, dp(4))
                 contentDescription = c.name + if (selected) ", 최애" else ""
                 setOnClickListener {
+                    if (fav?.name != c.name) Lobby.clearVoiceCache(this@LobbyStyleActivity)
                     settings.favorite = Favorite(c.name, c.element, c.image, c.id)
                     if (c.id == 0) Lobby.watchRerun(this@LobbyStyleActivity, c.name)
                     if (settings.homeStyle != Lobby.STYLE_LOBBY) settings.homeStyle = Lobby.STYLE_LOBBY
@@ -232,7 +237,7 @@ class LobbyStyleActivity : Activity() {
                     if (selected) setColor(getColor(R.color.action)) else { setColor(getColor(R.color.surface)); setStroke(dp(1), getColor(R.color.line)) }
                 }
                 contentDescription = "음성 ${text}" + if (selected) ", 선택됨" else ""
-                setOnClickListener { settings.voiceLanguage = code; render() }
+                setOnClickListener { if (settings.voiceLanguage != code) Lobby.clearVoiceCache(this@LobbyStyleActivity); settings.voiceLanguage = code; render() }
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { if (code != "ko") leftMargin = dp(6) })
         }
     }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })

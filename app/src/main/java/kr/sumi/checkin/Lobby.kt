@@ -479,30 +479,33 @@ object Lobby {
     internal fun unlocked(lines: List<VoiceLine>, fetter: Int) =
         lines.filter { !it.story && !it.gendered && it.fetter <= fetter && it.text.length <= 120 }
 
-    private const val VOICE_CACHE_BYTES = 10L * 1024 * 1024
-
     /**
-     * 음성 파일. 한 번 받은 것은 앱 임시 저장 공간에 두고 다시 쓴다(같은 대사를 또 눌러도 공식 서버에서 다시 받지 않게).
-     * 최근에 쓴 것부터 남기고 모두 합쳐 10MB를 넘으면 오래된 것부터 지운다. 시스템이 공간이 모자라면 비울 수도 있다.
-     * 네트워크에서 받으니 배경 스레드에서 부른다. 실패하면 null.
+     * 음성 파일. 들은 대사만 받아 앱 임시 저장 공간에 두고 다시 쓴다(같은 대사를 또 눌러도 공식 서버에서 다시 받지 않게).
+     * 지금 최애·음성 언어([owner]) 것만 남기고, 최애나 언어가 바뀌면 이전 것은 지운다. 한도는 두지 않는다(듣는 만큼은 사용자의 선택).
+     * 시스템이 공간이 모자라면 비울 수 있고, 그러면 다음에 다시 받는다. 네트워크에서 받으니 배경 스레드에서 부른다. 실패하면 null.
      */
-    fun voiceFile(context: Context, url: String): File? {
+    fun voiceFile(context: Context, url: String, owner: String): File? {
         if (!url.startsWith("https://")) return null
-        val dir = File(context.cacheDir, "voices").apply { mkdirs() }
+        val root = File(context.cacheDir, "voices")
+        val dir = File(root, owner.hashCode().toUInt().toString())
+        root.listFiles()?.filter { it != dir }?.forEach { it.deleteRecursively() }
+        dir.mkdirs()
         val file = File(dir, "${url.hashCode().toUInt()}.wav")
-        if (file.exists() && file.length() > 0) { file.setLastModified(System.currentTimeMillis()); return file }
+        if (file.exists() && file.length() > 0) return file
         return try {
             val tmp = File(dir, file.name + ".part")
             tmp.writeBytes(getBytes(url))
             tmp.renameTo(file)
-            val files = dir.listFiles { f -> f.name.endsWith(".wav") }.orEmpty().sortedByDescending { it.lastModified() }
-            var total = 0L
-            for (f in files) { total += f.length(); if (total > VOICE_CACHE_BYTES && f != file) f.delete() }
             file
         } catch (e: Exception) {
             null
         }
     }
+
+    /** 폰에 둔 음성 크기(바이트). */
+    fun voiceCacheBytes(context: Context): Long = File(context.cacheDir, "voices").walkTopDown().filter { it.isFile }.sumOf { it.length() }
+
+    fun clearVoiceCache(context: Context) { File(context.cacheDir, "voices").deleteRecursively() }
 
     /** 대사가 아직 없으면 받아 둔다(공식 그림을 안 써도 대사는 쓴다). */
     fun loadVoices(context: Context, name: String) {
