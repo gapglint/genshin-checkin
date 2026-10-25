@@ -349,12 +349,12 @@ class LobbyView(context: Context) : FrameLayout(context) {
             })
         })
         bottom.addView(dock(ui, t, actions), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(14), 0, dp(14), 0) })
-        bottom.addView(text(when {
-            ui.credit && ui.quote != null -> "그림·대사 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
-            ui.credit -> "그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
-            ui.quote != null -> "대사 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
-            else -> "비공식 팬 도구"
-        }, 10f, 0x88FFFFFF.toInt()).apply {
+        // 출처: 지금 쓰는 공식 자료(그림·대사·음성)를 모두 적는다.
+        val used = listOfNotNull("그림".takeIf { ui.credit }, "대사".takeIf { ui.quote != null }, "음성".takeIf { ui.voice })
+        bottom.addView(text(
+            if (used.isEmpty()) "비공식 팬 도구" else "${used.joinToString("·")} © HoYoverse · 호요랩 위키 · 비공식 팬 도구",
+            10f, 0x88FFFFFF.toInt(),
+        ).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, dp(12))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
