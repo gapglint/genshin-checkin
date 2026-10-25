@@ -63,6 +63,10 @@ data class LobbyUi(
     val credit: Boolean = false,
     /** 계정이 여럿이면 지금 계정 이름(누르면 바꾼다). 하나뿐이면 null. */
     val account: String? = null,
+    /** 최애의 대사(호요랩 위키). 없으면 greeting만 보인다. */
+    val quote: String? = null,
+    /** 대사에 음성이 있으면 말풍선에 스피커 표시(누르면 듣는다). */
+    val voice: Boolean = false,
 )
 
 /**
@@ -77,6 +81,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
         fun onMenu(key: String)
         fun onSettings()
         fun onAccount()
+        /** 말풍선을 누르면 다른 대사(음성이 있으면 들려준다). */
+        fun onBubble()
     }
 
     companion object {
@@ -115,9 +121,9 @@ class LobbyView(context: Context) : FrameLayout(context) {
         val hDp = h / resources.displayMetrics.density
         val menuTop = if (hDp < 720) 112 else 136
         val room = hDp - menuTop - 290 // 아래 이름표·패널·출처 몫
-        // (아이콘 크기, 간격, 이름 보이기) 중 6개가 들어가는 가장 큰 것
+        // (아이콘 크기, 간격, 이름 보이기) 중 메뉴 5개가 들어가는 가장 큰 것
         val (iconSize, gap, labels) = listOf(Triple(46, 10, true), Triple(40, 6, true), Triple(38, 4, false), Triple(32, 3, false))
-            .firstOrNull { (s, g, l) -> 6 * (s + 2 + g + if (l) 15 else 0) <= room } ?: Triple(30, 2, false)
+            .firstOrNull { (s, g, l) -> 5 * (s + 2 + g + if (l) 15 else 0) <= room } ?: Triple(30, 2, false)
 
         // 배경: 그림은 화면 폭에 맞춰 위에, 없으면 원소 무늬
         val artBottom: Int
@@ -184,19 +190,35 @@ class LobbyView(context: Context) : FrameLayout(context) {
         hud.addView(roundIcon(R.drawable.ic_settings, 40, "설정") { actions.onSettings() })
         addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(12), dp(16), 0) })
 
-        // 말풍선
-        addView(text(ui.greeting, 13.5f, 0xFF1B2030.toInt()).apply {
+        // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사.
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(10))
-            setLineSpacing(dp(2).toFloat(), 1f)
             val r = dp(14).toFloat()
             background = GradientDrawable().apply { setColor(0xEEFFFFFF.toInt()); cornerRadii = floatArrayOf(r, r, r, r, r, r, dp(4).toFloat(), dp(4).toFloat()) }
+            setOnClickListener { actions.onBubble() }
+            contentDescription = listOfNotNull(ui.quote, ui.greeting).joinToString(". ") + if (ui.quote != null) ", 눌러서 다른 대사" else ""
+            if (ui.quote != null) {
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(text("「${ui.quote}」", 14f, 0xFF1B2030.toInt()).apply {
+                        setLineSpacing(dp(2).toFloat(), 1f)
+                        maxLines = 4
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                    if (ui.voice) addView(text("🔊", 13f, t.deep).apply { setPadding(dp(6), 0, 0, 0) })
+                })
+                addView(View(context).apply { setBackgroundColor(0x221B2030) }, LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply { setMargins(0, dp(8), 0, dp(6)) })
+                addView(text(ui.greeting, 12f, 0xFF5C6479.toInt()).apply { setLineSpacing(dp(1).toFloat(), 1f) })
+            } else {
+                addView(text(ui.greeting, 13.5f, 0xFF1B2030.toInt()).apply { setLineSpacing(dp(2).toFloat(), 1f) })
+            }
         }, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(68), dp(86), 0) })
 
         // 오른쪽 메뉴
         val side = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         for ((icon, label, key, dot) in listOf(
-            Menu(R.drawable.ic_item_gift, "리딤", MENU_REDEEM, ui.redeemDot),
-            Menu(R.drawable.ic_item_primogem, "보상", MENU_REWARDS, ui.rewardsDot),
+            Menu(R.drawable.ic_item_gift, "보상", MENU_REWARDS, ui.rewardsDot || ui.redeemDot),
             Menu(R.drawable.ic_rerun, "픽업", MENU_PICKUP, false),
             Menu(R.drawable.ic_events, "이벤트", MENU_EVENTS, ui.eventsDot),
             Menu(R.drawable.ic_lobby_cards, "카드", MENU_CARDS, false),
@@ -241,7 +263,12 @@ class LobbyView(context: Context) : FrameLayout(context) {
             })
         })
         bottom.addView(dock(ui, t, actions), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(14), 0, dp(14), 0) })
-        bottom.addView(text(if (ui.credit) "그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구" else "비공식 팬 도구", 10f, 0x88FFFFFF.toInt()).apply {
+        bottom.addView(text(when {
+            ui.credit && ui.quote != null -> "그림·대사 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
+            ui.credit -> "그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
+            ui.quote != null -> "대사 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
+            else -> "비공식 팬 도구"
+        }, 10f, 0x88FFFFFF.toInt()).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, dp(12))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))

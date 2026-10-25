@@ -18,6 +18,7 @@ class LobbyDeviceSnapshotTest {
         override fun onMenu(key: String) {}
         override fun onSettings() {}
         override fun onAccount() {}
+        override fun onBubble() {}
     }
 
     @Test fun smallScreen() = paparazzi.snapshot(LobbyView(paparazzi.context).apply {

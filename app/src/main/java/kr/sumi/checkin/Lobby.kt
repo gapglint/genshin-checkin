@@ -201,7 +201,14 @@ object Lobby {
         }
     }
 
-    private fun wikiPortraitUrl(context: Context, name: String): String? {
+    private fun wikiPortraitUrl(context: Context, name: String): String? = wikiPage(context, name)?.let { page ->
+        // 같은 문서에 있는 대사도 이때 저장해 둔다(문서를 두 번 받지 않게).
+        saveVoices(context, name, voiceLines(page))
+        galleryPortrait(page)
+    }
+
+    /** 호요랩 위키 캐릭터 문서(이름으로 찾는다). 못 찾으면 null. */
+    private fun wikiPage(context: Context, name: String): JSONObject? {
         val p = prefs(context)
         // 위키 캐릭터 목록(이름 → 문서 번호)은 일주일에 한 번만 받는다.
         val ids = p.getString("wiki_ids", null)?.takeIf { System.currentTimeMillis() - p.getLong("wiki_ids_at", 0) < 7 * DAY_MS }
@@ -216,8 +223,67 @@ object Lobby {
                 p.edit().putString("wiki_ids", map.toString()).putLong("wiki_ids_at", System.currentTimeMillis()).apply()
             }
         val id = ids.optString(name).takeIf { it.isNotEmpty() } ?: return null
-        return galleryPortrait(JSONObject(get(WIKI_PAGE + id)))
+        return JSONObject(get(WIKI_PAGE + id))
     }
+
+    // ---------- 캐릭터 대사 ----------
+
+    /** 캐릭터 대사 한 줄: 제목(예: "아침 인사…"), 한국어 대사, 한국어 음성 주소(없을 수 있음). */
+    data class VoiceLine(val title: String, val text: String, val audio: String?)
+
+    /** 위키 문서의 음성(voice) 목록. 태그와 '돌파 Lv.… 개방' 같은 안내는 뗀다. */
+    internal fun voiceLines(page: JSONObject): List<VoiceLine> {
+        val modules = page.optJSONObject("data")?.optJSONObject("page")?.optJSONArray("modules") ?: return emptyList()
+        for (i in 0 until modules.length()) {
+            val comps = modules.getJSONObject(i).optJSONArray("components") ?: continue
+            for (j in 0 until comps.length()) {
+                val comp = comps.getJSONObject(j)
+                if (comp.optString("component_id") != "voice") continue
+                val list = JSONObject(comp.optString("data", "{}")).optJSONArray("list") ?: return emptyList()
+                return (0 until list.length()).map { list.getJSONObject(it) }.mapNotNull { v ->
+                    val text = v.optString("desc").replace(Regex("<br\\s*/?>"), " ").replace(Regex("<[^>]+>"), "")
+                        .replace(Regex("돌파 Lv\\.「\\d+」 달성 후 개방"), "").replace(Regex("\\(「[^」]*」 전용 음성\\)"), "")
+                        .replace("&nbsp;", " ").trim()
+                    val audios = v.optJSONArray("audios")
+                    val ko = (0 until (audios?.length() ?: 0)).map { audios!!.getJSONObject(it) }.firstOrNull { it.optString("name") == "한국어" }?.optString("url")
+                    if (text.isEmpty()) null else VoiceLine(v.optString("title").trim(), text, ko?.takeIf { it.startsWith("https://") })
+                }
+            }
+        }
+        return emptyList()
+    }
+
+    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_${name.hashCode().toUInt()}.json")
+
+    private fun saveVoices(context: Context, name: String, lines: List<VoiceLine>) {
+        if (lines.isEmpty()) return
+        // 다른 캐릭터 대사는 지운다(최애 하나만 둔다).
+        dir(context).listFiles { f -> f.name.startsWith("voices_") }?.forEach { it.delete() }
+        voicesFile(context, name).writeText(org.json.JSONArray(lines.map { JSONObject().put("t", it.title).put("x", it.text).put("a", it.audio ?: "") }).toString())
+    }
+
+    /** 저장해 둔 최애 대사. 공식 자료가 꺼져 있으면 비어 있다. */
+    fun voices(context: Context, name: String): List<VoiceLine> {
+        if (!officialArtAllowed(context)) return emptyList()
+        val file = voicesFile(context, name)
+        if (!file.exists()) return emptyList()
+        return try {
+            val a = org.json.JSONArray(file.readText())
+            (0 until a.length()).map { a.getJSONObject(it) }.map { VoiceLine(it.optString("t"), it.optString("x"), it.optString("a").ifEmpty { null }) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /** 대사가 아직 없으면 받아 둔다(공식 그림을 안 써도 대사는 쓴다). */
+    fun loadVoices(context: Context, name: String) {
+        if (!officialArtAllowed(context) || voicesFile(context, name).exists()) return
+        try { wikiPage(context, name)?.let { saveVoices(context, name, voiceLines(it)) } } catch (e: Exception) {}
+    }
+
+    /** 상황에 맞는 대사 묶음(제목 앞부분으로 고른다). */
+    fun pick(lines: List<VoiceLine>, vararg prefixes: String): List<VoiceLine> =
+        lines.filter { l -> prefixes.any { l.title.startsWith(it) } }
 
     /** 위키 문서에서 갤러리(gallery_character)의 세로 그림 주소. */
     internal fun galleryPortrait(page: JSONObject): String? {

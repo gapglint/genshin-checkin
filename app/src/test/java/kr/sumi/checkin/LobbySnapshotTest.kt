@@ -22,6 +22,7 @@ class LobbySnapshotTest {
         override fun onMenu(key: String) {}
         override fun onSettings() {}
         override fun onAccount() {}
+        override fun onBubble() {}
     }
 
     /** 사진 대신: 하늘색 → 초록 세로 그라데이션(1080×1920). */
@@ -41,6 +42,12 @@ class LobbySnapshotTest {
     private fun lobby(ui: LobbyUi, art: Bitmap?) = paparazzi.snapshot(LobbyView(paparazzi.context).apply { bind(ui, art, actions) })
 
     @Test fun withArt() = lobby(base, fakeArt())
+
+    /** 최애 대사(위키) + 앱이 한 일 한 줄, 음성 표시. */
+    @Test fun withQuote() = lobby(base.copy(
+        quote = "좋은 아침이에요, 여행자님. 아침부터 이렇게 만나다니… 오늘은 모든 일이 잘 풀리겠어요",
+        greeting = "오늘 출석이랑 새 코드도 받아 뒀어요.", voice = true,
+    ), fakeArt())
 
     @Test fun patternNoArt() = lobby(base.copy(name = "치치", element = "cryo", meta = "얼음 · Lv.90 · 호감도 10", credit = false), null)
 
