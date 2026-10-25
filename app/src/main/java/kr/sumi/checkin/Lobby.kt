@@ -210,7 +210,7 @@ object Lobby {
 
     /** 세로 그림과 얼굴 상자로 알림 그림 두 가지를 만든다(여러 캐릭터 그림에서 머리가 잘리지 않게 맞춘 비율). */
     internal fun notifArts(src: Bitmap, face: FloatArray) =
-        NotifArt(notifArt(src, face, 288, 144, 1.9f, 0.18f), notifArt(src, face, 384, 288, 2.5f, 0.1f))
+        NotifArt(notifArt(src, face, 288, 144, 2.2f, 0.3f), notifArt(src, face, 384, 288, 2.7f, 0.2f))
 
     /**
      * 얼굴 상자(그림 크기에 대한 비율: 왼, 위, 오른, 아래) 둘레를 [outW]x[outH]로 자른다. 높이는 얼굴 높이의 [heightFaces]배,
