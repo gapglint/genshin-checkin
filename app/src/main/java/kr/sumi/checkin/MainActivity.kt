@@ -1182,6 +1182,13 @@ class MainActivity : Activity() {
         }
         val usingOfficial = lobbyArt != null && settings.lobbyBackground == Lobby.BG_OFFICIAL
         view.bind(lobbyUi(s, fav, meta, usingOfficial), lobbyArt, lobbyActions)
+        // 로비가 앞에 보일 때만(메뉴·다른 화면 위에서는 아니고).
+        greetingToPlay?.let { line ->
+            greetingToPlay = null
+            if (lobbyMenus.isEmpty() && Lobby.officialVoicesAllowed(this)) {
+                playVoice(line.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
+            }
+        }
     }
 
     /** 지금 상태로 로비에 보일 것(말풍선·아래 패널)을 정한다. 문제가 있으면 아래 패널이 경고로 바뀐다. */
@@ -1356,8 +1363,13 @@ class MainActivity : Activity() {
             newReward -> Lobby.pick(voices, "보물상자 오픈").randomOrNull()
             else -> null
         } ?: Lobby.greetingLine(voices, fav.name, hour)
+        // 새 인사가 정해지면 음성을 켠 사람에게 한 번 들려준다(같은 인사는 다시 그려도 되풀이하지 않는다).
+        greetingToPlay = lobbyLine
         return lobbyLine
     }
+
+    /** 로비를 그린 뒤 들려줄 새 인사(음성). */
+    private var greetingToPlay: Lobby.VoiceLine? = null
 
     private var voicePlayer: android.media.MediaPlayer? = null
 
