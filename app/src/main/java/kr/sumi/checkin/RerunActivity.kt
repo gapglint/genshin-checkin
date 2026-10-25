@@ -47,9 +47,11 @@ class RerunActivity : Activity() {
         MainActivity.applySystemBarInsets(root)
         render()
         // 하루 한 번만 새로 받는다. 저장된 자료가 없으면 바로 받는다.
-        if (Reruns.cached(this) == null || !Reruns.isFresh(this)) Thread {
+        // 4성을 켜 뒀는데 저장된 자료에 4성이 없으면(4성이 생기기 전에 받은 것) 바로 새로 받는다.
+        val needFours = AppSettings(this).rerunFours && Reruns.cached(this)?.fours.isNullOrEmpty()
+        if (Reruns.cached(this) == null || !Reruns.isFresh(this) || needFours) Thread {
             val error = try {
-                Reruns.refresh(this, force = Reruns.cached(this) == null); null
+                Reruns.refresh(this, force = Reruns.cached(this) == null || needFours); null
             } catch (e: IOException) {
                 e.message ?: "네트워크 오류"
             }
@@ -72,6 +74,11 @@ class RerunActivity : Activity() {
         RerunList(this, Reruns.watched(this), faces, { c -> toggleWatch(c) }, settings.rerunFours) {
             settings.rerunFours = !settings.rerunFours
             render()
+            // 켰는데 저장된 자료에 4성이 없으면(4성이 생기기 전에 받은 것) 바로 새로 받는다.
+            if (settings.rerunFours && Reruns.cached(this)?.fours.isNullOrEmpty()) Thread {
+                val error = try { Reruns.refresh(this, force = true); null } catch (e: IOException) { e.message ?: "네트워크 오류" }
+                runOnUiThread { if (!isFinishing) render(error) }
+            }.start()
         }.fill(list, data, today)
         loadFaces(data)
     }
@@ -202,7 +209,8 @@ class RerunList(
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         }
         // '4성도 보기'는 찾기 쉽게 픽업 판 바로 아래(판들 위)에.
-        val toggle = onFours != null && data.fours.isNotEmpty()
+        // 자료에 4성이 아직 없어도(예전에 받은 자료) 줄은 보인다. 켜면 그때 새로 받는다.
+        val toggle = onFours != null
         if (toggle) list.addView(foursToggle(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (list.childCount == 0) 0 else dp(12) })
         list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }),
             LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty() && !toggle) 0 else dp(16) })

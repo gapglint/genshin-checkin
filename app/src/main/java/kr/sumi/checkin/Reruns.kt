@@ -130,9 +130,7 @@ object Reruns {
     fun cached(context: Context): RerunData? =
         prefs(context).getString("json", null)?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }
 
-    /** 12시간 안에 받았고, 4성 칸이 생기기 전의 예전 자료가 아니면 새것으로 본다(예전 자료면 바로 다시 받는다). */
-    fun isFresh(context: Context) = System.currentTimeMillis() - prefs(context).getLong("checked_at", 0) < REFRESH_MS &&
-        prefs(context).getString("json", null)?.contains("\"fours\"") == true
+    fun isFresh(context: Context) = System.currentTimeMillis() - prefs(context).getLong("checked_at", 0) < REFRESH_MS
 
     /** 오래됐으면 새로 받는다. 바뀌었으면 true. 네트워크 오류는 IOException. */
     @Throws(IOException::class)
