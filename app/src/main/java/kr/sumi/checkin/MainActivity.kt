@@ -1092,9 +1092,20 @@ class MainActivity : Activity() {
     private var lobbyReturn: TextView? = null
 
     /** 로비에서 '카드'로 카드 화면을 보는 중이면 아래에 '로비로' 단추를 띄운다. */
+    /**
+     * '로비로' 칩이 떠 있으면 카드 화면 스크롤 끝에 그만큼 여백을 더 둬서 끝까지 내렸을 때 가리지 않게 한다.
+     * (목록 자체의 여백은 시스템 바·편집 모드가 쓰므로 바깥 스크롤의 여백을 쓴다.)
+     */
+    private fun setReturnRoom(on: Boolean) {
+        val scroll = screen.root.findViewById<View>(R.id.scroll)
+        val room = if (on) (76 * resources.displayMetrics.density).toInt() else 0
+        if (scroll.paddingBottom != room) scroll.setPadding(scroll.paddingLeft, scroll.paddingTop, scroll.paddingRight, room)
+    }
+
     private fun updateLobbyReturn() {
         val fav = settings.favorite
-        if (!(lobbyHidden && lobbyEnabled() && !editing) || fav == null) { lobbyReturn?.visibility = View.GONE; return }
+        if (!(lobbyHidden && lobbyEnabled() && !editing) || fav == null) { lobbyReturn?.visibility = View.GONE; setReturnRoom(false); return }
+        setReturnRoom(true)
         val t = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
         val d = resources.displayMetrics.density
         val chip = lobbyReturn ?: TextView(this).apply {
