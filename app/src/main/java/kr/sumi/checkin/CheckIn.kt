@@ -115,13 +115,23 @@ object CheckIn {
      * 2. 6시간마다 확인하는 주기 작업. 알람이 절전 등으로 밀리거나 실패했을 때의 안전장치다.
      *    이미 출석했으면 아무것도 안 한다.
      * 처음 예약할 때와 restart(로그인 직후)일 때는 지금 바로 한 번 돈다.
+     * 앱을 열 때·재부팅·업데이트 뒤에 부르므로, 오늘 출석을 놓친 계정이 있으면 그때도 곧 한 번 돈다.
      */
     fun schedule(context: Context, restart: Boolean = false) {
         DailyAlarm.schedule(context)
         val firstTime = Jobs.schedulePeriodic(context)
         // 처음 예약할 때와 로그인 직후에는 지금 바로 한 번 돌린다.
         if (firstTime || restart) retrySoon(context)
+        // 오늘 출석을 놓쳤으면(리셋 뒤 알람 전에 앱이 업데이트되면 알람이 지워진다 등) 6시간 확인을 기다리지 않고 곧 한 번.
+        // 오늘 이미 문제(로그인 만료·캡차 등)를 알렸으면 되풀이하지 않는다. 이미 기다리는 작업이 있으면 그대로 둔다.
+        else if (missedToday(AppSettings(context).accounts().map { it.signedDay to it.lastProblemDay }, Store.checkInDay().toString())) {
+            Jobs.scheduleOnce(context, Jobs.RETRY, replace = false)
+        }
     }
+
+    /** 계정마다 (출석한 날, 문제를 알린 날) 중 오늘 출석도 문제 알림도 없는 계정이 있는지. */
+    internal fun missedToday(accounts: List<Pair<String?, String?>>, today: String) =
+        accounts.any { (signed, problem) -> signed != today && problem != today }
 
     fun cancel(context: Context) {
         DailyAlarm.cancel(context)
