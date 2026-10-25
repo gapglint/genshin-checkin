@@ -162,17 +162,18 @@ object Lobby {
     // ---------- 알림의 큰 최애 그림 ----------
 
     private const val PORTRAITS_URL = "https://apps.sumi.kr/checkin/data/portraits.json"
-    private const val ART_W = 384
-    private const val ART_H = 288
 
-    private fun notifArtFile(context: Context) = File(dir(context), "notif_art.png")
+    /** 알림 그림 두 가지: 접힌 알림의 2:1 띠(머리 전체), 펼친 알림의 4:3(얼굴과 어깨). */
+    class NotifArt(val small: Bitmap, val big: Bitmap)
+
+    private fun notifArtFile(context: Context, kind: String) = File(dir(context), "notif_art_$kind.png")
 
     /** 알림에 붙일 최애 그림. 받아 둔 것만 쓴다(알림은 바로 만들어야 하니까). 없거나 공식 그림이 꺼져 있으면 null. */
-    fun cachedNotifArt(context: Context, name: String): Bitmap? {
-        if (!officialArtAllowed(context)) return null
-        val file = notifArtFile(context)
-        if (!file.exists() || prefs(context).getString("notif_art_name", null) != name) return null
-        return BitmapFactory.decodeFile(file.path)
+    fun cachedNotifArt(context: Context, name: String): NotifArt? {
+        if (!officialArtAllowed(context) || prefs(context).getString("notif_art_name", null) != name) return null
+        val small = notifArtFile(context, "small").takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) } ?: return null
+        val big = notifArtFile(context, "big").takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) } ?: return null
+        return NotifArt(small, big)
     }
 
     /**
@@ -183,14 +184,14 @@ object Lobby {
         if (!officialArtAllowed(context)) return
         val p = prefs(context)
         val entry = (portraits(context) ?: return).optJSONObject(name)
-        val file = notifArtFile(context)
         if (entry == null) {
-            file.delete()
+            notifArtFile(context, "small").delete()
+            notifArtFile(context, "big").delete()
             p.edit().remove("notif_art_name").remove("notif_art_pic").apply()
             return
         }
         val pic = entry.optString("pic")
-        if (file.exists() && p.getString("notif_art_name", null) == name && p.getString("notif_art_pic", null) == pic) return
+        if (cachedNotifArt(context, name) != null && p.getString("notif_art_pic", null) == pic) return
         val face = entry.optJSONArray("face") ?: return
         try {
             val bytes = getBytes(pic)
@@ -199,37 +200,43 @@ object Lobby {
             var sample = 1
             while (bounds.outWidth / (sample * 2) >= 720) sample *= 2
             val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return
-            val art = notifArt(src, face.getDouble(0).toFloat(), face.getDouble(1).toFloat(), face.getDouble(2).toFloat(), face.getDouble(3).toFloat())
-            file.outputStream().use { art.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            val art = notifArts(src, FloatArray(4) { face.getDouble(it).toFloat() })
+            notifArtFile(context, "small").outputStream().use { art.small.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            notifArtFile(context, "big").outputStream().use { art.big.compress(Bitmap.CompressFormat.PNG, 100, it) }
             p.edit().putString("notif_art_name", name).putString("notif_art_pic", pic).apply()
         } catch (e: Exception) {
         }
     }
 
+    /** 세로 그림과 얼굴 상자로 알림 그림 두 가지를 만든다(여러 캐릭터 그림에서 머리가 잘리지 않게 맞춘 비율). */
+    internal fun notifArts(src: Bitmap, face: FloatArray) =
+        NotifArt(notifArt(src, face, 288, 144, 1.9f, 0.18f), notifArt(src, face, 384, 288, 2.5f, 0.1f))
+
     /**
-     * 얼굴(그림 크기에 대한 비율) 둘레를 4:3으로 잘라, 왼쪽은 글자 쪽으로 서서히 투명해지고 모서리는 둥글게.
-     * 접힌 알림은 이 그림의 가운데(얼굴)만 넓게 잘라 보여 준다.
+     * 얼굴 상자(그림 크기에 대한 비율: 왼, 위, 오른, 아래) 둘레를 [outW]x[outH]로 자른다. 높이는 얼굴 높이의 [heightFaces]배,
+     * 가운데는 얼굴 중심에서 얼굴 높이의 [up]배만큼 위(머리카락·모자가 잘리지 않게). 왼쪽은 글자 쪽으로 서서히 투명, 모서리는 둥글게.
      */
-    internal fun notifArt(src: Bitmap, left: Float, top: Float, right: Float, bottom: Float): Bitmap {
+    private fun notifArt(src: Bitmap, face: FloatArray, outW: Int, outH: Int, heightFaces: Float, up: Float): Bitmap {
         val w = src.width.toFloat()
         val h = src.height.toFloat()
-        val faceW = (right - left) * w
-        val cropW = minOf(w, faceW * 3.2f)
-        val cropH = minOf(h, cropW * ART_H / ART_W)
-        val cx = (left + right) / 2 * w
-        val cy = (top + bottom) / 2 * h + (bottom - top) * h * 0.1f
+        val faceH = (face[3] - face[1]) * h
+        var cropH = minOf(h, faceH * heightFaces)
+        val cropW = minOf(w, cropH * outW / outH)
+        cropH = cropW * outH / outW
+        val cx = (face[0] + face[2]) / 2 * w
+        val cy = (face[1] + face[3]) / 2 * h - faceH * up
         val x0 = (cx - cropW / 2).coerceIn(0f, w - cropW)
         val y0 = (cy - cropH / 2).coerceIn(0f, h - cropH)
-        val out = Bitmap.createBitmap(ART_W, ART_H, Bitmap.Config.ARGB_8888)
+        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
         val c = android.graphics.Canvas(out)
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
-        val dst = android.graphics.RectF(0f, 0f, ART_W.toFloat(), ART_H.toFloat())
-        val radius = ART_W * 0.08f
+        val dst = android.graphics.RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        val radius = outH * 0.1f
         c.drawRoundRect(dst, radius, radius, paint)
         paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
         c.drawBitmap(src, android.graphics.Rect(x0.toInt(), y0.toInt(), (x0 + cropW).toInt(), (y0 + cropH).toInt()), dst, paint)
         paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
-        paint.shader = android.graphics.LinearGradient(0f, 0f, ART_W * 0.45f, 0f,
+        paint.shader = android.graphics.LinearGradient(0f, 0f, outW * 0.4f, 0f,
             intArrayOf(0x00000000, 0x99000000.toInt(), 0xFF000000.toInt()), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
         c.drawRect(dst, paint)
         return out

@@ -19,14 +19,15 @@ class NotificationArtSnapshotTest {
     )
 
     /** 1080x1920 세로 그림, 얼굴은 가로 41~63%, 세로 31~42%(치치 그림의 실제 위치와 비슷하게). */
-    private fun art(): Bitmap {
+    private fun art(small: Boolean): Bitmap {
         val src = Bitmap.createBitmap(1080, 1920, Bitmap.Config.ARGB_8888)
         Canvas(src).apply {
             drawColor(0xFFB8CCE0.toInt())
             drawCircle(560f, 900f, 300f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF6A5A9A.toInt() })
             drawCircle(560f, 700f, 120f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFF3E1D6.toInt() })
         }
-        return Lobby.notifArt(src, 0.411f, 0.3084f, 0.6281f, 0.4232f)
+        val art = Lobby.notifArts(src, floatArrayOf(0.411f, 0.3084f, 0.6281f, 0.4232f))
+        return if (small) art.small else art.big
     }
 
     private fun place(layout: Int, quote: String?, heightDp: Int) {
@@ -38,7 +39,7 @@ class NotificationArtSnapshotTest {
             setPadding(pad, pad, pad, pad)
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
-        val views = Notifier.artViews(c, layout, "원신 출첵 완료", "출첵 완료! (18일째) · 보상: 원석 ×20", quote, art())
+        val views = Notifier.artViews(c, layout, "원신 출첵 완료", "출첵 완료! (18일째) · 보상: 원석 ×20", quote, art(layout == R.layout.notification_art))
         frame.addView(views.apply(c, frame), FrameLayout.LayoutParams((330 * d).toInt(), if (heightDp > 0) (heightDp * d).toInt() else ViewGroup.LayoutParams.WRAP_CONTENT))
         paparazzi.snapshot(frame)
     }

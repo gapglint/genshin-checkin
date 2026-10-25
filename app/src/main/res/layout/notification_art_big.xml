@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 최애 그림 알림(펼친 모습). 대사와 본문이 더 보이고 그림이 커진다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="top"
@@ -28,8 +29,10 @@
             android:layout_marginBottom="2dp"
             android:ellipsize="end"
             android:maxLines="3"
+            android:lineBreakWordStyle="phrase"
             android:textAppearance="@android:style/TextAppearance.Material.Notification"
-            android:visibility="gone" />
+            android:visibility="gone"
+            tools:targetApi="33" />
 
         <TextView
             android:id="@+id/notifText"
@@ -37,7 +40,9 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="5"
-            android:textAppearance="@android:style/TextAppearance.Material.Notification" />
+            android:lineBreakWordStyle="phrase"
+            android:textAppearance="@android:style/TextAppearance.Material.Notification"
+            tools:targetApi="33" />
     </LinearLayout>
 
     <ImageView

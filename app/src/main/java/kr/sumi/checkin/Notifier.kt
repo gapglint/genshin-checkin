@@ -269,8 +269,8 @@ object Notifier {
         val art = if (look != null && fav != null) Lobby.cachedNotifArt(context, fav.name) else null
         if (art != null) {
             setStyle(Notification.DecoratedCustomViewStyle())
-            setCustomContentView(artViews(context, R.layout.notification_art, title, text, null, art))
-            setCustomBigContentView(artViews(context, R.layout.notification_art_big, title, text, quote, art))
+            setCustomContentView(artViews(context, R.layout.notification_art, title, text, null, art.small))
+            setCustomBigContentView(artViews(context, R.layout.notification_art_big, title, text, quote, art.big))
             return this
         }
         look?.second?.let { setLargeIcon(it) }

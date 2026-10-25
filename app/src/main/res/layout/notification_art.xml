@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 최애 그림 알림(접힌 모습). 시스템이 위에 앱 이름·시간을 그리고, 이 칸은 기기에 따라 48dp까지 낮아진다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
@@ -26,8 +27,10 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
+            android:lineBreakWordStyle="phrase"
             android:textAppearance="@android:style/TextAppearance.Material.Notification"
-            android:visibility="gone" />
+            android:visibility="gone"
+            tools:targetApi="33" />
 
         <TextView
             android:id="@+id/notifText"
@@ -35,7 +38,9 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textAppearance="@android:style/TextAppearance.Material.Notification" />
+            android:lineBreakWordStyle="phrase"
+            android:textAppearance="@android:style/TextAppearance.Material.Notification"
+            tools:targetApi="33" />
     </LinearLayout>
 
     <ImageView
