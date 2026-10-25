@@ -198,8 +198,11 @@ class RerunList(
         pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         }
+        // '4성도 보기'는 찾기 쉽게 픽업 판 바로 아래(판들 위)에.
+        val toggle = onFours != null && data.fours.isNotEmpty()
+        if (toggle) list.addView(foursToggle(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (list.childCount == 0) 0 else dp(12) })
         list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }),
-            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty()) 0 else dp(16) })
+            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty() && !toggle) 0 else dp(16) })
         val standard = data.ranked(today, standard = true)
         if (standard.isNotEmpty()) {
             list.addView(board(data, standard, "상시 캐릭터", legend = false, note = "상시 기원에서도 나와요").apply {
@@ -211,7 +214,7 @@ class RerunList(
             list.addView(board(data, fours, "4성 캐릭터", legend = false, note = "5성 픽업에 함께 나와요 · 숫자는 마지막 픽업 뒤 지난 버전"),
                 LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
-        if (onFours != null && data.fours.isNotEmpty()) list.addView(foursToggle(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
+
         list.addView(text(
             "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요." +
                 if (faces.isNotEmpty()) "\n캐릭터 그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구" else "",
