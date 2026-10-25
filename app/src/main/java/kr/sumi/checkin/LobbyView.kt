@@ -81,8 +81,10 @@ class LobbyView(context: Context) : FrameLayout(context) {
         fun onMenu(key: String)
         fun onSettings()
         fun onAccount()
-        /** 말풍선을 누르면 다른 대사(음성이 있으면 들려준다). */
+        /** 말풍선이나 캐릭터를 누르면 다른 대사(음성이 있으면 들려준다). */
         fun onBubble()
+        /** 🔊를 누르면 지금 대사의 음성을 다시. */
+        fun onVoice() {}
     }
 
     companion object {
@@ -112,6 +114,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
     private var lastBind: (() -> Unit)? = null
     /** '전체 보기'로 펼친 긴 대사. */
     private var expandedQuote: String? = null
+    /** ✕로 말풍선을 닫았는지. 캐릭터를 누르면 다시 연다. */
+    private var bubbleHidden = false
 
     init {
         isClickable = true
@@ -171,7 +175,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             // 캐릭터를 누르면 말풍선을 누른 것처럼 다른 대사(음성). 살짝 들썩여 반응한다. 화면 읽기는 말풍선으로 같은 일을 한다.
             val image = ImageView(context).apply {
                 setImageBitmap(art); scaleType = ImageView.ScaleType.FIT_XY; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-                setOnClickListener { hop(this); actions.onBubble() }
+                setOnClickListener { hop(this); bubbleHidden = false; actions.onBubble() }
             }
             addView(image, LayoutParams(MATCH_PARENT, imgH))
             artBottom = minOf(imgH, (h * 0.76f).toInt())
@@ -197,7 +201,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 setColorFilter(Color.WHITE)
                 alpha = 0.10f
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-                setOnClickListener { hop(this); actions.onBubble() }
+                setOnClickListener { hop(this); bubbleHidden = false; actions.onBubble() }
             }, LayoutParams((w * 0.9f).toInt(), (w * 0.9f).toInt(), Gravity.CENTER_HORIZONTAL).apply { topMargin = (h * 0.14f).toInt() })
             artBottom = (h * 0.7f).toInt()
         }
@@ -232,8 +236,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
         hud.addView(roundIcon(R.drawable.ic_settings, 40, "설정") { actions.onSettings() })
         addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(12), dp(16), 0) })
 
-        // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사.
-        addView(LinearLayout(context).apply {
+        // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사, 🔊는 지금 대사 다시 듣기, ✕는 닫기.
+        if (!bubbleHidden) addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(10))
             val r = dp(14).toFloat()
@@ -251,7 +255,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                     setPadding(0, 0, 0, dp(4))
                 }
                 // 말풍선 글자 폭(화면 폭 - 좌우 여백 16·86 - 안쪽 14·14 - 음성 표시)으로 줄 수를 미리 센다.
-                val textWidth = w - dp(16 + 86 + 28) - if (ui.voice) dp(26) else 0
+                val textWidth = w - dp(16 + 86 + 28 + 26) - if (ui.voice) dp(30) else 0
                 val lines = if (long && textWidth > 0) android.text.StaticLayout.Builder
                     .obtain(quoteView.text, 0, quoteView.text.length, quoteView.paint, textWidth)
                     .setLineSpacing(dp(2).toFloat(), 1f).build().lineCount else 0
@@ -272,13 +276,22 @@ class LobbyView(context: Context) : FrameLayout(context) {
                             ellipsize = android.text.TextUtils.TruncateAt.END
                         }
                     }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                    if (ui.voice) addView(text("🔊", 13f, t.deep).apply { setPadding(dp(6), 0, 0, 0) })
+                    if (ui.voice) addView(text("🔊", 13f, t.deep).apply {
+                        setPadding(dp(8), 0, dp(4), dp(4))
+                        contentDescription = "대사 다시 듣기"
+                        setOnClickListener { actions.onVoice() }
+                    })
+                    addView(closeButton())
                 })
                 if (long) addView(more)
                 addView(View(context).apply { setBackgroundColor(0x221B2030) }, LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply { setMargins(0, dp(8), 0, dp(6)) })
                 addView(text(ui.greeting, 12f, 0xFF5C6479.toInt()).apply { setLineSpacing(dp(1).toFloat(), 1f) })
             } else {
-                addView(text(ui.greeting, 13.5f, 0xFF1B2030.toInt()).apply { setLineSpacing(dp(2).toFloat(), 1f) })
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(text(ui.greeting, 13.5f, 0xFF1B2030.toInt()).apply { setLineSpacing(dp(2).toFloat(), 1f) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                    addView(closeButton())
+                })
             }
         }, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(68), dp(86), 0) })
 
@@ -426,6 +439,13 @@ class LobbyView(context: Context) : FrameLayout(context) {
         }, LinearLayout.LayoutParams(dp(26), dp(26)))
         addView(text(" $value", 17f, Color.WHITE, numeral = true))
         addView(text(unit, 12f, 0xDDFFFFFF.toInt()))
+    }
+
+    /** 말풍선 닫기. 캐릭터를 누르면 다시 나온다. */
+    private fun closeButton() = text("✕", 13f, 0xFF7A8296.toInt()).apply {
+        setPadding(dp(8), 0, 0, dp(4))
+        contentDescription = "말풍선 닫기, 캐릭터를 누르면 다시 나와요"
+        setOnClickListener { bubbleHidden = true; lastBind?.invoke() }
     }
 
     private fun roundIcon(icon: Int, size: Int, description: String?, onClick: (() -> Unit)? = null) = FrameLayout(context).apply {

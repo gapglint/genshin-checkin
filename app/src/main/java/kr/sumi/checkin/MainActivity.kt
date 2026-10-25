@@ -1238,6 +1238,10 @@ class MainActivity : Activity() {
         override fun onCheckIn() = openLobbyMenu("출석") { checkInMenu() }
         override fun onDockButton() = dockAction()
         override fun onSettings() = showSettings(true)
+        override fun onVoice() {
+            val fav = settings.favorite ?: return
+            playVoice(lobbyLine?.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
+        }
         override fun onBubble() {
             val fav = settings.favorite ?: return
             // 평소 이야기 대사 중 하나(지금 것과 다르게, 게임에서 열린 것만). 음성이 있으면 들려준다.
