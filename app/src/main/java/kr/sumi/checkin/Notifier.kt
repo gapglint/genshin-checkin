@@ -74,7 +74,7 @@ object Notifier {
         }
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .favorite(context, title, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY)
+            .favorite(context, title, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY, CheckIn.brief(outcome))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -94,7 +94,7 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_MAKE_UP))
             .setSmallIcon(R.drawable.ic_notify)
-            .favorite(context, who(context, store) + "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER)
+            .favorite(context, who(context, store) + "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER, "놓친 날 ${missed}일 · 누르면 보충")
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -113,6 +113,9 @@ object Notifier {
             report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
             else -> return
         }
+        val brief = if (report.redeemed.isNotEmpty())
+            report.redeemed.first() + (if (report.redeemed.size > 1) " 외 ${report.redeemed.size - 1}개" else "") + " · 우편함"
+        else text
         // 하루에 여러 번 돌 수 있어(새 코드가 올라올 때마다) 받은 코드까지 넣어 같은 알림만 거른다.
         val key = "$title:${Store.checkInDay()}:${report.redeemed.joinToString(",")}"
         if (key == store.lastRedeemNotified || !canNotify(context)) return
@@ -123,7 +126,7 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
             .setSmallIcon(R.drawable.ic_notify)
-            .favorite(context, who(context, store) + title, text, if (report.redeemed.isNotEmpty()) Mood.REWARD else Mood.WORRY)
+            .favorite(context, who(context, store) + title, text, if (report.redeemed.isNotEmpty()) Mood.REWARD else Mood.WORRY, brief)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -144,7 +147,7 @@ object Notifier {
         val text = "${day}에 로그인한 지 1년이 돼서 출석과 리딤 코드 입력이 멈춰요. 누르면 지금 다시 로그인할 수 있어요."
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .favorite(context, who(context, store) + "호요랩 로그인이 곧 만료돼요", text, Mood.WORRY)
+            .favorite(context, who(context, store) + "호요랩 로그인이 곧 만료돼요", text, Mood.WORRY, "$day 만료 · 누르면 다시 로그인")
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -156,7 +159,7 @@ object Notifier {
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
     fun notifyNote(context: Context, store: Store, note: DailyNote, alerts: NoteAlerts) {
         if (!canNotify(context)) return
-        fun post(kind: Int, title: String, text: String) {
+        fun post(kind: Int, title: String, text: String, brief: String) {
             val id = idFor(kind, store)
             val pending = PendingIntent.getActivity(
                 context, id, MainActivity.accountIntent(context, store.accountId),
@@ -171,7 +174,7 @@ object Notifier {
             }
             val notification = Notification.Builder(context, channel(context, CHANNEL_NOTES))
                 .setSmallIcon(R.drawable.ic_notify)
-                .favorite(context, who(context, store) + title, text, Mood.CHEER)
+                .favorite(context, who(context, store) + title, text, Mood.CHEER, brief)
                 .setContentIntent(pending)
                 .apply { if (play != null) addAction(Notification.Action.Builder(null, "원신 켜기", play).build()) }
                 .setAutoCancel(true)
@@ -181,18 +184,20 @@ object Notifier {
         // 제목은 기준이 아니라 지금 실제 개수로 쓴다(처음 받았을 때 이미 기준을 넘어 있을 수 있다).
         if (alerts.resin) {
             if (note.resin >= note.maxResin) {
-                post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.")
+                post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.", "레진 ${note.resin}/${note.maxResin} · 가득 참")
             } else {
                 val left = note.resinFullAt - note.at
                 post(ID_RESIN, "레진이 ${note.resin}개 찼어요",
-                    "${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})")
+                    "${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})",
+                    "${note.resin}/${note.maxResin} · ${Notes.clock(note.resinFullAt)} 가득")
             }
         }
         if (alerts.expeditions) {
-            post(ID_EXPEDITIONS, "탐사 파견이 모두 끝났어요", "${note.expeditionsTotal}명 모두 돌아왔어요. 보상을 받고 다시 보내 주세요.")
+            post(ID_EXPEDITIONS, "탐사 파견이 모두 끝났어요", "${note.expeditionsTotal}명 모두 돌아왔어요. 보상을 받고 다시 보내 주세요.", "${note.expeditionsTotal}명 귀환 · 보상 받기")
         }
         if (alerts.coin) {
-            post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.")
+            post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.",
+                "동전 ${"%,d".format(note.homeCoin)} · 가득 참")
         }
     }
 
@@ -246,13 +251,13 @@ object Notifier {
     enum class Mood { GREET, REWARD, WORRY, CHEER }
 
     /**
-     * 제목과 본문을 넣는다. 로비형을 쓰고 최애가 있으면 최애 그림과 상황에 맞는 대사 한 줄을 붙인다.
-     * 접힌 알림에도 제목과 원래 내용이 그대로 보여 무엇을 알리는지는 늘 알 수 있다.
+     * 제목과 본문을 넣는다. 접힌 알림은 한 줄에 들어가는 짧은 문구([brief]), 펼치면 자세한 본문([text]).
+     * 로비형을 쓰고 최애가 있으면 최애 그림과 상황에 맞는 대사 한 줄을 붙인다.
      * 사이트가 얼굴 위치를 찾아 둔 캐릭터는 오른쪽에 큰 그림(접힌 알림에도 보인다), 아니면 작은 얼굴 동그라미.
      */
-    private fun Notification.Builder.favorite(context: Context, title: String, text: String, mood: Mood): Notification.Builder {
+    private fun Notification.Builder.favorite(context: Context, title: String, text: String, mood: Mood, brief: String = text): Notification.Builder {
         setContentTitle(title)
-        setContentText(text)
+        setContentText(brief)
         val look = Lobby.favoriteLook(context)
         val fav = AppSettings(context).favorite
         val line = if (look == null || fav == null) null else {
@@ -269,7 +274,7 @@ object Notifier {
         val art = if (look != null && fav != null) Lobby.cachedNotifArt(context, fav.name) else null
         if (art != null) {
             setStyle(Notification.DecoratedCustomViewStyle())
-            setCustomContentView(artViews(context, R.layout.notification_art, title, text, null, art.small))
+            setCustomContentView(artViews(context, R.layout.notification_art, title, brief, null, art.small))
             setCustomBigContentView(artViews(context, R.layout.notification_art_big, title, text, quote, art.big))
             return this
         }

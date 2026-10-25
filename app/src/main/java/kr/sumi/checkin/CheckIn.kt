@@ -99,6 +99,17 @@ object CheckIn {
         if (settings.makeUpAlerts) Notifier.notifyMakeUp(context, store, missed)
     }
 
+    /** 접힌 알림 한 줄용 짧은 설명. 자세한 내용은 펼치면 [describe]로 보인다. */
+    fun brief(outcome: Outcome): String = when (outcome) {
+        is Outcome.Signed -> "${outcome.day}일째" + (outcome.reward?.let { " · $it" } ?: "")
+        is Outcome.AlreadySigned -> "이미 출첵함 · ${outcome.day}일째"
+        Outcome.LoginExpired -> "누르면 다시 로그인해요"
+        Outcome.CaptchaRequired -> "출첵 페이지에서 직접 눌러 주세요"
+        Outcome.NotConfirmed -> "출첵 페이지에서 확인해 주세요"
+        is Outcome.RateLimited -> "잠시 뒤 다시 시도해요"
+        is Outcome.Failed -> outcome.message
+    }
+
     fun describe(outcome: Outcome): String = when (outcome) {
         is Outcome.Signed -> "출첵 완료! (${outcome.day}일째)" + (outcome.reward?.let { "\n보상: $it" } ?: "")
         is Outcome.AlreadySigned -> "오늘은 이미 출첵했어요. (${outcome.day}일째)"
