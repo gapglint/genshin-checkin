@@ -142,9 +142,6 @@ class LoginActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.color.bg)
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-            if (loginMode) {
-                addView(otherWayButton(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-            }
             addView(frame, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
         setContentView(root)
@@ -239,27 +236,6 @@ class LoginActivity : Activity() {
         popup = null
         frame.removeView(p)
         p.destroy()
-    }
-
-    /**
-     * 출석 페이지의 작은 로그인 창이 안 될 때: 호요랩 모바일 사이트를 열어 그 사이트의 로그인으로 들어간다.
-     * 로그인 쿠키는 같은 hoyolab.com이라 똑같이 감지돼 저장된다.
-     */
-    private fun otherWayButton() = TextView(this).apply {
-        val density = resources.displayMetrics.density
-        text = "로그인 창이 안 되면 → 호요랩 사이트에서 로그인"
-        textSize = 14f
-        setTextColor(getColor(R.color.accent))
-        setTypeface(typeface, android.graphics.Typeface.BOLD)
-        minHeight = (44 * density).toInt()
-        gravity = android.view.Gravity.CENTER_VERTICAL
-        setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
-        background = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
-        setOnClickListener {
-            status.text = "가운데 「로그인」을 눌러 로그인해 주세요. 로그인되면 자동으로 닫혀요."
-            visibility = View.GONE
-            webView.loadUrl(HOYOLAB_MOBILE)
-        }
     }
 
     /** intent:// 링크는 그 앱을, 안 깔렸으면 링크에 적힌 대체 주소나 플레이 스토어를 연다. 열 수 없으면 조용히 무시한다. */
@@ -375,7 +351,6 @@ class LoginActivity : Activity() {
         private const val EXTRA_ACCOUNT = "account"
         private const val EXTRA_URL = "url"
         private const val EXTRA_TITLE = "title"
-        /** 로그인하지 않았으면 가운데에 「로그인」 버튼이 크게 보이는 호요랩 모바일 페이지. */
         /** 구글의 '로그인할 수 없음(안전하지 않은 브라우저)' 화면인지. 주소(rejected·disallowed)나 문구로 본다. */
         private const val GOOGLE_BLOCKED_JS = """
             (function () {
@@ -384,7 +359,6 @@ class LoginActivity : Activity() {
                 t.indexOf('안전하지 않을 수 있습니다') >= 0 || t.indexOf('may not be secure') >= 0;
             })()
         """
-        private const val HOYOLAB_MOBILE = "https://m.hoyolab.com/#/timeline"
 
         /** 출첵 페이지의 「로그인」 버튼을 찾아 누른다. 페이지가 늦게 그려지므로 몇 번 다시 찾는다. */
         private const val OPEN_LOGIN_JS = """
