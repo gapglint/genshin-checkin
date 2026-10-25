@@ -29,8 +29,8 @@ class LobbyDeviceSnapshotTest {
     @Test fun nightMenu() {
         val t = LobbyTheme(paparazzi.context.getColor(R.color.element_cryo))
         val menu = LobbyMenu(paparazzi.context, "출석", t, null, "치치", "cryo") {}
-        menu.card { with(menu) { head("10월 출석 보상 · 25 / 31"); calendar((1..31).map { if (it % 7 == 0) "×20" else "2천" }, 25, 25, 31) } }
-        menu.card { with(menu) { head("오늘"); line("출석 완료 · 원석 ×20"); line("출석 페이지 열기 ›") {} } }
+        menu.card { with(menu) { head("10월 출석 보상 · 25 / 31"); calendar((1..31).map { CalendarSlot(if (it % 7 == 0) "원석" else if (it % 3 == 0) "영웅의 경험" else "모라", if (it % 7 == 0) 20 else 2000) }, 25, 26, 31) } }
+        menu.card { with(menu) { head("오늘"); row(R.drawable.ic_item_primogem, "출석 완료", "원석 ×20"); row(R.drawable.ic_check_badge, "출석 페이지 열기 ›") {} } }
         paparazzi.snapshot(FrameLayout(paparazzi.context).apply { addView(menu) })
     }
 }

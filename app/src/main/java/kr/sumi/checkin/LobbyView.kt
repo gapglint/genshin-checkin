@@ -412,6 +412,40 @@ class LobbyMenu(
         onClick?.let { action -> setOnClickListener { action() } }
     })
 
+    /** 아이콘 타일 + 큰 숫자 + 이름을 나란히(원래 카드의 파견·주전자·의뢰처럼). */
+    fun LinearLayout.iconStats(vararg items: Triple<Int, String, String>) = addView(LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(0, dp(12), 0, 0)
+        for ((icon, v, u) in items) addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(iconTile(icon, 44), LinearLayout.LayoutParams(dp(44), dp(44)))
+            addView(text(v, 20f, context.getColor(R.color.ink), numeral = true).apply { gravity = Gravity.CENTER; setPadding(0, dp(6), 0, 0) })
+            addView(text(u, 11f, context.getColor(R.color.ink_muted)).apply { gravity = Gravity.CENTER })
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+    })
+
+    /** 아이콘 + 제목 + 오른쪽 작은 글자 한 줄(리딤 기록·오늘 보상 등). */
+    fun LinearLayout.row(icon: Int, title: String, right: String? = null, onClick: (() -> Unit)? = null) = addView(LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, dp(10), 0, 0)
+        onClick?.let { action -> setOnClickListener { action() } }
+        addView(iconTile(icon, 36), LinearLayout.LayoutParams(dp(36), dp(36)))
+        addView(text(title, 14f, if (onClick != null) accent else context.getColor(R.color.ink), bold = onClick != null).apply {
+            setPadding(dp(12), 0, dp(8), 0)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        right?.let { addView(text(it, 12f, context.getColor(R.color.ink_muted))) }
+    })
+
+    /** 원래 앱의 아이템 아이콘을 옅은 원소 색 동그라미에. */
+    private fun iconTile(icon: Int, size: Int) = FrameLayout(context).apply {
+        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(soft) }
+        addView(ImageView(context).apply { setImageResource(icon) }, LayoutParams(dp(size * 58 / 100), dp(size * 58 / 100), Gravity.CENTER))
+    }
+
     /** 큰 숫자 여러 개를 나란히, 예: (4/5, 탐사 파견). */
     fun LinearLayout.stats(vararg items: Pair<String, String>) = addView(LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -423,16 +457,17 @@ class LobbyMenu(
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
     })
 
-    /** 큰 숫자 + 막대(레진 등). */
-    fun LinearLayout.meter(value: Int, max: Int, right: String) {
+    /** 큰 숫자 + 막대(레진 등). icon이 있으면 숫자 왼쪽에 아이콘. */
+    fun LinearLayout.meter(value: Int, max: Int, right: String, icon: Int? = null) {
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.BOTTOM
-            setPadding(0, dp(6), 0, 0)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, 0)
+            icon?.let { addView(iconTile(it, 48), LinearLayout.LayoutParams(dp(48), dp(48)).apply { rightMargin = dp(12) }) }
             addView(text("$value", 44f, context.getColor(R.color.ink), numeral = true))
-            addView(text(" / $max", 18f, context.getColor(R.color.ink_muted), numeral = true).apply { setPadding(0, 0, 0, dp(8)) })
+            addView(text(" / $max", 18f, context.getColor(R.color.ink_muted), numeral = true).apply { setPadding(0, dp(12), 0, 0) })
             addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-            addView(text(right, 14f, accent, bold = true).apply { setPadding(0, 0, 0, dp(10)) })
+            addView(text(right, 14f, accent, bold = true))
         })
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -441,33 +476,45 @@ class LobbyMenu(
             if (filled > 0) addView(View(context).apply { background = GradientDrawable().apply { setColor(t.el); cornerRadius = dp(4).toFloat() } },
                 LinearLayout.LayoutParams(0, MATCH_PARENT, filled.toFloat()))
             if (max - filled > 0) addView(View(context), LinearLayout.LayoutParams(0, MATCH_PARENT, (max - filled).toFloat()))
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(8)).apply { topMargin = dp(6) })
+        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(8)).apply { topMargin = dp(10) })
     }
 
-    /** 출석 칸: 받은 칸은 원소 색, 오늘 받을 칸은 테두리, 못 받는 칸은 흐리게. labels는 칸마다 짧은 보상 글자. */
-    fun LinearLayout.calendar(labels: List<String>, signed: Int, today: Int, reachable: Int) {
-        var row: LinearLayout? = null
-        val count = maxOf(labels.size, 1)
-        val cells = (count + 6) / 7 * 7
-        for (i in 0 until cells) {
-            if (i % 7 == 0) row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, 0) }.also { addView(it) }
-            val n = i + 1
-            val done = n <= signed
-            val cell = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                if (n <= count) {
-                    background = GradientDrawable().apply {
-                        setColor(if (done) t.el else soft)
-                        if (n == today) setStroke(dp(2), t.el)
-                        cornerRadius = dp(10).toFloat()
+    /**
+     * 출석 보상 달력(원래 카드처럼 칸마다 아이템 아이콘과 개수): 받은 칸은 원소 색 체크, 다음에 받을 칸은 원소 색 테두리,
+     * 보충하지 않으면 못 받는 칸은 흐리게.
+     */
+    fun LinearLayout.calendar(slots: List<CalendarSlot>, signed: Int, next: Int, reachable: Int) {
+        for (rowStart in slots.indices step 7) {
+            val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, 0) }
+            for (col in 0 until 7) {
+                val index = rowStart + col
+                val cell = FrameLayout(context)
+                if (index < slots.size) {
+                    val slot = slots[index]
+                    val n = index + 1
+                    val done = n <= signed
+                    cell.background = GradientDrawable().apply {
+                        cornerRadius = dp(12).toFloat()
+                        setColor(soft)
+                        if (n == next) setStroke(dp(2), t.el)
                     }
-                    alpha = if (!done && n > reachable) 0.4f else 1f
-                    addView(text("$n", 12f, if (done) Color.WHITE else context.getColor(R.color.ink_muted), numeral = true).apply { gravity = Gravity.CENTER })
-                    labels.getOrNull(i)?.let { addView(text(it, 9f, if (done) 0xDDFFFFFF.toInt() else context.getColor(R.color.ink_muted)).apply { gravity = Gravity.CENTER }) }
+                    cell.alpha = when { done -> 0.6f; n > reachable -> 0.35f; else -> 1f }
+                    cell.contentDescription = "${n}번째 출석, ${slot.name} ${slot.count}개" + if (done) ", 받음" else ""
+                    cell.addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER
+                        addView(ImageView(context).apply { setImageResource(ItemIcons.of(slot.name)) }, LinearLayout.LayoutParams(dp(22), dp(22)))
+                        addView(text(CheckInCalendar.compact(slot.count), 11f, context.getColor(R.color.ink)).apply { gravity = Gravity.CENTER; maxLines = 1 })
+                    }, LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                    cell.addView(text("$n", 9f, context.getColor(R.color.ink_muted)).apply { setPadding(dp(5), dp(2), 0, 0) })
+                    if (done) cell.addView(FrameLayout(context).apply {
+                        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(t.el) }
+                        addView(ImageView(context).apply { setImageResource(R.drawable.ic_lobby_check); setColorFilter(Color.WHITE) }, LayoutParams(dp(10), dp(10), Gravity.CENTER))
+                    }, LayoutParams(dp(15), dp(15), Gravity.END or Gravity.TOP).apply { topMargin = dp(3); marginEnd = dp(3) })
                 }
+                row.addView(cell, LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
             }
-            row!!.addView(cell, LinearLayout.LayoutParams(0, dp(44), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+            addView(row)
         }
     }
 

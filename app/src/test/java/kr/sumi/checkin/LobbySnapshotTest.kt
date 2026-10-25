@@ -59,9 +59,9 @@ class LobbySnapshotTest {
     @Test fun resinMenu() {
         val t = LobbyTheme(paparazzi.context.getColor(R.color.element_dendro))
         val menu = LobbyMenu(paparazzi.context, "레진", t, null, "나히다", "dendro") {}
-        menu.card { with(menu) { head("지금 레진"); meter(142, 200, "오후 3:20 가득") } }
-        menu.card { with(menu) { head("오늘 할 일"); stats("4/5" to "탐사 파견 완료", "1,800" to "주전자 동전", "4/4" to "일일 의뢰") } }
-        menu.card { with(menu) { head("10월 출석 보상 · 17 / 31"); calendar((1..31).map { if (it % 7 == 0) "원석" else "모라" }, 17, 18, 29) } }
+        menu.card { with(menu) { head("지금 레진"); meter(142, 200, "7시간 44분 뒤 가득\n오후 3:20", R.drawable.ic_item_resin) } }
+        menu.card { with(menu) { head("오늘 할 일"); iconStats(Triple(R.drawable.ic_note_expedition, "4/5", "탐사 파견"), Triple(R.drawable.ic_note_teapot, "1,800", "주전자 동전"), Triple(R.drawable.ic_note_commission, "4/4", "일일 의뢰")) } }
+        menu.card { with(menu) { head("최근 받은 코드"); row(R.drawable.ic_item_primogem, "PJ2KEBRAYSRM", "원석 ×60 · 10/18"); row(R.drawable.ic_item_mora, "OKTCV81F9H8D", "모라 ×10,000 · 10/14") } }
         paparazzi.snapshot(FrameLayout(paparazzi.context).apply { addView(menu) })
     }
 }

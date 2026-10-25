@@ -5,6 +5,17 @@ import android.widget.TextView
 import android.widget.Button
 import android.widget.LinearLayout
 
+/** 보상 이름(한국어)에 맞는 직접 그린 아이템 아이콘. */
+object ItemIcons {
+    fun of(reward: String?) = when {
+        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
+        reward.contains("모라") -> R.drawable.ic_item_mora
+        reward.contains("경험") -> R.drawable.ic_item_book
+        reward.contains("광석") -> R.drawable.ic_item_ore
+        else -> R.drawable.ic_item_gift
+    }
+}
+
 /** 계정 칩 하나. */
 data class AccountChip(val id: String, val label: String, val signedToday: Boolean)
 
@@ -570,13 +581,7 @@ class MainScreen(val root: View) {
     }
 
     /** 보상 이름에 맞는 아이콘. 모르는 아이템은 선물 상자. */
-    private fun itemIcon(reward: String?) = when {
-        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
-        reward.contains("모라") -> R.drawable.ic_item_mora
-        reward.contains("경험") -> R.drawable.ic_item_book
-        reward.contains("광석") -> R.drawable.ic_item_ore
-        else -> R.drawable.ic_item_gift
-    }
+    private fun itemIcon(reward: String?) = ItemIcons.of(reward)
 
     /** 바로가기 타일: 리딤 코드(누르면 지금 확인), 보상 내역(누르면 열기). */
     private fun renderTiles(s: MainUiState) {

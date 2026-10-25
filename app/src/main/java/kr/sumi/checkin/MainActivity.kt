@@ -1271,14 +1271,22 @@ class MainActivity : Activity() {
             val problem = store?.noteProblem
             card {
                 head("레진")
-                line(problem ?: "레진을 불러오는 중이에요")
-                if (problem == Notes.NOTES_OFF) line("실시간 메모 켜기 ›") { askEnableNotes() }
+                row(R.drawable.ic_item_resin, problem ?: "레진을 불러오는 중이에요")
+                if (problem == Notes.NOTES_OFF) row(R.drawable.ic_note_commission, "실시간 메모 켜기 ›") { askEnableNotes() }
             }
             return
         }
-        card { head("지금 레진"); meter(n.resin, n.maxResin, listOf(n.fullLabel, n.fullTime).filter { it.isNotEmpty() }.joinToString(" · ")) }
-        card { head("오늘 할 일"); stats(n.expeditions to "탐사 파견", n.coin to "주전자 동전", n.commissions to "일일 의뢰"); line(n.updated) }
-        if (Game.launchIntent(this@MainActivity) != null) card { line("원신 켜기 ›") { Game.launchIntent(this@MainActivity)?.let { startActivity(it) } } }
+        card { head("지금 레진"); meter(n.resin, n.maxResin, listOf(n.fullLabel, n.fullTime).filter { it.isNotEmpty() }.joinToString("\n"), R.drawable.ic_item_resin) }
+        card {
+            head("오늘 할 일")
+            iconStats(
+                Triple(R.drawable.ic_note_expedition, n.expeditions, "탐사 파견"),
+                Triple(R.drawable.ic_note_teapot, n.coin, "주전자 동전"),
+                Triple(R.drawable.ic_note_commission, n.commissions, "일일 의뢰"),
+            )
+            line(n.updated)
+        }
+        if (Game.launchIntent(this@MainActivity) != null) card { row(R.drawable.ic_item_resin, "원신 켜기 ›") { Game.launchIntent(this@MainActivity)?.let { startActivity(it) } } }
     }
 
     private fun LobbyMenu.checkInMenu() {
@@ -1290,28 +1298,30 @@ class MainActivity : Activity() {
         card {
             head("${today.monthValue}월 출석 보상 · $total / ${slots.size.takeIf { it > 0 } ?: today.lengthOfMonth()}")
             if (slots.isEmpty()) line("출석 보상 목록을 불러오는 중이에요")
-            else calendar(slots.map { if (it.count >= 1000) "${it.count / 1000}천" else "×${it.count}" }, total,
-                if (signed) total else total + 1, total + today.lengthOfMonth() - today.dayOfMonth + (if (signed) 0 else 1))
+            else calendar(slots, total, total + 1, total + today.lengthOfMonth() - today.dayOfMonth + (if (signed) 0 else 1))
         }
         card {
             head("오늘")
-            line(if (signed) "출석 완료" + (store.lastReward?.let { " · $it" } ?: "") else "아직 출석 전이에요")
-            settings.nextRunAt.takeIf { it > 0 }?.let { line("다음 자동 출석 · ${describeNextRun(it)}") }
-            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { line("놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
-            line("출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+            row(ItemIcons.of(store.lastReward), if (signed) "출석 완료" else "아직 출석 전이에요", if (signed) store.lastReward else null)
+            settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, "다음 자동 출석", describeNextRun(it)) }
+            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, "놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
+            row(R.drawable.ic_check_badge, "출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
         }
     }
 
     private fun LobbyMenu.redeemMenu() {
         val store = store ?: return
         card {
-            head("최근 결과")
-            line(store.lastRedeemSummary?.let { DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() + " · " + it } ?: "아직 입력한 코드가 없어요")
+            head("최근 받은 코드")
+            val log = store.redeemLog.take(5)
+            if (log.isEmpty()) row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요")
+            for (r in log) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
+            store.lastRedeemSummary?.let { line(DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() + " 확인 · " + it.substringBefore(":")) }
         }
         card {
             head("자동 입력")
             line(if (settings.redeemEnabled) "새 코드가 올라오면 앱이 알아서 넣어요" else "자동 입력이 꺼져 있어요")
-            line("지금 새 코드 확인 ›") {
+            row(R.drawable.ic_item_gift, "지금 새 코드 확인 ›") {
                 closeAllLobbyMenus()
                 when {
                     !settings.redeemEnabled -> showSettings(true)
@@ -1319,7 +1329,7 @@ class MainActivity : Activity() {
                     else -> redeemNow()
                 }
             }
-            line("코드 직접 입력 ›") { enterCode() }
+            row(R.drawable.ic_edit, "코드 직접 입력 ›") { enterCode() }
         }
     }
 
