@@ -40,6 +40,9 @@
     <color name="element_pyro">#D9573A</color>
     <color name="element_cryo">#5DB7D3</color>
     <color name="rerun_recent">#4E8A55</color>
+    <!-- 캐릭터 등급(게임처럼 5성 금색, 4성 보라색) -->
+    <color name="rarity5">#E1BB66</color>
+    <color name="rarity4">#B48CE6</color>
     <color name="rerun_mid">#A87B22</color>
     <color name="rerun_old">#C2662A</color>
     <color name="rerun_oldest">#B04A2A</color>

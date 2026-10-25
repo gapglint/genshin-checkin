@@ -313,8 +313,8 @@ object Lobby {
         galleryPortrait(page)
     }
 
-    /** 호요랩 위키의 캐릭터 한 명: 한국어 이름, 문서 번호, 원소(영문 소문자, 모르면 빈 문자열), 얼굴 그림 주소. */
-    data class WikiCharacter(val name: String, val id: String, val element: String, val icon: String)
+    /** 호요랩 위키의 캐릭터 한 명: 한국어 이름, 문서 번호, 원소(영문 소문자, 모르면 빈 문자열), 얼굴 그림 주소, 등급(5·4, 모르면 0). */
+    data class WikiCharacter(val name: String, val id: String, val element: String, val icon: String, val rarity: Int = 0)
 
     /** 위키 목록 한 쪽의 항목들. 여행자·별인형처럼 기원에서 얻지 않는 캐릭터는 뺀다. */
     internal fun parseWikiList(items: org.json.JSONArray): List<WikiCharacter> = (0 until items.length()).map { items.getJSONObject(it) }.mapNotNull { o ->
@@ -322,7 +322,9 @@ object Lobby {
         if (name.isEmpty() || name.startsWith("여행자") || name.startsWith("별인형")) return@mapNotNull null
         val element = o.optJSONObject("filter_values")?.optJSONObject("character_vision")?.optJSONArray("value_types")
             ?.optJSONObject(0)?.optString("enum_string").orEmpty().lowercase().takeIf { it in ELEMENT_KO } ?: ""
-        WikiCharacter(name, o.optString("entry_page_id"), element, o.optString("icon_url").takeIf { it.startsWith("https://") } ?: "")
+        val rarity = o.optJSONObject("filter_values")?.optJSONObject("character_rarity")?.optJSONArray("values")?.optString(0)
+            ?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        WikiCharacter(name, o.optString("entry_page_id"), element, o.optString("icon_url").takeIf { it.startsWith("https://") } ?: "", rarity)
     }
 
     /**
@@ -331,11 +333,11 @@ object Lobby {
      */
     fun wikiCharacters(context: Context): List<WikiCharacter> {
         val p = prefs(context)
-        val cached = p.getString("wiki_chars", null)
+        val cached = p.getString("wiki_chars2", null)
         fun decode(text: String) = org.json.JSONArray(text).let { a ->
-            (0 until a.length()).map { a.getJSONObject(it) }.map { WikiCharacter(it.optString("n"), it.optString("i"), it.optString("e"), it.optString("c")) }
+            (0 until a.length()).map { a.getJSONObject(it) }.map { WikiCharacter(it.optString("n"), it.optString("i"), it.optString("e"), it.optString("c"), it.optInt("r")) }
         }
-        if (cached != null && System.currentTimeMillis() - p.getLong("wiki_chars_at", 0) < 7 * DAY_MS) return decode(cached)
+        if (cached != null && System.currentTimeMillis() - p.getLong("wiki_chars2_at", 0) < 7 * DAY_MS) return decode(cached)
         return try {
             val list = mutableListOf<WikiCharacter>()
             for (page in 1..8) {
@@ -345,8 +347,8 @@ object Lobby {
                 if (items.length() < 50) break
             }
             if (list.isEmpty()) throw IOException("위키 목록이 비어 있어요")
-            p.edit().putString("wiki_chars", org.json.JSONArray(list.map { JSONObject().put("n", it.name).put("i", it.id).put("e", it.element).put("c", it.icon) }).toString())
-                .putLong("wiki_chars_at", System.currentTimeMillis()).apply()
+            p.edit().putString("wiki_chars2", org.json.JSONArray(list.map { JSONObject().put("n", it.name).put("i", it.id).put("e", it.element).put("c", it.icon).put("r", it.rarity) }).toString())
+                .putLong("wiki_chars2_at", System.currentTimeMillis()).apply()
             list
         } catch (e: Exception) {
             cached?.let { decode(it) }.orEmpty()

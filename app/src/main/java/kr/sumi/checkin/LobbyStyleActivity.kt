@@ -115,7 +115,7 @@ class LobbyStyleActivity : Activity() {
             chars == null -> note(loadError ?: "내 캐릭터를 불러오는 중이에요...")
             chars.isEmpty() -> note("호요랩 전적에서 캐릭터를 찾지 못했어요.")
             else -> characterGrid(chars.sortedWith(compareByDescending<OwnedCharacter> { it.name == fav?.name }.thenByDescending { it.rarity }.thenByDescending { it.level })
-                .map { Pick(it.name, it.element, it.image, it.id) }, fav)
+                .map { Pick(it.name, it.element, it.image, it.id, it.rarity) }, fav)
         }
         if (store != null && chars != null) waitingSection(chars, fav)
 
@@ -146,7 +146,7 @@ class LobbyStyleActivity : Activity() {
     }
 
     /** 고를 수 있는 캐릭터 한 칸. 아직 없는 캐릭터는 id가 0이고 그림은 위키 얼굴 그림. */
-    private class Pick(val name: String, val element: String, val image: String, val id: Int)
+    private class Pick(val name: String, val element: String, val image: String, val id: Int, val rarity: Int)
 
     /**
      * 아직 없는 캐릭터(위키 전체 중 내 캐릭터가 아닌 것). 접어 두었다가 누르면 펼친다(얼굴 그림을 한꺼번에 받지 않게).
@@ -163,7 +163,7 @@ class LobbyStyleActivity : Activity() {
             all == null -> note("캐릭터 목록을 불러오는 중이에요...")
             all.isEmpty() -> note("캐릭터 목록을 불러오지 못했어요.")
             else -> characterGrid(all.filter { it.name !in ownedNames }.sortedByDescending { it.name == fav?.name }
-                .map { Pick(it.name, it.element, it.icon, 0) }, fav)
+                .map { Pick(it.name, it.element, it.icon, 0, it.rarity) }, fav)
         }
     }
 
@@ -190,16 +190,28 @@ class LobbyStyleActivity : Activity() {
                 }
             }
             val image = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
+            // 테두리 색은 등급(5성 금색, 4성 보라색, 모르면 원소 색), 고른 최애는 오른쪽 위에 체크.
+            val ring = when (c.rarity) { 5, 105 -> getColor(R.color.rarity5); 4 -> getColor(R.color.rarity4); else -> color } // 105는 전적의 에일로이(특별 5성)
             cell.addView(FrameLayout(this).apply {
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(LobbyTheme.blend(color, Color.WHITE, 0.55f))
-                    if (selected) setStroke(dp(3), color)
-                }
-                clipToOutline = true
-                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-                addView(image, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            }, LinearLayout.LayoutParams(dp(60), dp(60)))
+                addView(FrameLayout(this@LobbyStyleActivity).apply {
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(LobbyTheme.blend(color, Color.WHITE, 0.55f))
+                        setStroke(dp(if (selected) 3 else 2), ring)
+                    }
+                    clipToOutline = true
+                    outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                    addView(image, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                }, FrameLayout.LayoutParams(dp(60), dp(60), Gravity.CENTER))
+                if (selected) addView(TextView(this@LobbyStyleActivity).apply {
+                    text = "✓"
+                    textSize = 12f
+                    gravity = Gravity.CENTER
+                    setTextColor(getColor(R.color.on_action))
+                    setTypeface(typeface, Typeface.BOLD)
+                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(getColor(R.color.action)); setStroke(dp(2), getColor(R.color.surface)) }
+                }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.TOP or Gravity.END))
+            }, LinearLayout.LayoutParams(dp(66), dp(64)))
             cell.addView(TextView(this).apply {
                 text = c.name
                 textSize = 11.5f

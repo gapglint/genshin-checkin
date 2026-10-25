@@ -394,8 +394,10 @@ class RerunList(
                     setPadding(dp(8), dp(8), dp(8), dp(8))
                 }
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                // 테두리 색으로 등급(5성 금색, 4성 보라색).
                 background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(lighten(base, 0.35f), base)).apply {
                     shape = GradientDrawable.OVAL
+                    setStroke(dp(2), color(if (c.rarity == 4) R.color.rarity4 else R.color.rarity5))
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
             addView(badge(since, live = c.name in liveNames, upcoming = c.name in upcomingNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
@@ -416,7 +418,7 @@ class RerunList(
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         // 신규 > 집록 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
         val tag = when {
-            markFour && c.rarity == 4 -> pill("4성", R.color.element_electro, R.color.on_action, 10f)
+            markFour && c.rarity == 4 -> pill("4성", R.color.rarity4, R.color.on_gold, 10f)
             c.first != null && c.first == current -> pill("신규", R.color.rerun_recent, R.color.on_action, 10f)
             c.chronicled -> pill("집록", R.color.gold, R.color.on_gold, 10f)
             !c.standard && c.runs <= 1 -> pill("복각 없음", R.color.element_hydro, R.color.on_action, 10f)

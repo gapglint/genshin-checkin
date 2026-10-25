@@ -79,9 +79,10 @@ class LobbyTest {
         fun item(name: String, element: String?) = JSONObject().put("name", name).put("entry_page_id", "1").put("icon_url", "https://example.com/$name.png")
             .put("filter_values", JSONObject().apply {
                 if (element != null) put("character_vision", JSONObject().put("value_types", org.json.JSONArray().put(JSONObject().put("enum_string", element))))
+                if (name == "발레리") put("character_rarity", JSONObject().put("values", org.json.JSONArray().put("★4")))
             })
         val list = Lobby.parseWikiList(org.json.JSONArray().put(item("발레리", "electro")).put(item("여행자(물)", "hydro")).put(item("별인형·여성", null)).put(item("새 캐릭터", null)))
-        assertEquals(listOf(Lobby.WikiCharacter("발레리", "1", "electro", "https://example.com/발레리.png"), Lobby.WikiCharacter("새 캐릭터", "1", "", "https://example.com/새 캐릭터.png")), list)
+        assertEquals(listOf(Lobby.WikiCharacter("발레리", "1", "electro", "https://example.com/발레리.png", 4), Lobby.WikiCharacter("새 캐릭터", "1", "", "https://example.com/새 캐릭터.png")), list)
     }
 
     @Test fun waitingLineUsesRerunData() {
