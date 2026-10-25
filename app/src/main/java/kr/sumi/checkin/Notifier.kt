@@ -74,8 +74,7 @@ object Notifier {
         }
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(title)
-            .favorite(context, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY)
+            .favorite(context, title, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -95,8 +94,7 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_MAKE_UP))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(who(context, store) + "보충 출석을 할 수 있어요")
-            .favorite(context, "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER)
+            .favorite(context, who(context, store) + "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -125,8 +123,7 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(who(context, store) + title)
-            .favorite(context, text, if (report.redeemed.isNotEmpty()) Mood.REWARD else Mood.WORRY)
+            .favorite(context, who(context, store) + title, text, if (report.redeemed.isNotEmpty()) Mood.REWARD else Mood.WORRY)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -147,8 +144,7 @@ object Notifier {
         val text = "${day}에 로그인한 지 1년이 돼서 출석과 리딤 코드 입력이 멈춰요. 누르면 지금 다시 로그인할 수 있어요."
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(who(context, store) + "호요랩 로그인이 곧 만료돼요")
-            .favorite(context, text, Mood.WORRY)
+            .favorite(context, who(context, store) + "호요랩 로그인이 곧 만료돼요", text, Mood.WORRY)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -175,8 +171,7 @@ object Notifier {
             }
             val notification = Notification.Builder(context, channel(context, CHANNEL_NOTES))
                 .setSmallIcon(R.drawable.ic_notify)
-                .setContentTitle(who(context, store) + title)
-                .favorite(context, text, Mood.CHEER)
+                .favorite(context, who(context, store) + title, text, Mood.CHEER)
                 .setContentIntent(pending)
                 .apply { if (play != null) addAction(Notification.Action.Builder(null, "원신 켜기", play).build()) }
                 .setAutoCancel(true)
@@ -251,10 +246,12 @@ object Notifier {
     enum class Mood { GREET, REWARD, WORRY, CHEER }
 
     /**
-     * 본문을 넣는다. 로비형을 쓰고 최애가 있으면 큰 아이콘에 최애 얼굴, 펼쳤을 때 맨 위에 상황에 맞는 대사 한 줄.
-     * 접힌 알림의 한 줄은 늘 원래 내용이라 무엇을 알리는지는 그대로 보인다.
+     * 제목과 본문을 넣는다. 로비형을 쓰고 최애가 있으면 최애 그림과 상황에 맞는 대사 한 줄을 붙인다.
+     * 접힌 알림에도 제목과 원래 내용이 그대로 보여 무엇을 알리는지는 늘 알 수 있다.
+     * 사이트가 얼굴 위치를 찾아 둔 캐릭터는 오른쪽에 큰 그림(접힌 알림에도 보인다), 아니면 작은 얼굴 동그라미.
      */
-    private fun Notification.Builder.favorite(context: Context, text: String, mood: Mood): Notification.Builder {
+    private fun Notification.Builder.favorite(context: Context, title: String, text: String, mood: Mood): Notification.Builder {
+        setContentTitle(title)
         setContentText(text)
         val look = Lobby.favoriteLook(context)
         val fav = AppSettings(context).favorite
@@ -268,10 +265,30 @@ object Notifier {
             }
             Lobby.pick(Lobby.voices(context, fav.name), *prefixes).filter { it.text.length <= 70 }.randomOrNull()
         }
+        val quote = if (line != null) "${fav!!.name} 「${line.text}」" else null
+        val art = if (look != null && fav != null) Lobby.cachedNotifArt(context, fav.name) else null
+        if (art != null) {
+            setStyle(Notification.DecoratedCustomViewStyle())
+            setCustomContentView(artViews(context, R.layout.notification_art, title, text, null, art))
+            setCustomBigContentView(artViews(context, R.layout.notification_art_big, title, text, quote, art))
+            return this
+        }
         look?.second?.let { setLargeIcon(it) }
-        setStyle(Notification.BigTextStyle().bigText(if (line != null) "${fav!!.name} 「${line.text}」\n$text" else text))
+        setStyle(Notification.BigTextStyle().bigText(if (quote != null) "$quote\n$text" else text))
         return this
     }
+
+    /** 최애 그림 알림의 본문(왼쪽 글, 오른쪽 그림). 글자 색은 시스템 알림 글꼴을 따라 밝은·어두운 화면 모두 맞는다. */
+    internal fun artViews(context: Context, layout: Int, title: String, text: String, quote: String?, art: android.graphics.Bitmap) =
+        android.widget.RemoteViews(context.packageName, layout).apply {
+            setTextViewText(R.id.notifTitle, title)
+            setTextViewText(R.id.notifText, text)
+            if (quote != null) {
+                setTextViewText(R.id.notifQuote, quote)
+                setViewVisibility(R.id.notifQuote, android.view.View.VISIBLE)
+            }
+            setImageViewBitmap(R.id.notifArt, art)
+        }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */
     private fun who(context: Context, store: Store) =

@@ -159,6 +159,94 @@ object Lobby {
         return json.keys().asSequence().associateWith { json.optString(it) }
     }
 
+    // ---------- 알림의 큰 최애 그림 ----------
+
+    private const val PORTRAITS_URL = "https://apps.sumi.kr/checkin/data/portraits.json"
+    private const val ART_W = 384
+    private const val ART_H = 288
+
+    private fun notifArtFile(context: Context) = File(dir(context), "notif_art.png")
+
+    /** 알림에 붙일 최애 그림. 받아 둔 것만 쓴다(알림은 바로 만들어야 하니까). 없거나 공식 그림이 꺼져 있으면 null. */
+    fun cachedNotifArt(context: Context, name: String): Bitmap? {
+        if (!officialArtAllowed(context)) return null
+        val file = notifArtFile(context)
+        if (!file.exists() || prefs(context).getString("notif_art_name", null) != name) return null
+        return BitmapFactory.decodeFile(file.path)
+    }
+
+    /**
+     * 최애의 공식 세로 그림을 받아 얼굴 둘레만 잘라 알림용으로 저장한다(최애 하나만, 수십 KB).
+     * 얼굴 위치는 사이트가 매일 찾아 portraits.json에 둔다. 위치가 없는 캐릭터는 지우고 작은 얼굴 동그라미를 쓴다.
+     */
+    fun loadNotifArt(context: Context, name: String) {
+        if (!officialArtAllowed(context)) return
+        val p = prefs(context)
+        val entry = (portraits(context) ?: return).optJSONObject(name)
+        val file = notifArtFile(context)
+        if (entry == null) {
+            file.delete()
+            p.edit().remove("notif_art_name").remove("notif_art_pic").apply()
+            return
+        }
+        val pic = entry.optString("pic")
+        if (file.exists() && p.getString("notif_art_name", null) == name && p.getString("notif_art_pic", null) == pic) return
+        val face = entry.optJSONArray("face") ?: return
+        try {
+            val bytes = getBytes(pic)
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= 720) sample *= 2
+            val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return
+            val art = notifArt(src, face.getDouble(0).toFloat(), face.getDouble(1).toFloat(), face.getDouble(2).toFloat(), face.getDouble(3).toFloat())
+            file.outputStream().use { art.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            p.edit().putString("notif_art_name", name).putString("notif_art_pic", pic).apply()
+        } catch (e: Exception) {
+        }
+    }
+
+    /**
+     * 얼굴(그림 크기에 대한 비율) 둘레를 4:3으로 잘라, 왼쪽은 글자 쪽으로 서서히 투명해지고 모서리는 둥글게.
+     * 접힌 알림은 이 그림의 가운데(얼굴)만 넓게 잘라 보여 준다.
+     */
+    internal fun notifArt(src: Bitmap, left: Float, top: Float, right: Float, bottom: Float): Bitmap {
+        val w = src.width.toFloat()
+        val h = src.height.toFloat()
+        val faceW = (right - left) * w
+        val cropW = minOf(w, faceW * 3.2f)
+        val cropH = minOf(h, cropW * ART_H / ART_W)
+        val cx = (left + right) / 2 * w
+        val cy = (top + bottom) / 2 * h + (bottom - top) * h * 0.1f
+        val x0 = (cx - cropW / 2).coerceIn(0f, w - cropW)
+        val y0 = (cy - cropH / 2).coerceIn(0f, h - cropH)
+        val out = Bitmap.createBitmap(ART_W, ART_H, Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
+        val dst = android.graphics.RectF(0f, 0f, ART_W.toFloat(), ART_H.toFloat())
+        val radius = ART_W * 0.08f
+        c.drawRoundRect(dst, radius, radius, paint)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+        c.drawBitmap(src, android.graphics.Rect(x0.toInt(), y0.toInt(), (x0 + cropW).toInt(), (y0 + cropH).toInt()), dst, paint)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        paint.shader = android.graphics.LinearGradient(0f, 0f, ART_W * 0.45f, 0f,
+            intArrayOf(0x00000000, 0x99000000.toInt(), 0xFF000000.toInt()), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
+        c.drawRect(dst, paint)
+        return out
+    }
+
+    /** 사이트의 얼굴 위치 목록(하루에 한 번 받는다). 못 받으면 지난 것, 그것도 없으면 null. */
+    private fun portraits(context: Context): JSONObject? {
+        val p = prefs(context)
+        val cached = p.getString("portraits", null)
+        if (cached != null && System.currentTimeMillis() - p.getLong("portraits_at", 0) < DAY_MS) return JSONObject(cached)
+        return try {
+            JSONObject(get(PORTRAITS_URL)).also { p.edit().putString("portraits", it.toString()).putLong("portraits_at", System.currentTimeMillis()).apply() }
+        } catch (e: Exception) {
+            cached?.let { JSONObject(it) }
+        }
+    }
+
     // ---------- 그림 ----------
 
     /** 로비 배경으로 쓸 그림. 정한 방식대로 받거나(캐시) 읽고, 쓸 수 없으면 null(원소 무늬로 그린다). */

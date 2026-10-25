@@ -1076,7 +1076,7 @@ class MainActivity : Activity() {
 
     private fun lobbyEnabled() = settings.homeStyle == Lobby.STYLE_LOBBY && store != null && settings.favorite != null
 
-    /** 사이트 설정(공식 그림 스위치)과 내 캐릭터 목록을 가끔 받아 둔다. 로비형을 쓸 때만. */
+    /** 사이트 설정(공식 그림 스위치), 내 캐릭터 목록, 알림용 최애 그림을 가끔 받아 둔다. 로비형을 쓸 때만. */
     private fun loadLobbyIfStale() {
         val store = store ?: return
         if (settings.homeStyle != Lobby.STYLE_LOBBY || loadingLobby) return
@@ -1084,6 +1084,7 @@ class MainActivity : Activity() {
         Thread {
             Lobby.refreshConfig(this)
             try { Lobby.refreshCharacters(this, store) } catch (e: Exception) {}
+            settings.favorite?.let { Lobby.loadNotifArt(this, it.name) }
             runOnUiThread { loadingLobby = false; lobbyArtKey = null; refresh() }
         }.start()
     }
