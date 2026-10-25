@@ -366,8 +366,11 @@ object Lobby {
     internal fun waitingLine(data: RerunData?, name: String, today: java.time.LocalDate): String {
         if (data == null) return "아직 만나지 못했어요"
         val c = data.byKo(name) ?: return "아직 만나지 못했어요"
-        if (data.live(today).any { c.name in it.chars || c.name in it.four }) return "아직 만나지 못했어요 · 지금 픽업 중!"
-        if (data.upcoming(today).any { c.name in it.chars || c.name in it.four }) return "아직 만나지 못했어요 · 곧 픽업이 열려요"
+        when (data.phase(c, today)) {
+            RerunPhase.NOW -> return "아직 만나지 못했어요 · 지금 픽업 중!"
+            RerunPhase.SECOND_HALF, RerunPhase.LATER -> return "아직 만나지 못했어요 · 곧 픽업이 열려요"
+            else -> {}
+        }
         val since = data.since(c, today) ?: return "아직 만나지 못했어요"
         return "아직 만나지 못했어요 · 마지막 픽업 ${since}버전 전"
     }

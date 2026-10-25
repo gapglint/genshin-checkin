@@ -62,4 +62,17 @@ class RerunsTest {
         val due = Reruns.dueAlerts(data, setOf("Mika"), emptySet(), banner.start)
         assertEquals(listOf("Mika"), due.map { it.first.name })
     }
+
+    @Test fun phasesWithinAVersion() {
+        val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns-fours.json")!!.readText()))
+        fun phase(name: String, day: LocalDate) = data.phase(data.character(name)!!, day)
+        val today = LocalDate.of(2026, 10, 25) // 7.1 후반 진행 중
+        assertEquals(RerunPhase.NOW, phase("Skirk", today))
+        assertEquals(RerunPhase.FIRST_HALF, phase("Vesna", today)) // 7.1 전반에 나왔다 끝남
+        assertEquals(RerunPhase.LATER, phase("Furina", today)) // 7.2로 발표(위키에 종료일 없음)
+        assertEquals(RerunPhase.PAST, phase("Odette", today))
+        // 7.1 전반 중에는 후반 캐릭터가 '후반'
+        assertEquals(RerunPhase.SECOND_HALF, phase("Skirk", LocalDate.of(2026, 9, 30)))
+        assertEquals(RerunPhase.NOW, phase("Vesna", LocalDate.of(2026, 9, 30)))
+    }
 }

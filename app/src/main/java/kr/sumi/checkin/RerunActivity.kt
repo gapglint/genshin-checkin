@@ -188,15 +188,15 @@ class RerunList(
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
 
     private var current: String? = null
-    private var liveNames: Set<String> = emptySet()
-    private var upcomingNames: Set<String> = emptySet()
+    private var data: RerunData? = null
+    private var today: java.time.LocalDate = java.time.LocalDate.now()
+    private fun phase(c: RerunCharacter) = data?.phase(c, today) ?: RerunPhase.PAST
 
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
         current = data.current(today)?.v
         val live = data.live(today)
-        liveNames = live.flatMap { it.chars + if (showFours) it.four else emptyList() }.toSet()
-        // 공식 발표된 다음 픽업(위키에 미리 올라온 것). 지난 버전 수 대신 '예정'으로.
-        upcomingNames = data.banners.filter { it.start.isAfter(today) }.flatMap { it.chars + it.four }.toSet() - liveNames
+        this.data = data
+        this.today = today
         pickups(data, live, today, "지금 픽업 중")?.let { list.addView(it) }
         pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
@@ -337,16 +337,18 @@ class RerunList(
 
     /** 지난 버전 수 표시: 오래될수록 진한 색, 9 이상은 더 크게. */
     /**
-     * 지난 버전 수 표시. 지금 픽업 중이면 NOW, 발표된 다음 픽업이면 예정,
-     * 이번 버전에 이미 나왔다 끝났으면(지난 버전 0) '이번'(숫자 0은 글꼴 때문에 O처럼 보여 헷갈린다).
+     * 지난 버전 수 표시. 이번 버전 캐릭터는 숫자 대신 지금 픽업 중이면 NOW, 전반에 나왔다 끝났으면 전반,
+     * 후반에 나올 예정이면 후반, 다음 버전 이후로 발표됐으면 이후(숫자 0은 글꼴 때문에 O처럼 보여 헷갈린다).
      */
-    private fun badge(since: Int, small: Boolean = false, live: Boolean = since == 0, upcoming: Boolean = false) = TextView(context).apply {
-        val word = live || upcoming || since == 0
-        text = when {
-            live -> "NOW"
-            upcoming -> "예정"
-            since == 0 -> "이번"
-            else -> "$since"
+    private fun badge(since: Int, small: Boolean = false, phase: RerunPhase = if (since == 0) RerunPhase.NOW else RerunPhase.PAST) = TextView(context).apply {
+        val word = phase != RerunPhase.PAST
+        val upcoming = phase == RerunPhase.SECOND_HALF || phase == RerunPhase.LATER
+        text = when (phase) {
+            RerunPhase.NOW -> "NOW"
+            RerunPhase.FIRST_HALF -> "전반"
+            RerunPhase.SECOND_HALF -> "후반"
+            RerunPhase.LATER -> "이후"
+            RerunPhase.PAST -> "$since"
         }
         textSize = when {
             word -> 10f
@@ -374,7 +376,7 @@ class RerunList(
         val base = color(RerunActivity.elementColor(c.element))
         val strong = since >= 9
         alpha = when {
-            c.name in liveNames || c.name in upcomingNames -> 1f // 지금·곧 픽업이면 흐리게 하지 않는다
+            phase(c).let { it == RerunPhase.NOW || it == RerunPhase.SECOND_HALF || it == RerunPhase.LATER } -> 1f // 지금·곧 픽업이면 흐리게 하지 않는다
             since <= 2 -> 0.55f
             since <= 5 -> 0.85f
             else -> 1f
@@ -400,7 +402,7 @@ class RerunList(
                     setStroke(dp(3), color(if (c.rarity == 4) R.color.rarity4 else R.color.rarity5))
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
-            addView(badge(since, live = c.name in liveNames, upcoming = c.name in upcomingNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
+            addView(badge(since, phase = phase(c)), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
             // 픽업 알림을 받기로 한 캐릭터: 왼쪽 위에 종.
             if (c.name in watched) addView(TextView(context).apply {
                 text = "🔔"

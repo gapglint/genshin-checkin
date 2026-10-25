@@ -25,7 +25,12 @@ data class RerunCharacter(
     val runs: Int = 0,
     /** 5 또는 4. 4성의 runs는 픽업에 나온 기원 수. */
     val rarity: Int = 5,
+    /** 마지막(또는 발표된 다음) 픽업 시작일. */
+    val lastStart: LocalDate? = null,
 )
+
+/** 복각표 칸의 상태: 지금 픽업 중, 이번 버전 전반에 나왔다 끝남, 이번 버전 후반 예정, 다음 버전 이후 예정, 그 밖(지난 버전 수). */
+enum class RerunPhase { NOW, FIRST_HALF, SECOND_HALF, LATER, PAST }
 
 /** 픽업 하나(시작~종료일, 5성 캐릭터들, 함께 나오는 4성들). 5성이 여럿이면 집록 기원. */
 data class Banner(
@@ -71,6 +76,23 @@ data class RerunData(
     }
 
     fun label(v: String) = versions.firstOrNull { it.v == v }?.label ?: v
+
+    /**
+     * 칸에 붙일 상태. 이번 버전에 나오는 캐릭터는 시작일로 전반·후반을 가르고, 지금 진행 중이면 NOW.
+     * 다음 버전 이후로 발표된 캐릭터는 LATER(위키에 종료일이 아직 없어 픽업 목록에는 없을 수 있다).
+     */
+    fun phase(c: RerunCharacter, today: LocalDate): RerunPhase {
+        if (live(today).any { c.name in it.chars || c.name in it.four }) return RerunPhase.NOW
+        val now = current(today) ?: return RerunPhase.PAST
+        val last = versions.indexOfFirst { it.v == c.last }
+        val cur = versions.indexOf(now)
+        return when {
+            last > cur -> RerunPhase.LATER
+            last < cur -> RerunPhase.PAST
+            c.lastStart != null && c.lastStart.isAfter(today) -> RerunPhase.SECOND_HALF
+            else -> RerunPhase.FIRST_HALF
+        }
+    }
 
     /** 메인 화면 카드와 홈 화면 위젯에 쓰는 요약: 지금(없으면 다음) 픽업 캐릭터, 기간, 가장 오래 기다린 캐릭터. */
     fun card(today: LocalDate): RerunCardUi {
@@ -158,6 +180,7 @@ object Reruns {
                     first = it.optString("first").ifEmpty { null },
                     runs = it.optInt("runs"),
                     rarity = rarity,
+                    lastStart = it.optString("lastStart").takeIf { s -> s.isNotEmpty() }?.let { s -> runCatching { LocalDate.parse(s) }.getOrNull() },
                 )
             }
         val characters = people(json.getJSONArray("characters"), 5)
