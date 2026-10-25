@@ -1093,41 +1093,47 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** 로비에서 '카드'로 연 카드 화면의 머리(로비 메뉴와 같은 모양)와, 그때의 원래 바탕. */
-    private var lobbyCardHeader: View? = null
-    private var lobbyCardHeaderKey: String? = null
-    private var cardPageBackground: android.graphics.drawable.Drawable? = null
+    private var lobbyReturn: TextView? = null
 
+    /** 로비에서 '카드'로 카드 화면을 보는 중이면 아래에 '로비로' 단추를 띄운다. */
     /**
-     * 로비에서 '카드'를 누르면 카드 화면을 로비 메뉴처럼 보여 준다: 위에 원소 색 머리('‹ 로비', 최애 그림)와
-     * 옅은 원소 색 바탕. 로비로 돌아가거나 카드형을 쓰면 원래대로.
+     * '로비로' 칩이 떠 있으면 카드 화면 스크롤 끝에 그만큼 여백을 더 둬서 끝까지 내렸을 때 가리지 않게 한다.
+     * (목록 자체의 여백은 시스템 바·편집 모드가 쓰므로 바깥 스크롤의 여백을 쓴다.)
      */
+    private fun setReturnRoom(on: Boolean) {
+        val scroll = screen.root.findViewById<View>(R.id.scroll)
+        val room = if (on) (76 * resources.displayMetrics.density).toInt() else 0
+        if (scroll.paddingBottom != room) scroll.setPadding(scroll.paddingLeft, scroll.paddingTop, scroll.paddingRight, room)
+    }
+
     private fun updateLobbyReturn() {
         val fav = settings.favorite
-        val content = screen.root.findViewById<android.view.ViewGroup>(R.id.content)
-        val on = lobbyHidden && lobbyEnabled() && !editing && fav != null
-        if (!on || fav == null) {
-            lobbyCardHeader?.let { content.removeView(it) }
-            lobbyCardHeader = null
-            lobbyCardHeaderKey = null
-            cardPageBackground?.let { screen.root.background = it }
-            cardPageBackground = null
-            return
-        }
+        if (!(lobbyHidden && lobbyEnabled() && !editing) || fav == null) { lobbyReturn?.visibility = View.GONE; setReturnRoom(false); return }
+        setReturnRoom(true)
         val t = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
-        if (cardPageBackground == null) cardPageBackground = screen.root.background
-        screen.root.setBackgroundColor(LobbyMenu.pageColor(this, t))
-        val key = "${fav.name}|${fav.element}|${lobbyBust != null}"
-        if (lobbyCardHeader != null && key == lobbyCardHeaderKey) return
-        lobbyCardHeader?.let { content.removeView(it) }
         val d = resources.displayMetrics.density
-        val header = LobbyMenu.header(this, "카드", t, lobbyBust, fav.name, fav.element) { lobbyHidden = false; refresh(); updateBackCallback() }
-        // 목록의 좌우·위 여백을 넘어 화면 폭에 맞게(위 상태 바 여백은 그대로 둔다).
-        content.addView(header, 0, android.widget.LinearLayout.LayoutParams(-1, (LobbyMenu.HEADER_DP * d).toInt()).apply {
-            setMargins(-content.paddingStart, -(12 * d).toInt(), -content.paddingEnd, (12 * d).toInt())
-        })
-        lobbyCardHeader = header
-        lobbyCardHeaderKey = key
+        val chip = lobbyReturn ?: TextView(this).apply {
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding((18 * d).toInt(), (11 * d).toInt(), (18 * d).toInt(), (11 * d).toInt())
+            elevation = 8 * d
+            setOnClickListener { lobbyHidden = false; refresh(); updateBackCallback() }
+            setOnApplyWindowInsetsListener { v, insets ->
+                @Suppress("DEPRECATION")
+                (v.layoutParams as android.view.ViewGroup.MarginLayoutParams).bottomMargin = (20 * d).toInt() + insets.systemWindowInsetBottom
+                v.requestLayout()
+                insets
+            }
+            val root = screen.root as android.widget.FrameLayout
+            root.addView(this, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-2, -2,
+                android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL).apply { bottomMargin = (36 * d).toInt() })
+            requestApplyInsets()
+            lobbyReturn = this
+        }
+        chip.text = "‹  ${fav.name}의 로비로"
+        chip.setTextColor(t.dark)
+        chip.background = android.graphics.drawable.GradientDrawable().apply { setColor(t.light); cornerRadius = 99 * d; setStroke((1 * d).toInt(), t.el) }
+        chip.visibility = View.VISIBLE
     }
 
     private fun renderLobby(s: MainUiState) {
@@ -1163,7 +1169,7 @@ class MainActivity : Activity() {
         }
         if (lobbyBustUrl != fav.image) {
             lobbyBustUrl = fav.image
-            Thread { val b = Lobby.bust(this, fav.image); runOnUiThread { lobbyBust = b; if (lobbyHidden) updateLobbyReturn() } }.start()
+            Thread { val b = Lobby.bust(this, fav.image); runOnUiThread { lobbyBust = b } }.start()
         }
         val owned = Lobby.cachedCharacters(this, store).firstOrNull { it.name == fav.name }
         // 기다리던 최애를 뽑았으면 전적의 내 캐릭터 정보로 바꾼다(그림·번호).
