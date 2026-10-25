@@ -13,7 +13,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.os.Message
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -44,6 +46,8 @@ class LoginActivity : Activity() {
     /** 마지막으로 서버에 유효성을 물어본 로그인 토큰. 같은 토큰은 다시 묻지 않아 요청이 몰리지 않는다. */
     private var checkedTokens: String? = null
     private var loginPopupOpened = false
+    /** 구글·애플 등 로그인이 연 팝업 창. 로그인이 끝나면 페이지가 스스로 닫는다. */
+    private var popup: WebView? = null
 
     /** 웹뷰 엔진이 죽어 웹뷰를 치웠으면 true. 그 뒤로는 웹뷰를 건드리지 않는다. */
     private var engineGone = false
@@ -172,7 +176,48 @@ class LoginActivity : Activity() {
 
     private fun goBack() {
         if (engineGone) return finish()
+        popup?.let { p ->
+            if (p.canGoBack()) p.goBack() else closePopup()
+            return
+        }
         if (webView.canGoBack()) webView.goBack() else finish()
+    }
+
+    /**
+     * 구글 로그인 등은 팝업 창(window.open)을 열고, 로그인이 끝나면 그 팝업이 원래 창(opener)에 결과를 넘긴 뒤 스스로 닫힌다.
+     * 팝업을 지원하지 않으면 같은 창에서 열려 결과를 넘길 곳이 없어 마지막에 흰 화면에서 멈춘다.
+     * 그래서 팝업은 새 웹뷰로 위에 띄우고, 페이지가 닫으면(onCloseWindow) 치운다.
+     */
+    private val popupChrome: WebChromeClient = object : WebChromeClient() {
+        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+            closePopup()
+            val child = newWebView().apply {
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                        val url = request.url.toString()
+                        if (url.startsWith("http://") || url.startsWith("https://")) return false
+                        openOutside(url)
+                        return true
+                    }
+                }
+            }
+            popup = child
+            frame.addView(child, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            (resultMsg.obj as WebView.WebViewTransport).webView = child
+            resultMsg.sendToTarget()
+            return true
+        }
+
+        override fun onCloseWindow(window: WebView) {
+            if (window === popup) closePopup()
+        }
+    }
+
+    private fun closePopup() {
+        val p = popup ?: return
+        popup = null
+        frame.removeView(p)
+        p.destroy()
     }
 
     /**
@@ -222,12 +267,16 @@ class LoginActivity : Activity() {
 
     /** 로그인 화면용 웹뷰. 로그인 창은 다른 도메인 iframe이라 서드파티 쿠키가 필요하다. */
     @SuppressLint("SetJavaScriptEnabled")
-    private fun newWebView() = WebView(this).apply {
+    private fun newWebView(): WebView = WebView(this).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         // 구글 등 일부 로그인은 웹뷰 표시(wv)를 보고 막는다. 이 폰의 실제 브라우저 정보에서 그 표시만 빼서 쓴다
         // (버전을 고정해 두면 최신 폰의 실제 엔진과 어긋나 오히려 막힐 수 있다).
         settings.userAgentString = WebSettings.getDefaultUserAgent(this@LoginActivity).replace("; wv", "")
+        // 구글·애플 등 로그인 팝업(window.open)을 띄울 수 있게 한다. 띄우는 쪽은 popupChrome.
+        settings.setSupportMultipleWindows(true)
+        settings.javaScriptCanOpenWindowsAutomatically = true
+        webChromeClient = popupChrome
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
     }
 
@@ -240,6 +289,7 @@ class LoginActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        closePopup()
         if (!engineGone) {
             // 호요랩 페이지가 남긴 그림·스크립트 캐시(수 MB)를 지운다. 로그인 쿠키는 따로 있어 그대로 남는다.
             webView.clearCache(true)
