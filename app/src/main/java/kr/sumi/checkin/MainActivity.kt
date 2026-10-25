@@ -357,11 +357,11 @@ class MainActivity : Activity() {
     private fun askEnableNotes() {
         val store = store ?: return
         AppDialog(this)
-            .setTitle("실시간 메모를 켤까요?")
-            .setMessage("레진·탐사 파견·주전자 동전을 보려면 호요랩 전적의 '실시간 메모'를 켜야 해요. 켜면 호요랩 전적 설정의 그 스위치가 켜져요.\n\n" +
-                "호요랩 앱의 전적 설정에서 언제든 다시 끌 수 있어요.")
+            .setTitle("레진을 보려면 실시간 메모가 필요해요")
+            .setMessage("호요랩 전적의 '실시간 메모'를 켜면, 레진이 언제 가득 차는지와 탐사 파견·주전자 동전을 여기서 보고 알림도 받을 수 있어요.\n\n" +
+                "켜는 건 이번 한 번뿐이고, 호요랩 앱의 전적 설정에서 언제든 다시 끌 수 있어요.")
             .setNegativeButton("나중에")
-            .setPositiveButton("켜기") {
+            .setPositiveButton("켜고 레진 보기") {
                 Thread {
                     val ok = try { Notes.enableNotes(store) } catch (e: IOException) { null }
                     runOnUiThread {
