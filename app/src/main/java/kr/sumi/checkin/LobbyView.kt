@@ -349,12 +349,12 @@ class LobbyView(context: Context) : FrameLayout(context) {
             })
         })
         bottom.addView(dock(ui, t, actions), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(14), 0, dp(14), 0) })
-        // 출처: 지금 쓰는 공식 자료(그림·대사·음성)를 모두 적는다.
-        val used = listOfNotNull("그림".takeIf { ui.credit }, "대사".takeIf { ui.quote != null }, "음성".takeIf { ui.voice })
-        bottom.addView(text(
-            if (used.isEmpty()) "비공식 팬 도구" else "${used.joinToString("·")} © HoYoverse · 호요랩 위키 · 비공식 팬 도구",
-            10f, 0x88FFFFFF.toInt(),
-        ).apply {
+        bottom.addView(text(when {
+            ui.credit && ui.quote != null -> "그림·대사 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
+            ui.credit -> "그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
+            ui.quote != null -> "대사 © HoYoverse · 호요랩 위키 · 비공식 팬 도구"
+            else -> "비공식 팬 도구"
+        }, 10f, 0x88FFFFFF.toInt()).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, dp(12))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
@@ -500,26 +500,6 @@ class LobbyMenu(
         fun pageColor(context: Context, t: LobbyTheme): Int {
             val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
             return if (night) LobbyTheme.blend(t.el, Color.BLACK, 0.84f) else t.tint
-        }
-
-        /**
-         * 로비형을 쓰면 다른 화면(복각표·이벤트)도 로비 메뉴처럼: header_bar의 제목 줄 대신 로비 머리, 바탕은 옅은 원소 색.
-         * 로비형이 아니거나 최애가 없으면 그대로 둔다.
-         */
-        fun dress(context: Context, headerBar: LinearLayout, root: View, title: String, onBack: () -> Unit) {
-            val settings = AppSettings(context)
-            val fav = settings.favorite ?: return
-            if (settings.homeStyle != Lobby.STYLE_LOBBY) return
-            val t = LobbyTheme(context.getColor(Lobby.elementColorRes(fav.element)))
-            val bust = Lobby.cachedBust(context, fav.image)
-            headerBar.getChildAt(0)?.visibility = View.GONE
-            headerBar.addView(header(context, title, t, bust, fav.name, fav.element, onBack), 0,
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (HEADER_DP * context.resources.displayMetrics.density).toInt()).apply {
-                    bottomMargin = (12 * context.resources.displayMetrics.density).toInt()
-                })
-            val page = pageColor(context, t)
-            headerBar.setBackgroundColor(page)
-            root.setBackgroundColor(page)
         }
 
         /** 로비 메뉴 머리: 원소 색 바탕·문양, 최애 그림, '‹ 로비', 제목, '○○ 와 함께'. 로비에서 연 카드 화면도 쓴다. */

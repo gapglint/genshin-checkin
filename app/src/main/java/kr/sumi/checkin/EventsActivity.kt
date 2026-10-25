@@ -48,7 +48,6 @@ class EventsActivity : Activity() {
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(ScrollView(this@EventsActivity).apply { addView(list) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
-        LobbyMenu.dress(this, header as LinearLayout, root, "이벤트") { finish() }
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
         render()
