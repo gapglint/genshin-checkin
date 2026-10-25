@@ -1242,7 +1242,7 @@ class MainActivity : Activity() {
             val fav = settings.favorite ?: return
             // 평소 이야기 대사 중 하나(지금 것과 다르게, 게임에서 열린 것만). 음성이 있으면 들려준다.
             val pool = Lobby.talk(Lobby.unlockedVoices(this@MainActivity, fav.name), fav.name)
-                .filter { it.text != lobbyLine?.text && it.text.length <= Lobby.BUBBLE_MAX }
+                .filter { it.text != lobbyLine?.text }
             val line = pool.randomOrNull() ?: return
             lobbyLine = line
             lobbyLineKey = "tap"
@@ -1319,6 +1319,7 @@ class MainActivity : Activity() {
             }
             return null
         }
+        // 저절로 바뀌는 인사는 접지 않고 보이는 길이만(긴 대사는 사용자가 눌러서 들을 때).
         val voices = Lobby.unlockedVoices(this, fav.name).filter { it.text.length <= Lobby.BUBBLE_MAX }
         val key = when {
             problem -> "problem"

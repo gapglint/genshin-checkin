@@ -110,6 +110,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
     private var insetTop = 0
     private var insetBottom = 0
     private var lastBind: (() -> Unit)? = null
+    /** '전체 보기'로 펼친 긴 대사. */
+    private var expandedQuote: String? = null
 
     init {
         isClickable = true
@@ -239,17 +241,38 @@ class LobbyView(context: Context) : FrameLayout(context) {
             setOnClickListener { actions.onBubble() }
             contentDescription = listOfNotNull(ui.quote, ui.greeting).joinToString(". ") + if (ui.quote != null) ", 눌러서 다른 대사" else ""
             if (ui.quote != null) {
+                // 긴 대사([Lobby.BUBBLE_MAX]자 넘게)는 네 줄만 보여 주고, 네 줄을 넘으면 '전체 보기'로 펼친다. 펼친 것은 대사가 바뀔 때까지.
+                val long = ui.quote.length > Lobby.BUBBLE_MAX
+                val open = !long || expandedQuote == ui.quote
+                val quoteView = text("「${ui.quote}」", if (ui.quote.length > 60) 12.5f else 14f, 0xFF1B2030.toInt()).apply {
+                    LobbyFont.title?.let { typeface = it }
+                    setLineSpacing(dp(2).toFloat(), 1f)
+                }
+                // 말풍선 글자 폭(화면 폭 - 좌우 여백 16·86 - 안쪽 14·14 - 음성 표시)으로 줄 수를 미리 센다.
+                val textWidth = w - dp(16 + 86 + 28) - if (ui.voice) dp(26) else 0
+                val lines = if (long && textWidth > 0) android.text.StaticLayout.Builder
+                    .obtain(quoteView.text, 0, quoteView.text.length, quoteView.paint, textWidth)
+                    .setLineSpacing(dp(2).toFloat(), 1f).build().lineCount else 0
+                val more = text(if (open) "접기 ▴" else "전체 보기 ▾", 12f, t.deep, bold = true).apply {
+                    visibility = if (lines > 4) VISIBLE else GONE
+                    setPadding(0, dp(6), dp(8), dp(2))
+                    contentDescription = if (open) "대사 접기" else "대사 전체 보기"
+                    setOnClickListener {
+                        expandedQuote = if (open) null else ui.quote
+                        lastBind?.invoke()
+                    }
+                }
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    addView(text("「${ui.quote}」", if (ui.quote.length > 60) 12.5f else 14f, 0xFF1B2030.toInt()).apply {
-                        LobbyFont.title?.let { typeface = it }
-                        setLineSpacing(dp(2).toFloat(), 1f)
-                        // 대사는 다 들어가는 길이만 고른다([Lobby.BUBBLE_MAX]). 혹시 길어도 일곱 줄까지.
-                        maxLines = 7
-                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    addView(quoteView.apply {
+                        if (!open) {
+                            maxLines = 4
+                            ellipsize = android.text.TextUtils.TruncateAt.END
+                        }
                     }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
                     if (ui.voice) addView(text("🔊", 13f, t.deep).apply { setPadding(dp(6), 0, 0, 0) })
                 })
+                if (long) addView(more)
                 addView(View(context).apply { setBackgroundColor(0x221B2030) }, LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply { setMargins(0, dp(8), 0, dp(6)) })
                 addView(text(ui.greeting, 12f, 0xFF5C6479.toInt()).apply { setLineSpacing(dp(1).toFloat(), 1f) })
             } else {
