@@ -302,22 +302,66 @@ object Lobby {
         galleryPortrait(page)
     }
 
+    /** 호요랩 위키의 캐릭터 한 명: 한국어 이름, 문서 번호, 원소(영문 소문자, 모르면 빈 문자열), 얼굴 그림 주소. */
+    data class WikiCharacter(val name: String, val id: String, val element: String, val icon: String)
+
+    /** 위키 목록 한 쪽의 항목들. 여행자·별인형처럼 기원에서 얻지 않는 캐릭터는 뺀다. */
+    internal fun parseWikiList(items: org.json.JSONArray): List<WikiCharacter> = (0 until items.length()).map { items.getJSONObject(it) }.mapNotNull { o ->
+        val name = o.optString("name")
+        if (name.isEmpty() || name.startsWith("여행자") || name.startsWith("별인형")) return@mapNotNull null
+        val element = o.optJSONObject("filter_values")?.optJSONObject("character_vision")?.optJSONArray("value_types")
+            ?.optJSONObject(0)?.optString("enum_string").orEmpty().lowercase().takeIf { it in ELEMENT_KO } ?: ""
+        WikiCharacter(name, o.optString("entry_page_id"), element, o.optString("icon_url").takeIf { it.startsWith("https://") } ?: "")
+    }
+
+    /**
+     * 호요랩 위키의 전체 캐릭터(최근 캐릭터가 앞). 일주일에 한 번 받고, 못 받으면 지난 목록.
+     * 아직 없는 최애를 고를 때와, 캐릭터 문서를 찾을 때 쓴다.
+     */
+    fun wikiCharacters(context: Context): List<WikiCharacter> {
+        val p = prefs(context)
+        val cached = p.getString("wiki_chars", null)
+        fun decode(text: String) = org.json.JSONArray(text).let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.map { WikiCharacter(it.optString("n"), it.optString("i"), it.optString("e"), it.optString("c")) }
+        }
+        if (cached != null && System.currentTimeMillis() - p.getLong("wiki_chars_at", 0) < 7 * DAY_MS) return decode(cached)
+        return try {
+            val list = mutableListOf<WikiCharacter>()
+            for (page in 1..8) {
+                val body = """{"filters":[],"menu_id":"2","page_num":$page,"page_size":50,"use_es":true}"""
+                val items = JSONObject(get(WIKI_LIST, body)).optJSONObject("data")?.optJSONArray("list") ?: break
+                list += parseWikiList(items)
+                if (items.length() < 50) break
+            }
+            if (list.isEmpty()) throw IOException("위키 목록이 비어 있어요")
+            p.edit().putString("wiki_chars", org.json.JSONArray(list.map { JSONObject().put("n", it.name).put("i", it.id).put("e", it.element).put("c", it.icon) }).toString())
+                .putLong("wiki_chars_at", System.currentTimeMillis()).apply()
+            list
+        } catch (e: Exception) {
+            cached?.let { decode(it) }.orEmpty()
+        }
+    }
+
+    /** 아직 없는 최애를 복각표의 '기다리는 캐릭터'(픽업 알림)에 넣는다. 복각표에 없는 캐릭터(4성 등)는 그대로. */
+    fun watchRerun(context: Context, name: String) {
+        Reruns.cached(context)?.characters?.firstOrNull { it.ko == name }?.let { Reruns.setWatched(context, it.name, true) }
+    }
+
+    /** 아직 없는 최애의 로비 한 줄: 픽업 중이면 그 소식, 아니면 마지막 픽업 뒤 지난 버전 수(복각표 자료). */
+    fun waitingLine(context: Context, name: String, today: java.time.LocalDate) = waitingLine(Reruns.cached(context), name, today)
+
+    internal fun waitingLine(data: RerunData?, name: String, today: java.time.LocalDate): String {
+        if (data == null) return "아직 만나지 못했어요"
+        val c = data.characters.firstOrNull { it.ko == name } ?: return "아직 만나지 못했어요"
+        if (data.live(today).any { c.name in it.chars }) return "아직 만나지 못했어요 · 지금 픽업 중!"
+        if (data.upcoming(today).any { c.name in it.chars }) return "아직 만나지 못했어요 · 곧 픽업이 열려요"
+        val since = data.since(c, today) ?: return "아직 만나지 못했어요"
+        return "아직 만나지 못했어요 · 마지막 픽업 ${since}버전 전"
+    }
+
     /** 호요랩 위키 캐릭터 문서(이름으로 찾는다). 못 찾으면 null. */
     private fun wikiPage(context: Context, name: String): JSONObject? {
-        val p = prefs(context)
-        // 위키 캐릭터 목록(이름 → 문서 번호)은 일주일에 한 번만 받는다.
-        val ids = p.getString("wiki_ids", null)?.takeIf { System.currentTimeMillis() - p.getLong("wiki_ids_at", 0) < 7 * DAY_MS }
-            ?.let { JSONObject(it) }
-            ?: JSONObject().also { map ->
-                for (page in 1..6) {
-                    val body = """{"filters":[],"menu_id":"2","page_num":$page,"page_size":50,"use_es":true}"""
-                    val items = JSONObject(get(WIKI_LIST, body)).optJSONObject("data")?.optJSONArray("list") ?: break
-                    for (i in 0 until items.length()) items.getJSONObject(i).let { map.put(it.optString("name"), it.optString("entry_page_id")) }
-                    if (items.length() < 50) break
-                }
-                p.edit().putString("wiki_ids", map.toString()).putLong("wiki_ids_at", System.currentTimeMillis()).apply()
-            }
-        val id = ids.optString(name).takeIf { it.isNotEmpty() } ?: return null
+        val id = wikiCharacters(context).firstOrNull { it.name == name }?.id?.takeIf { it.isNotEmpty() } ?: return null
         return JSONObject(get(WIKI_PAGE + id))
     }
 

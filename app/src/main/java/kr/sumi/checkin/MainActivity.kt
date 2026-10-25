@@ -1157,8 +1157,14 @@ class MainActivity : Activity() {
             Thread { val b = Lobby.bust(this, fav.image); runOnUiThread { lobbyBust = b } }.start()
         }
         val owned = Lobby.cachedCharacters(this, store).firstOrNull { it.name == fav.name }
+        // 기다리던 최애를 뽑았으면 전적의 내 캐릭터 정보로 바꾼다(그림·번호).
+        if (owned != null && fav.id == 0) settings.favorite = Favorite(owned.name, owned.element, owned.image, owned.id)
         val elementKo = Lobby.ELEMENT_KO[fav.element] ?: ""
-        val meta = owned?.let { "$elementKo · Lv.${it.level} · 호감도 ${it.fetter} · 운명의 자리 ${it.constellation}" } ?: "$elementKo 원소"
+        val meta = when {
+            owned != null -> "$elementKo · Lv.${owned.level} · 호감도 ${owned.fetter} · 운명의 자리 ${owned.constellation}"
+            fav.id == 0 -> Lobby.waitingLine(this, fav.name, ServerClock.today())
+            else -> "$elementKo 원소"
+        }
         val usingOfficial = lobbyArt != null && settings.lobbyBackground == Lobby.BG_OFFICIAL
         view.bind(lobbyUi(s, fav, meta, usingOfficial), lobbyArt, lobbyActions)
     }

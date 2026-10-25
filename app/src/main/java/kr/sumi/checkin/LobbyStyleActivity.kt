@@ -22,7 +22,7 @@ import java.io.IOException
 import java.util.concurrent.Executors
 
 /**
- * 홈 꾸미기: 홈 스타일(카드형·로비형), 최애 캐릭터(호요랩 전적의 내 캐릭터 중에서), 로비 배경(공식 그림·내 사진·원소 무늬).
+ * 홈 꾸미기: 홈 스타일(카드형·로비형), 최애 캐릭터(호요랩 전적의 내 캐릭터, 또는 아직 없어 기다리는 캐릭터), 로비 배경(공식 그림·내 사진·원소 무늬).
  * 공식 그림은 사이트 설정으로 꺼져 있으면 고를 수 없다.
  */
 class LobbyStyleActivity : Activity() {
@@ -30,6 +30,8 @@ class LobbyStyleActivity : Activity() {
     private lateinit var list: LinearLayout
     private val pool = Executors.newFixedThreadPool(3)
     private var characters: List<OwnedCharacter>? = null
+    private var wiki: List<Lobby.WikiCharacter>? = null
+    private var showWaiting = false
     private var loadError: String? = null
     private val density by lazy { resources.displayMetrics.density }
     private fun dp(v: Int) = (v * density).toInt()
@@ -58,7 +60,8 @@ class LobbyStyleActivity : Activity() {
         pool.execute {
             Lobby.refreshConfig(this)
             val result = try { Lobby.refreshCharacters(this, store, force = characters == null) } catch (e: IOException) { loadError = "캐릭터를 불러오지 못했어요"; null }
-            runOnUiThread { if (!isDestroyed) { if (result != null) characters = result; render() } }
+            val all = Lobby.wikiCharacters(this)
+            runOnUiThread { if (!isDestroyed) { if (result != null) characters = result; wiki = all; render() } }
         }
     }
 
@@ -109,8 +112,10 @@ class LobbyStyleActivity : Activity() {
             store == null -> note("로그인하면 내 캐릭터 중에서 고를 수 있어요.")
             chars == null -> note(loadError ?: "내 캐릭터를 불러오는 중이에요...")
             chars.isEmpty() -> note("호요랩 전적에서 캐릭터를 찾지 못했어요.")
-            else -> characterGrid(chars, fav)
+            else -> characterGrid(chars.sortedWith(compareByDescending<OwnedCharacter> { it.name == fav?.name }.thenByDescending { it.rarity }.thenByDescending { it.level })
+                .map { Pick(it.name, it.element, it.image, it.id) }, fav)
         }
+        if (store != null && chars != null) waitingSection(chars, fav)
 
         section("로비 배경")
         val official = Lobby.officialArtAllowed(this)
@@ -130,9 +135,29 @@ class LobbyStyleActivity : Activity() {
         )
     }
 
-    private fun characterGrid(chars: List<OwnedCharacter>, fav: Favorite?) {
-        // 최애를 맨 앞에, 나머지는 5성·레벨 순
-        val sorted = chars.sortedWith(compareByDescending<OwnedCharacter> { it.name == fav?.name }.thenByDescending { it.rarity }.thenByDescending { it.level })
+    /** 고를 수 있는 캐릭터 한 칸. 아직 없는 캐릭터는 id가 0이고 그림은 위키 얼굴 그림. */
+    private class Pick(val name: String, val element: String, val image: String, val id: Int)
+
+    /**
+     * 아직 없는 캐릭터(위키 전체 중 내 캐릭터가 아닌 것). 접어 두었다가 누르면 펼친다(얼굴 그림을 한꺼번에 받지 않게).
+     * 고르면 그 캐릭터의 픽업 알림(복각표 '기다리는 캐릭터')에도 넣는다.
+     */
+    private fun waitingSection(owned: List<OwnedCharacter>, fav: Favorite?) {
+        val ownedNames = owned.map { it.name }.toSet()
+        val waitingFav = fav != null && fav.name !in ownedNames
+        choice("아직 없는 캐릭터 중에서", if (waitingFav) "${fav!!.name}을(를) 기다리는 중이에요 · 픽업이 열리면 알려 드려요" else "기다리는 캐릭터를 최애로 · 픽업이 열리면 알려 드려요",
+            waitingFav) { showWaiting = !showWaiting; render() }
+        if (!showWaiting) return
+        val all = wiki
+        when {
+            all == null -> note("캐릭터 목록을 불러오는 중이에요...")
+            all.isEmpty() -> note("캐릭터 목록을 불러오지 못했어요.")
+            else -> characterGrid(all.filter { it.name !in ownedNames }.sortedByDescending { it.name == fav?.name }
+                .map { Pick(it.name, it.element, it.icon, 0) }, fav)
+        }
+    }
+
+    private fun characterGrid(sorted: List<Pick>, fav: Favorite?) {
         val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         var row: LinearLayout? = null
         sorted.forEachIndexed { index, c ->
@@ -146,6 +171,7 @@ class LobbyStyleActivity : Activity() {
                 contentDescription = c.name + if (selected) ", 최애" else ""
                 setOnClickListener {
                     settings.favorite = Favorite(c.name, c.element, c.image, c.id)
+                    if (c.id == 0) Lobby.watchRerun(this@LobbyStyleActivity, c.name)
                     if (settings.homeStyle != Lobby.STYLE_LOBBY) settings.homeStyle = Lobby.STYLE_LOBBY
                     // 공식 그림을 미리 받아 둔다(로비를 열 때 바로 보이게).
                     pool.execute { Lobby.background(this@LobbyStyleActivity, settings, resources.displayMetrics.widthPixels) }

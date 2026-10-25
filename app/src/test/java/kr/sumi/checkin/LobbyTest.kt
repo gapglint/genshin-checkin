@@ -2,6 +2,7 @@ package kr.sumi.checkin
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -67,5 +68,23 @@ class LobbyTest {
         assertEquals(setOf("아침인가요?", "시원한 곳으로 가고 싶어", "애완동물이 있었으면 좋겠어요"), seen)
         // 공식 인사가 없는 캐릭터는 평소 이야기만.
         assertEquals("시원한 곳으로 가고 싶어", Lobby.greetingLine(lines.drop(1).take(1), "치치", 8)?.text)
+    }
+
+    @Test fun parsesWikiCharacterList() {
+        fun item(name: String, element: String?) = JSONObject().put("name", name).put("entry_page_id", "1").put("icon_url", "https://example.com/$name.png")
+            .put("filter_values", JSONObject().apply {
+                if (element != null) put("character_vision", JSONObject().put("value_types", org.json.JSONArray().put(JSONObject().put("enum_string", element))))
+            })
+        val list = Lobby.parseWikiList(org.json.JSONArray().put(item("발레리", "electro")).put(item("여행자(물)", "hydro")).put(item("별인형·여성", null)).put(item("새 캐릭터", null)))
+        assertEquals(listOf(Lobby.WikiCharacter("발레리", "1", "electro", "https://example.com/발레리.png"), Lobby.WikiCharacter("새 캐릭터", "1", "", "https://example.com/새 캐릭터.png")), list)
+    }
+
+    @Test fun waitingLineUsesRerunData() {
+        val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns.json")!!.readText()))
+        val today = java.time.LocalDate.of(2026, 10, 24)
+        assertEquals("아직 만나지 못했어요 · 지금 픽업 중!", Lobby.waitingLine(data, "스커크", today))
+        assertTrue(Lobby.waitingLine(data, "호두", today).startsWith("아직 만나지 못했어요 · 마지막 픽업 "))
+        assertEquals("아직 만나지 못했어요", Lobby.waitingLine(data, "향릉", today))
+        assertEquals("아직 만나지 못했어요", Lobby.waitingLine(null, "호두", today))
     }
 }
