@@ -247,6 +247,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 val quoteView = text("「${ui.quote}」", if (ui.quote.length > 60) 12.5f else 14f, 0xFF1B2030.toInt()).apply {
                     LobbyFont.title?.let { typeface = it }
                     setLineSpacing(dp(2).toFloat(), 1f)
+                    // 명조 글꼴은 받침이 글꼴이 알려 주는 높이보다 조금 내려가 마지막 줄 아래가 잘린다. 그만큼 여백.
+                    setPadding(0, 0, 0, dp(4))
                 }
                 // 말풍선 글자 폭(화면 폭 - 좌우 여백 16·86 - 안쪽 14·14 - 음성 표시)으로 줄 수를 미리 센다.
                 val textWidth = w - dp(16 + 86 + 28) - if (ui.voice) dp(26) else 0
@@ -320,6 +322,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 LobbyFont.title?.let { typeface = it }
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, 0, 0, dp(4)) // 명조 받침이 잘리지 않게
             })
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -483,7 +486,7 @@ class LobbyMenu(
                     addView(ImageView(context).apply { setImageResource(R.drawable.ic_back); setColorFilter(Color.WHITE) }, LinearLayout.LayoutParams(dp(20), dp(20)))
                     addView(text("로비", 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
                 }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-                addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it } })
+                addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it }; setPadding(0, 0, 0, dp(4)) })
                 addView(text("$who 와 함께", 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
             }, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
         }, LinearLayout.LayoutParams(MATCH_PARENT, dp(176)))
