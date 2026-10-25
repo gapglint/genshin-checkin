@@ -23,15 +23,22 @@ data class RerunCharacter(
     val standard: Boolean,
     val first: String? = null,
     val runs: Int = 0,
+    /** 5 또는 4. 4성의 runs는 픽업에 나온 기원 수. */
+    val rarity: Int = 5,
 )
 
-/** 픽업 하나(시작~종료일, 5성 캐릭터들). 5성이 여럿이면 집록 기원. */
-data class Banner(val version: String, val start: LocalDate, val end: LocalDate, val chars: List<String>, val chronicled: Boolean)
+/** 픽업 하나(시작~종료일, 5성 캐릭터들, 함께 나오는 4성들). 5성이 여럿이면 집록 기원. */
+data class Banner(
+    val version: String, val start: LocalDate, val end: LocalDate, val chars: List<String>, val chronicled: Boolean,
+    val four: List<String> = emptyList(),
+)
 
 data class RerunData(
     val versions: List<GameVersion>,
     val characters: List<RerunCharacter>,
     val banners: List<Banner> = emptyList(),
+    /** 픽업 4성(복각표에서 '4성도 보기'를 켰을 때, 기다리는 4성 알림). */
+    val fours: List<RerunCharacter> = emptyList(),
 ) {
     /** 오늘 진행 중인 픽업. */
     fun live(today: LocalDate) = banners.filter { !it.start.isAfter(today) && !it.end.isBefore(today) }
@@ -42,7 +49,15 @@ data class RerunData(
         return banners.filter { it.start == next }
     }
 
-    fun character(name: String) = characters.firstOrNull { it.name == name }
+    fun character(name: String) = characters.firstOrNull { it.name == name } ?: fours.firstOrNull { it.name == name }
+
+    /** 한국어 이름으로(5성·4성 모두). */
+    fun byKo(ko: String) = characters.firstOrNull { it.ko == ko } ?: fours.firstOrNull { it.ko == ko }
+
+    /** 4성을 오래 안 나온 순으로. */
+    fun rankedFours(today: LocalDate): List<Pair<RerunCharacter, Int>> =
+        fours.mapNotNull { c -> since(c, today)?.let { c to it } }
+            .sortedWith(compareByDescending<Pair<RerunCharacter, Int>> { it.second }.thenBy { it.first.ko })
 
     /** today 기준 지금 버전: 시작일이 지난 버전 중 가장 늦은 것. */
     fun current(today: LocalDate): GameVersion? = versions.lastOrNull { !it.start.isAfter(today) }
@@ -132,8 +147,7 @@ object Reruns {
                 GameVersion(it.getString("v"), it.optString("label", it.getString("v")), LocalDate.parse(it.getString("start")))
             }
         }
-        val characters = json.getJSONArray("characters").let { a ->
-            (0 until a.length()).map { a.getJSONObject(it) }.map {
+        fun people(a: org.json.JSONArray?, rarity: Int) = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }.map {
                 RerunCharacter(
                     name = it.getString("name"),
                     ko = it.optString("ko", it.getString("name")),
@@ -143,16 +157,19 @@ object Reruns {
                     standard = it.optBoolean("standard"),
                     first = it.optString("first").ifEmpty { null },
                     runs = it.optInt("runs"),
+                    rarity = rarity,
                 )
             }
-        }
+        val characters = people(json.getJSONArray("characters"), 5)
+        val fours = people(json.optJSONArray("fours"), 4)
         val banners = json.optJSONArray("banners")?.let { a ->
             (0 until a.length()).map { a.getJSONObject(it) }.map { b ->
                 val chars = b.getJSONArray("chars").let { c -> (0 until c.length()).map { c.getString(it) } }
-                Banner(b.optString("version"), LocalDate.parse(b.getString("start")), LocalDate.parse(b.getString("end")), chars, b.optBoolean("chronicled"))
+                val four = b.optJSONArray("four")?.let { c -> (0 until c.length()).map { c.getString(it) } }.orEmpty()
+                Banner(b.optString("version"), LocalDate.parse(b.getString("start")), LocalDate.parse(b.getString("end")), chars, b.optBoolean("chronicled"), four)
             }
         }.orEmpty()
-        return RerunData(versions, characters, banners)
+        return RerunData(versions, characters, banners, fours)
     }
 
     /** 픽업 알림을 받을 캐릭터(영어 이름). */
@@ -169,7 +186,9 @@ object Reruns {
      */
     internal fun dueAlerts(data: RerunData, watched: Set<String>, notified: Set<String>, today: LocalDate): List<Pair<RerunCharacter, Banner>> =
         data.banners.filter { !it.end.isBefore(today) }
-            .flatMap { b -> b.chars.filter { it in watched && "$it|${b.start}" !in notified }.mapNotNull { n -> data.character(n)?.let { it to b } } }
+            .flatMap { b -> (b.chars + b.four).filter { it in watched && "$it|${b.start}" !in notified }.mapNotNull { n -> data.character(n)?.let { it to b } } }
+            // 같은 날 열리는 5성 픽업들에는 4성이 똑같이 들어 있어, 캐릭터·시작일마다 한 번만.
+            .distinctBy { (c, b) -> "${c.name}|${b.start}" }
 
     /** 자료를 받은 뒤 부른다. 알림이 꺼져 있거나 기다리는 캐릭터가 없으면 아무것도 안 한다. */
     fun checkWatch(context: Context) {

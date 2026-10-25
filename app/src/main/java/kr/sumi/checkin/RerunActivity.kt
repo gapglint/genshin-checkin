@@ -68,7 +68,11 @@ class RerunActivity : Activity() {
         // 설명과 지금 버전은 판 위에 있어서 머리말 아래 안내는 짧게.
         status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
 
-        RerunList(this, Reruns.watched(this), faces) { c -> toggleWatch(c) }.fill(list, data, today)
+        val settings = AppSettings(this)
+        RerunList(this, Reruns.watched(this), faces, { c -> toggleWatch(c) }, settings.rerunFours) {
+            settings.rerunFours = !settings.rerunFours
+            render()
+        }.fill(list, data, today)
         loadFaces(data)
     }
 
@@ -78,7 +82,7 @@ class RerunActivity : Activity() {
 
     private fun loadFaces(data: RerunData) {
         if (loadingFaces || !Lobby.officialArtAllowed(this)) return
-        val missing = data.characters.map { it.ko }.filter { !faces.containsKey(it) }
+        val missing = (data.characters + if (AppSettings(this).rerunFours) data.fours else emptyList()).map { it.ko }.filter { !faces.containsKey(it) }
         if (missing.isEmpty()) return
         loadingFaces = true
         Thread {
@@ -173,6 +177,10 @@ class RerunList(
     private val faces: Map<String, android.graphics.Bitmap> = emptyMap(),
     /** 캐릭터를 누르면 알림 받기를 켜고 끈다. null이면 누를 수 없다(스냅숏 등). */
     private val onToggle: ((RerunCharacter) -> Unit)? = null,
+    /** 4성도 보일지(픽업 판과 '4성 캐릭터' 판). */
+    private val showFours: Boolean = false,
+    /** '4성도 보기'를 누르면. null이면 그 줄을 그리지 않는다. */
+    private val onFours: (() -> Unit)? = null,
 ) {
     private val density = context.resources.displayMetrics.density
     private fun dp(v: Int) = (v * density).toInt()
@@ -185,7 +193,7 @@ class RerunList(
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
         current = data.current(today)?.v
         val live = data.live(today)
-        liveNames = live.flatMap { it.chars }.toSet()
+        liveNames = live.flatMap { it.chars + if (showFours) it.four else emptyList() }.toSet()
         pickups(data, live, today, "지금 픽업 중")?.let { list.addView(it) }
         pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
@@ -198,6 +206,12 @@ class RerunList(
                 (layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(16)
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
+        val fours = data.rankedFours(today)
+        if (showFours && fours.isNotEmpty()) {
+            list.addView(board(data, fours, "4성 캐릭터", legend = false, note = "5성 픽업에 함께 나와요 · 숫자는 마지막 픽업 뒤 지난 버전"),
+                LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
+        }
+        if (onFours != null && data.fours.isNotEmpty()) list.addView(foursToggle(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         list.addView(text(
             "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요." +
                 if (faces.isNotEmpty()) "\n캐릭터 그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구" else "",
@@ -206,8 +220,27 @@ class RerunList(
     }
 
     /** 진행 중(또는 다음) 픽업: 금색 테두리 판에 캐릭터와 기간. 픽업이 없으면 null. */
+    /** '4성도 보기' 줄(누르면 켜고 끈다). */
+    private fun foursToggle(): View = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(16), dp(12), dp(16), dp(12))
+        background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(color(R.color.surface)) }
+        isClickable = true
+        foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
+        setOnClickListener { onFours?.invoke() }
+        contentDescription = "4성도 보기, " + if (showFours) "켜짐" else "꺼짐"
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(text("4성도 보기", 14f, R.color.ink, bold = true))
+            addView(text("픽업 4성과 마지막 픽업 시기 · 누르면 4성도 알림 받기", 12f, R.color.ink_muted))
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(text(if (showFours) "켜짐" else "꺼짐", 13f, if (showFours) R.color.action else R.color.ink_muted, bold = true))
+    }
+
     private fun pickups(data: RerunData, banners: List<Banner>, today: java.time.LocalDate, title: String): View? {
-        val chars = banners.flatMap { it.chars }.distinct().mapNotNull { data.character(it) }
+        // 5성 먼저, 4성은 뒤에 '4성' 표시로.
+        val chars = (banners.flatMap { it.chars } + if (showFours) banners.flatMap { it.four } else emptyList()).distinct().mapNotNull { data.character(it) }
         if (chars.isEmpty()) return null
         val start = banners.minOf { it.start }
         val end = banners.minOf { it.end }
@@ -231,7 +264,7 @@ class RerunList(
             })
             for (row in chars.chunked(COLUMNS)) addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                for (c in row) addView(tile(data, c, data.since(c, today) ?: 0), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                for (c in row) addView(tile(data, c, data.since(c, today) ?: 0, markFour = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
                 repeat(COLUMNS - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(12) })
         }
@@ -319,7 +352,7 @@ class RerunList(
     }
 
     /** 캐릭터 한 칸: 원소 동그라미 + 오른쪽 아래 지난 버전 수 + 원소 색 이름. 최근에 나온 캐릭터는 흐리게. */
-    private fun tile(data: RerunData, c: RerunCharacter, since: Int) = LinearLayout(context).apply {
+    private fun tile(data: RerunData, c: RerunCharacter, since: Int, markFour: Boolean = false) = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         val base = color(RerunActivity.elementColor(c.element))
@@ -367,6 +400,7 @@ class RerunList(
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         // 신규 > 집록 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
         val tag = when {
+            markFour && c.rarity == 4 -> pill("4성", R.color.element_electro, R.color.on_action, 10f)
             c.first != null && c.first == current -> pill("신규", R.color.rerun_recent, R.color.on_action, 10f)
             c.chronicled -> pill("집록", R.color.gold, R.color.on_gold, 10f)
             !c.standard && c.runs <= 1 -> pill("복각 없음", R.color.element_hydro, R.color.on_action, 10f)

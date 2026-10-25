@@ -407,6 +407,10 @@ class AppSettings(private val context: Context) {
     var rerunAlert: Boolean
         get() = prefs.getBoolean("rerun_alert", true)
         set(value) = prefs.edit { putBoolean("rerun_alert", value) }
+    /** 복각표에 4성도 보일지(기본은 5성만). */
+    var rerunFours: Boolean
+        get() = prefs.getBoolean("rerun_fours", false)
+        set(value) = prefs.edit { putBoolean("rerun_fours", value) }
     /** 로그인 전: 새 리딤 코드가 나오면 알림(공개 목록만 본다). 로그인하면 자동 입력으로 바뀐다. */
     var codeAlerts: Boolean
         get() = prefs.getBoolean("code_alerts", true)

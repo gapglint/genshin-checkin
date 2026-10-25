@@ -51,4 +51,15 @@ class RerunsTest {
         // 끝난 픽업은 알리지 않는다
         assertTrue(Reruns.dueAlerts(data, setOf("Vesna"), emptySet(), day).isEmpty())
     }
+
+    @Test fun parsesFourStarsSeparately() {
+        val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns-fours.json")!!.readText()))
+        assertTrue(data.fours.isNotEmpty() && data.fours.all { it.rarity == 4 })
+        assertTrue(data.characters.none { it.rarity == 4 })
+        assertEquals("Mika", data.byKo("미카")?.name)
+        // 기다리는 4성도 픽업 알림 대상이다. 같은 날 5성 픽업 둘에 함께 나와도 한 번만.
+        val banner = data.banners.last { "Mika" in it.four }
+        val due = Reruns.dueAlerts(data, setOf("Mika"), emptySet(), banner.start)
+        assertEquals(listOf("Mika"), due.map { it.first.name })
+    }
 }

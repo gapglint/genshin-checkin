@@ -342,9 +342,9 @@ object Lobby {
         }
     }
 
-    /** 아직 없는 최애를 복각표의 '기다리는 캐릭터'(픽업 알림)에 넣는다. 복각표에 없는 캐릭터(4성 등)는 그대로. */
+    /** 아직 없는 최애를 복각표의 '기다리는 캐릭터'(픽업 알림)에 넣는다(5성·4성). 복각표에 없는 캐릭터는 그대로. */
     fun watchRerun(context: Context, name: String) {
-        Reruns.cached(context)?.characters?.firstOrNull { it.ko == name }?.let { Reruns.setWatched(context, it.name, true) }
+        Reruns.cached(context)?.byKo(name)?.let { Reruns.setWatched(context, it.name, true) }
     }
 
     /** 아직 없는 최애의 로비 한 줄: 픽업 중이면 그 소식, 아니면 마지막 픽업 뒤 지난 버전 수(복각표 자료). */
@@ -352,9 +352,9 @@ object Lobby {
 
     internal fun waitingLine(data: RerunData?, name: String, today: java.time.LocalDate): String {
         if (data == null) return "아직 만나지 못했어요"
-        val c = data.characters.firstOrNull { it.ko == name } ?: return "아직 만나지 못했어요"
-        if (data.live(today).any { c.name in it.chars }) return "아직 만나지 못했어요 · 지금 픽업 중!"
-        if (data.upcoming(today).any { c.name in it.chars }) return "아직 만나지 못했어요 · 곧 픽업이 열려요"
+        val c = data.byKo(name) ?: return "아직 만나지 못했어요"
+        if (data.live(today).any { c.name in it.chars || c.name in it.four }) return "아직 만나지 못했어요 · 지금 픽업 중!"
+        if (data.upcoming(today).any { c.name in it.chars || c.name in it.four }) return "아직 만나지 못했어요 · 곧 픽업이 열려요"
         val since = data.since(c, today) ?: return "아직 만나지 못했어요"
         return "아직 만나지 못했어요 · 마지막 픽업 ${since}버전 전"
     }
