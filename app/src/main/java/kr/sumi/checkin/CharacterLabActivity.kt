@@ -205,47 +205,186 @@ class CharacterLabActivity : Activity() {
         }
     }
 
-    /** 로비형 홈 미리보기: 그림을 화면 가득(누르면 잘라 채우기 ↔ 전체 보기), 위아래 어둡게, 정보는 예시 문구. */
+    /**
+     * 로비형 홈 미리보기. 그림은 화면 폭에 맞춰 위에 두고, 아래는 원소 색으로 이어진다.
+     * 아래 패널을 위로 밀면(스크롤) 지금의 카드들이 올라오고, 그림은 천천히 올라가며 어두워진다.
+     */
     private fun showLobby(bmp: Bitmap, c: JSONObject) {
         val root = window.decorView.findViewById<FrameLayout>(android.R.id.content)
-        val tint = elementColor(c.optString("element"))
-        val view = FrameLayout(this).apply {
-            setBackgroundColor(tint)
-            isClickable = true
-            val image = ImageView(context).apply { setImageBitmap(bmp); scaleType = ImageView.ScaleType.CENTER_CROP }
-            addView(image, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            image.setOnClickListener {
-                image.scaleType = if (image.scaleType == ImageView.ScaleType.CENTER_CROP) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
-            }
-            addView(View(context).apply {
-                background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                    intArrayOf(0x66000000, 0x00000000, 0x00000000, 0xCC0A140A.toInt()))
-            }, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            addView(TextView(context).apply {
-                text = "☾ 142/200    ✓ 17일째"
-                textSize = 14f
-                setTextColor(Color.WHITE)
-                setPadding(dp(14), dp(8), dp(14), dp(8))
-                background = GradientDrawable().apply { setColor(0x55141C28); cornerRadius = dp(99).toFloat() }
-            }, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(48), 0, 0) })
-            addView(TextView(context).apply {
-                text = "좋은 아침이에요, 여행자 님.\n오늘 출석이랑 새 코드 1개 받아 뒀어요."
-                textSize = 14f
-                setTextColor(getColor(R.color.ink))
-                setPadding(dp(14), dp(12), dp(14), dp(12))
-                background = GradientDrawable().apply { setColor(0xEEFFFFFF.toInt()); cornerRadius = dp(16).toFloat() }
-            }, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(100), dp(80), 0) })
-            addView(TextView(context).apply {
-                text = "오늘 출석 완료 · 원석 ×20\n레진 가득 오후 3:20\n\n(그림을 누르면 잘라 채우기 ↔ 전체 보기, 뒤로 가기로 닫기)"
-                textSize = 14f
-                setTextColor(Color.WHITE)
-                setPadding(dp(18), dp(16), dp(18), dp(16))
-                background = GradientDrawable().apply { setColor(0x66141C28); cornerRadius = dp(22).toFloat() }
-            }, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(14), 0, dp(14), dp(40)) })
+        val el = elementColor(c.optString("element"))
+        val dark = blend(el, Color.BLACK, 0.72f)
+        val light = blend(el, Color.WHITE, 0.78f)
+        val screenW = resources.displayMetrics.widthPixels
+        val screenH = root.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val imgH = screenW * bmp.height / bmp.width
+
+        val view = FrameLayout(this).apply { setBackgroundColor(dark); isClickable = true }
+        val image = ImageView(this).apply { setImageBitmap(bmp); scaleType = ImageView.ScaleType.FIT_XY }
+        view.addView(image, FrameLayout.LayoutParams(MATCH_PARENT, imgH))
+        // 위: 로고가 묻히고 상단 표시가 읽히게 원소 색으로 감싼다. 아래: 그림 끝을 원소 색으로 이어 준다.
+        view.addView(View(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(withAlpha(dark, 235), withAlpha(dark, 200), withAlpha(dark, 0)))
+        }, FrameLayout.LayoutParams(MATCH_PARENT, dp(200)))
+        val fadeTop = minOf(imgH, (screenH * 0.76f).toInt()) - dp(240)
+        view.addView(View(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(withAlpha(dark, 0), dark))
+        }, FrameLayout.LayoutParams(MATCH_PARENT, dp(240)).apply { topMargin = fadeTop })
+        view.addView(View(this).apply { setBackgroundColor(dark) },
+            FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT).apply { topMargin = fadeTop + dp(240) })
+        // 밀어 올릴수록 그림을 덮는 어두운 막
+        val dim = View(this).apply { setBackgroundColor(dark); alpha = 0f }
+        view.addView(dim, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+
+        // 오른쪽 메뉴(고정, 밀면 사라짐)
+        val side = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for ((icon, label) in listOf("🎁" to "리딤", "✦" to "보상", "❖" to "픽업", "▦" to "이벤트", "✎" to "꾸미기")) {
+            side.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, 0, 0, dp(12))
+                addView(TextView(context).apply {
+                    text = icon; textSize = 17f; gravity = Gravity.CENTER; setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x7A0C121C); setStroke(dp(1), 0x40FFFFFF) }
+                }, LinearLayout.LayoutParams(dp(46), dp(46)))
+                addView(label(label, 10.5f, Color.WHITE, bold = true, shadow = true))
+            })
+        }
+        // 말풍선(고정, 밀면 사라짐)
+        val bubble = label("좋은 아침이에요, 여행자 님.\n출석이랑 새 코드 1개 받아 뒀어요.", 13.5f, getColor(R.color.ink)).apply {
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = GradientDrawable().apply { setColor(0xEEFFFFFF.toInt()); cornerRadii = floatArrayOf(14f, 14f, 14f, 14f, 14f, 14f, 4f, 4f).map { it * resources.displayMetrics.density }.toFloatArray() }
+        }
+
+        // 스크롤되는 내용: [빈 공간 + 이름표] [아래 패널] [카드들]
+        val dockH = dp(172)
+        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(FrameLayout(this).apply {
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(label("★ 최애", 11f, dark, bold = true).apply {
+                    setPadding(dp(9), dp(3), dp(9), dp(3))
+                    background = GradientDrawable().apply { setColor(light); cornerRadius = dp(99).toFloat() }
+                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+                addView(label(c.optString("name"), 34f, Color.WHITE, bold = true, shadow = true))
+                addView(label("● ${ELEMENT_KO[c.optString("element").lowercase()] ?: c.optString("element")} · Lv.${c.optInt("level")} · 호감도 ${c.optInt("fetter")} · 운명의 자리 ${c.optInt("actived_constellation_num")}",
+                    12.5f, Color.WHITE, shadow = true))
+            }, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(20), 0, 0, dp(20)) })
+        }, LinearLayout.LayoutParams(MATCH_PARENT, screenH - dockH - dp(20)))
+        content.addView(dock(dark, light), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(14), 0, dp(14), dp(16)) })
+        content.addView(detailCards(el, light), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+
+        val scroll = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            addView(content)
+        }
+        view.addView(scroll, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        view.addView(side, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.END).apply { setMargins(0, dp(150), dp(12), 0) })
+        view.addView(bubble, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(96), dp(90), 0) })
+        view.addView(label("☾ 142/200     ✓ 17일째", 14f, Color.WHITE).apply {
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            background = GradientDrawable().apply { setColor(0x30FFFFFF); setStroke(dp(1), 0x40FFFFFF); cornerRadius = dp(99).toFloat() }
+        }, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(44), 0, 0) })
+
+        // 밀어 올리는 만큼: 그림은 천천히 올라가고 어두워지며, 말풍선·메뉴는 사라진다.
+        scroll.setOnScrollChangeListener { _, _, y, _, _ ->
+            val t = (y / (screenH * 0.5f)).coerceIn(0f, 1f)
+            image.translationY = -y * 0.35f
+            dim.alpha = t * 0.85f
+            side.alpha = 1f - t * 2f
+            bubble.alpha = 1f - t * 2f
         }
         root.addView(view, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         preview = view
     }
+
+    /** 아래 패널: 오늘 출석, 레진 가득 시각, 원신 켜기, 밀어서 자세히. */
+    private fun dock(dark: Int, light: Int) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(16), dp(14), dp(16), dp(10))
+        background = GradientDrawable().apply { setColor(0x2EFFFFFF); setStroke(dp(1), 0x40FFFFFF); cornerRadius = dp(24).toFloat() }
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(label("✓", 19f, dark, bold = true).apply {
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(light) }
+            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), 0, 0, 0)
+                addView(label("오늘 출석 완료", 15.5f, Color.WHITE, bold = true))
+                addView(label("원석 ×20 · 다음 자동 출석 내일 01:03", 11.5f, 0xDDFFFFFF.toInt()))
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.END
+                addView(label("3:20", 28f, light))
+                addView(label("레진 가득", 10.5f, 0xDDFFFFFF.toInt()))
+            })
+        })
+        addView(label("원신 켜기", 15f, dark, bold = true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(13), 0, dp(13))
+            background = GradientDrawable().apply { setColor(light); cornerRadius = dp(15).toFloat() }
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
+        addView(label("⌃ 밀어서 자세히", 11f, 0xBBFFFFFF.toInt()).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) },
+            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+    }
+
+    /** 밀어 올리면 나오는 지금의 카드들(예시 값). */
+    private fun detailCards(el: Int, light: Int) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(16), dp(18), dp(16), dp(40))
+        background = GradientDrawable().apply {
+            setColor(getColor(R.color.bg))
+            val r = dp(26).toFloat(); cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+        }
+        addView(View(context).apply { background = GradientDrawable().apply { setColor(0xFFC5CAD6.toInt()); cornerRadius = dp(3).toFloat() } },
+            LinearLayout.LayoutParams(dp(40), dp(5)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(10) })
+        fun card(title: String, vararg lines: String) = addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = GradientDrawable().apply { setColor(getColor(R.color.surface)); cornerRadius = dp(20).toFloat() }
+            addView(label(title, 14f, getColor(R.color.ink), bold = true))
+            for (l in lines) addView(label(l, 13f, getColor(R.color.ink_muted)).apply { setPadding(0, dp(6), 0, 0) })
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
+        card("레진 142 / 200 · 오후 3:20 가득", "탐사 파견 4/5 완료", "주전자 동전 1,800 / 2,400", "일일 의뢰 4 / 4 · 보상 받음")
+        // 이번 달 출석 달력(간단히)
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = GradientDrawable().apply { setColor(getColor(R.color.surface)); cornerRadius = dp(20).toFloat() }
+            addView(label("10월 출석 보상 · 17 / 31", 14f, getColor(R.color.ink), bold = true))
+            var row: LinearLayout? = null
+            for (d in 1..35) {
+                if ((d - 1) % 7 == 0) row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, 0) }.also { addView(it) }
+                row!!.addView(label(if (d <= 31) "$d" else "", 11f, if (d <= 17) Color.WHITE else getColor(R.color.ink_muted)).apply {
+                    gravity = Gravity.CENTER
+                    if (d <= 31) background = GradientDrawable().apply { setColor(if (d <= 17) el else 0xFFF0F2F7.toInt()); cornerRadius = dp(8).toFloat() }
+                }, LinearLayout.LayoutParams(0, dp(34), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+            }
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
+        card("이번 달 받은 것", "원석 140 · 모라 25,000 · 영웅의 경험 6", "10/18 리딤 PJ2KEBRAYSRM · 원석 ×60")
+        card("지금 픽업 · 11월 3일까지", "에스코피에 · 스커크", "가장 오래 기다린 캐릭터 · 호두 17버전째")
+        card("메인 화면 편집", "카드 순서·숨기기·홈 스타일(카드형 / 로비형)")
+    }
+
+    private fun label(text: String, size: Float, color: Int, bold: Boolean = false, shadow: Boolean = false) = TextView(this).apply {
+        this.text = text
+        textSize = size
+        setTextColor(color)
+        if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
+        if (shadow) setShadowLayer(dp(6).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
+    }
+
+    private fun blend(a: Int, b: Int, t: Float) = Color.rgb(
+        (Color.red(a) * (1 - t) + Color.red(b) * t).toInt(),
+        (Color.green(a) * (1 - t) + Color.green(b) * t).toInt(),
+        (Color.blue(a) * (1 - t) + Color.blue(b) * t).toInt(),
+    )
+
+    private fun withAlpha(c: Int, a: Int) = (c and 0xFFFFFF) or (a shl 24)
 
     private fun elementColor(element: String) = getColor(when (element.lowercase()) {
         "anemo" -> R.color.element_anemo
@@ -271,6 +410,7 @@ class CharacterLabActivity : Activity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     companion object {
+        private val ELEMENT_KO = mapOf("anemo" to "바람", "geo" to "바위", "electro" to "번개", "dendro" to "풀", "hydro" to "물", "pyro" to "불", "cryo" to "얼음")
         private const val BASE = "https://bbs-api-os.hoyolab.com/game_record/genshin/api"
     }
 }
