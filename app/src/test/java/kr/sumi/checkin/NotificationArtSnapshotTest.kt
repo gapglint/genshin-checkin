@@ -47,4 +47,8 @@ class NotificationArtSnapshotTest {
     @Test fun collapsed() = place(R.layout.notification_art, null, 48)
 
     @Test fun expanded() = place(R.layout.notification_art_big, "치치 「아침인가요? 오늘 할 일은… 메모 좀 봐야겠어요」", 0)
+
+    /** 알림에 붙이는 가장 긴 대사(70자 가까이)도 펼치면 다 보인다. */
+    @Test fun expandedLongQuote() = place(R.layout.notification_art_big,
+        "테스트 「알림에 붙이는 대사는 일흔 자까지라서, 펼친 알림에서는 여섯 줄 안에 끝까지 다 보여야 해요. 여기까지 보이면 돼요」", 0)
 }

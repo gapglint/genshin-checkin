@@ -304,7 +304,11 @@ class LobbyView(context: Context) : FrameLayout(context) {
                         background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xFFFF6B4A.toInt()); setStroke(dp(2), Color.WHITE) }
                     }, LayoutParams(dp(12), dp(12), Gravity.END))
                 }, LinearLayout.LayoutParams(dp(size + 2), dp(size + 2)))
-                if (labels) addView(text(label, 10.5f, Color.WHITE, bold = true, shadow = true))
+                // 이름표도 그림에 묻히지 않게 진한 알약 바탕에.
+                if (labels) addView(text(label, 10.5f, Color.WHITE, bold = true).apply {
+                    setPadding(dp(7), dp(1), dp(7), dp(2))
+                    background = GradientDrawable().apply { setColor(0xCC0C121C.toInt()); cornerRadius = dp(99).toFloat() }
+                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(2) })
             })
         }
         addView(side, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.END).apply { setMargins(0, dp(menuTop), dp(10), 0) })
@@ -425,7 +429,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
     }
 
     private fun roundIcon(icon: Int, size: Int, description: String?, onClick: (() -> Unit)? = null) = FrameLayout(context).apply {
-        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x7A0C121C); setStroke(dp(1), 0x40FFFFFF) }
+        // 그림 위에서도 묻히지 않게 진한 바탕과 또렷한 흰 테두리.
+        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xD90C121C.toInt()); setStroke(dp(2), 0x8CFFFFFF.toInt()) }
         contentDescription = description
         onClick?.let { action -> setOnClickListener { action() } }
         addView(ImageView(context).apply { setImageResource(icon); setColorFilter(Color.WHITE) }, LayoutParams(dp(size * 46 / 100), dp(size * 46 / 100), Gravity.CENTER))
