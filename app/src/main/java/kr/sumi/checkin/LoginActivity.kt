@@ -89,7 +89,7 @@ class LoginActivity : Activity() {
         header.findViewById<View>(R.id.headerBack).setOnClickListener { goBack() }
         status = header.findViewById(R.id.headerStatus)
         status.text = if (loginMode) {
-            "호요랩 계정이나 구글·애플 등으로 로그인해 주세요. 로그인되면 자동으로 닫혀요.\n호요랩 앱 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
+            "호요버스 계정 이메일과 비밀번호로 로그인해 주세요(구글 로그인은 구글이 막을 수 있어요). 로그인되면 자동으로 닫혀요.\n호요랩 앱 로그인은 그대로예요. 이 앱 로그인은 1년 동안 유지돼요."
         } else if (intent.hasExtra(EXTRA_URL)) {
             "${pageStore?.displayName ?: ""} 계정으로 로그인해서 열었어요. 페이지에서 보상 받기까지 눌러 주세요."
         } else {
@@ -199,6 +199,18 @@ class LoginActivity : Activity() {
                         openOutside(url)
                         return true
                     }
+
+                    // 구글은 앱 안 로그인 화면을 막기도 한다('브라우저 또는 앱이 안전하지 않을 수 있습니다').
+                    // 그 화면이면 팝업을 닫고 이메일·비밀번호로 로그인하는 방법을 알려 준다.
+                    override fun onPageFinished(view: WebView, url: String) {
+                        if (!url.startsWith("https://accounts.google.com/")) return
+                        view.evaluateJavascript(GOOGLE_BLOCKED_JS) { found ->
+                            if (found == "true" && view === popup) {
+                                closePopup()
+                                googleBlocked()
+                            }
+                        }
+                    }
                 }
             }
             popup = child
@@ -211,6 +223,15 @@ class LoginActivity : Activity() {
         override fun onCloseWindow(window: WebView) {
             if (window === popup) closePopup()
         }
+    }
+
+    private fun googleBlocked() {
+        AppDialog(this)
+            .setTitle("구글이 앱 안 로그인을 막았어요")
+            .setMessage("구글은 앱 안의 로그인 화면에서 구글 로그인을 막기도 해요. 이 로그인 창에서 호요버스 계정 이메일과 비밀번호로 로그인해 주세요.\n\n" +
+                "구글로만 가입해서 비밀번호가 없다면, 로그인 창의 「문제 발생」에서 비밀번호를 찾으면 돼요. 구글 계정 이메일로 인증 메일이 오고, 비밀번호를 새로 정할 수 있어요.")
+            .setPositiveButton("확인")
+            .show()
     }
 
     private fun closePopup() {
@@ -355,6 +376,14 @@ class LoginActivity : Activity() {
         private const val EXTRA_URL = "url"
         private const val EXTRA_TITLE = "title"
         /** 로그인하지 않았으면 가운데에 「로그인」 버튼이 크게 보이는 호요랩 모바일 페이지. */
+        /** 구글의 '로그인할 수 없음(안전하지 않은 브라우저)' 화면인지. 주소(rejected·disallowed)나 문구로 본다. */
+        private const val GOOGLE_BLOCKED_JS = """
+            (function () {
+              var t = (document.body && document.body.innerText) || '';
+              return /rejected|disallowed_useragent/.test(location.href) ||
+                t.indexOf('안전하지 않을 수 있습니다') >= 0 || t.indexOf('may not be secure') >= 0;
+            })()
+        """
         private const val HOYOLAB_MOBILE = "https://m.hoyolab.com/#/timeline"
 
         /** 출첵 페이지의 「로그인」 버튼을 찾아 누른다. 페이지가 늦게 그려지므로 몇 번 다시 찾는다. */
