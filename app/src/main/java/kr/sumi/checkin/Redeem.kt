@@ -280,13 +280,14 @@ object Redeem {
             (if (report.redeemedRoles > 1) " · 캐릭터 ${report.redeemedRoles}명" else "") + ": ${report.redeemed.joinToString(", ")}"
         report.attempts.isEmpty() -> "새 코드 없음"
         // 앞부분(':' 앞)은 타일·위젯에 짧게 보인다.
-        else -> "받을 코드 없음: ${report.attempts.size}개 넣어 봄 (" + report.attempts.groupingBy { shortStatus(it.status) }.eachCount()
+        else -> "받을 새 코드 없음: ${report.attempts.size}개 넣어 봄 (" + report.attempts.groupingBy { shortStatus(it.status) }.eachCount()
             .entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" } + ")"
     }
 
     private fun shortStatus(status: RedeemStatus) = when (status) {
         RedeemStatus.REDEEMED -> "받음"
-        RedeemStatus.USED -> "이미 사용"
+        // 호요랩은 '이 계정이 받음'과 '선착순 마감'을 같은 답(-2017)으로 준다.
+        RedeemStatus.USED -> "받았거나 마감"
         RedeemStatus.EXPIRED -> "만료"
         RedeemStatus.INVALID -> "잘못된 코드"
         RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
@@ -307,7 +308,7 @@ object Redeem {
 
     private fun statusText(status: RedeemStatus) = when (status) {
         RedeemStatus.REDEEMED -> "받음"
-        RedeemStatus.USED -> "이미 사용된 코드"
+        RedeemStatus.USED -> "이미 받았거나 마감된 코드"
         RedeemStatus.EXPIRED -> "만료됨"
         RedeemStatus.INVALID -> "잘못된 코드"
         RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
