@@ -1,0 +1,283 @@
+package kr.sumi.checkin
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import org.json.JSONObject
+import java.io.File
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+
+/** 호요랩 전적의 내 캐릭터 하나. image는 전적이 주는 256px 얼굴 그림. */
+data class OwnedCharacter(
+    val id: Int,
+    val name: String,
+    /** 원소 영문 이름(소문자), 예: "dendro". */
+    val element: String,
+    val rarity: Int,
+    val level: Int,
+    val fetter: Int,
+    val constellation: Int,
+    val image: String,
+)
+
+/**
+ * 로비형 홈(고르는 기능). 최애 캐릭터를 정하면 그 원소 색으로 화면이 바뀌고, 배경으로
+ * 공식 그림(호요랩 위키의 세로 그림, 공식 서버에서 받아 폰에만 저장) · 내 사진 · 원소 무늬 중 하나를 쓴다.
+ *
+ * 저작권 위험을 줄이려고: 기본은 카드형이고 로비형은 사용자가 켤 때만, 공식 그림은 앱에 넣지 않고 받아만 보여 주며,
+ * 사이트 설정(config.json)으로 앱 업데이트 없이 공식 그림을 모두 끌 수 있다(끄면 내 사진이나 원소 무늬로 바뀐다).
+ * 스토어·아이콘·홍보 이미지에는 쓰지 않는다.
+ */
+object Lobby {
+    const val STYLE_CARD = "card"
+    const val STYLE_LOBBY = "lobby"
+    const val BG_OFFICIAL = "official"
+    const val BG_PHOTO = "photo"
+    const val BG_PATTERN = "pattern"
+
+    /** 공식 그림 끄기 스위치 등 앱 설정. 사이트에 두어 앱 업데이트 없이 바꾼다. */
+    private const val CONFIG_URL = "https://apps.sumi.kr/checkin/data/config.json"
+    private const val INDEX_URL = "https://bbs-api-os.hoyolab.com/game_record/genshin/api/index"
+    private const val WIKI_LIST = "https://sg-wiki-api.hoyolab.com/hoyowiki/genshin/wapi/get_entry_page_list"
+    private const val WIKI_PAGE = "https://sg-wiki-api-static.hoyolab.com/hoyowiki/genshin/wapi/entry_page?entry_page_id="
+    private const val PREFS = "lobby"
+    private const val DAY_MS = 24 * 60 * 60_000L
+
+    val ELEMENT_KO = mapOf(
+        "anemo" to "바람", "geo" to "바위", "electro" to "번개", "dendro" to "풀",
+        "hydro" to "물", "pyro" to "불", "cryo" to "얼음",
+    )
+
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun dir(context: Context) = File(context.filesDir, "lobby").apply { mkdirs() }
+    fun photoFile(context: Context) = File(dir(context), "photo.jpg")
+
+    // ---------- 공식 그림 끄기 스위치 ----------
+
+    /** 공식 그림을 써도 되는지(사이트 설정). 받아 둔 값이 없으면 true. */
+    fun officialArtAllowed(context: Context) = prefs(context).getBoolean("official_art", true)
+
+    /** 사이트 설정을 12시간에 한 번 받아 둔다. 실패하면 받아 둔 값을 그대로 쓴다. */
+    fun refreshConfig(context: Context) {
+        val p = prefs(context)
+        if (System.currentTimeMillis() - p.getLong("config_at", 0) < DAY_MS / 2) return
+        try {
+            val json = JSONObject(get(CONFIG_URL))
+            p.edit().putBoolean("official_art", json.optBoolean("lobbyOfficialArt", true))
+                .putLong("config_at", System.currentTimeMillis()).apply()
+        } catch (e: Exception) {
+        }
+    }
+
+    // ---------- 내 캐릭터 ----------
+
+    internal fun parseCharacters(json: JSONObject): List<OwnedCharacter> {
+        val list = json.optJSONObject("data")?.optJSONArray("avatars") ?: return emptyList()
+        return (0 until list.length()).map { list.getJSONObject(it) }.map {
+            OwnedCharacter(
+                id = it.optInt("id"),
+                name = it.optString("name"),
+                element = it.optString("element").lowercase(),
+                rarity = it.optInt("rarity"),
+                level = it.optInt("level"),
+                fetter = it.optInt("fetter"),
+                constellation = it.optInt("actived_constellation_num"),
+                image = it.optString("image"),
+            )
+        }.filter { it.name.isNotEmpty() }
+    }
+
+    /** 받아 둔 내 캐릭터 목록(계정별). */
+    fun cachedCharacters(context: Context, store: Store): List<OwnedCharacter> =
+        prefs(context).getString("chars_${store.accountId}", null)?.let { parseCharacters(JSONObject(it)) }.orEmpty()
+
+    /** 내 캐릭터 목록을 호요랩 전적에서 받는다(하루에 한 번까지). 네트워크 오류는 IOException. */
+    @Throws(IOException::class)
+    fun refreshCharacters(context: Context, store: Store, force: Boolean = false): List<OwnedCharacter> {
+        val p = prefs(context)
+        val key = "chars_${store.accountId}"
+        if (!force && System.currentTimeMillis() - p.getLong("${key}_at", 0) < DAY_MS) return cachedCharacters(context, store)
+        val client = CheckInClient(store.cookie ?: return emptyList())
+        val role = store.redeemRole ?: store.accountRole ?: return emptyList()
+        val json = client.get("$INDEX_URL?server=${role.region}&role_id=${role.uid}", Notes.headers())
+        if (json.optInt("retcode", -1) != 0) throw IOException(json.optString("message"))
+        p.edit().putString(key, json.toString()).putLong("${key}_at", System.currentTimeMillis()).apply()
+        return parseCharacters(json)
+    }
+
+    // ---------- 그림 ----------
+
+    /** 로비 배경으로 쓸 그림. 정한 방식대로 받거나(캐시) 읽고, 쓸 수 없으면 null(원소 무늬로 그린다). */
+    fun background(context: Context, settings: AppSettings, maxWidth: Int): Bitmap? {
+        val photo = photoFile(context)
+        return when {
+            settings.lobbyBackground == BG_PHOTO && photo.exists() -> decode(photo, maxWidth)
+            settings.lobbyBackground == BG_OFFICIAL && officialArtAllowed(context) ->
+                settings.favorite?.let { fav -> portraitFile(context, fav.name)?.let { decode(it, maxWidth) } }
+            else -> null
+        }
+    }
+
+    /** 저장해 둔 공식 세로 그림만(받지 않는다). 화면을 바로 그릴 때 쓴다. */
+    fun cachedBackground(context: Context, settings: AppSettings, maxWidth: Int): Bitmap? {
+        val photo = photoFile(context)
+        return when {
+            settings.lobbyBackground == BG_PHOTO && photo.exists() -> decode(photo, maxWidth)
+            settings.lobbyBackground == BG_OFFICIAL && officialArtAllowed(context) ->
+                settings.favorite?.let { fav -> File(dir(context), portraitName(fav.name)).takeIf { it.exists() }?.let { decode(it, maxWidth) } }
+            else -> null
+        }
+    }
+
+    private fun portraitName(name: String) = "portrait_${name.hashCode().toUInt()}.jpg"
+
+    /** 호요랩 위키 캐릭터 문서의 갤러리 세로 그림을 받아 저장한다(한 번만). 못 찾으면 null. */
+    private fun portraitFile(context: Context, name: String): File? {
+        val file = File(dir(context), portraitName(name))
+        if (file.exists()) return file
+        return try {
+            val url = wikiPortraitUrl(context, name) ?: return null
+            val bytes = getBytes(url)
+            // 다른 캐릭터 그림은 지운다(최애 하나만 둔다).
+            dir(context).listFiles { f -> f.name.startsWith("portrait_") }?.forEach { it.delete() }
+            file.writeBytes(bytes)
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun wikiPortraitUrl(context: Context, name: String): String? {
+        val p = prefs(context)
+        // 위키 캐릭터 목록(이름 → 문서 번호)은 일주일에 한 번만 받는다.
+        val ids = p.getString("wiki_ids", null)?.takeIf { System.currentTimeMillis() - p.getLong("wiki_ids_at", 0) < 7 * DAY_MS }
+            ?.let { JSONObject(it) }
+            ?: JSONObject().also { map ->
+                for (page in 1..6) {
+                    val body = """{"filters":[],"menu_id":"2","page_num":$page,"page_size":50,"use_es":true}"""
+                    val items = JSONObject(get(WIKI_LIST, body)).optJSONObject("data")?.optJSONArray("list") ?: break
+                    for (i in 0 until items.length()) items.getJSONObject(i).let { map.put(it.optString("name"), it.optString("entry_page_id")) }
+                    if (items.length() < 50) break
+                }
+                p.edit().putString("wiki_ids", map.toString()).putLong("wiki_ids_at", System.currentTimeMillis()).apply()
+            }
+        val id = ids.optString(name).takeIf { it.isNotEmpty() } ?: return null
+        return galleryPortrait(JSONObject(get(WIKI_PAGE + id)))
+    }
+
+    /** 위키 문서에서 갤러리(gallery_character)의 세로 그림 주소. */
+    internal fun galleryPortrait(page: JSONObject): String? {
+        val modules = page.optJSONObject("data")?.optJSONObject("page")?.optJSONArray("modules") ?: return null
+        for (i in 0 until modules.length()) {
+            val comps = modules.getJSONObject(i).optJSONArray("components") ?: continue
+            for (j in 0 until comps.length()) {
+                val comp = comps.getJSONObject(j)
+                if (comp.optString("component_id") != "gallery_character") continue
+                return JSONObject(comp.optString("data", "{}")).optString("pic").takeIf { it.startsWith("http") }
+            }
+        }
+        return null
+    }
+
+    /** 전적의 작은 얼굴 그림(메뉴 화면 머리용). 받아서 저장해 둔다. */
+    fun bust(context: Context, url: String): Bitmap? {
+        if (!url.startsWith("http")) return null
+        val file = File(dir(context), "bust_${url.hashCode().toUInt()}.png")
+        return try {
+            if (!file.exists()) file.writeBytes(getBytes(url))
+            BitmapFactory.decodeFile(file.path)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** 고른 사진을 화면 크기에 맞게 줄여 앱 안에만 저장한다(원본 사진은 건드리지 않는다). */
+    @Throws(IOException::class)
+    fun savePhoto(context: Context, uri: Uri, maxWidth: Int) {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: throw IOException("사진을 열 수 없어요")
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= maxWidth) sample *= 2
+        val bmp = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
+            ?: throw IOException("사진을 읽을 수 없어요")
+        photoFile(context).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+    }
+
+    private fun decode(file: File, maxWidth: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.path, bounds)
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= maxWidth) sample *= 2
+        return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
+    // ---------- 네트워크 ----------
+
+    /** 주소에 한자 등이 섞여 있으면 그 글자만 인코딩한다(위키 그림 주소에 캐릭터 이름이 들어 있다). */
+    internal fun ascii(url: String) = buildString {
+        for (ch in url) if (ch.code < 128) append(ch) else append(URLEncoder.encode(ch.toString(), "UTF-8"))
+    }
+
+    private fun open(url: String): HttpURLConnection = (URL(ascii(url)).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 15_000
+        readTimeout = 20_000
+        setRequestProperty("User-Agent", "SumiLab-Checkin/1.0 (Android)")
+        setRequestProperty("x-rpc-language", CheckInClient.LANG)
+        setRequestProperty("Referer", "https://wiki.hoyolab.com/")
+    }
+
+    private fun get(url: String, postBody: String? = null): String {
+        val conn = open(url)
+        try {
+            if (postBody != null) {
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.outputStream.use { it.write(postBody.toByteArray()) }
+            }
+            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            return conn.inputStream.bufferedReader().use { it.readText() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun getBytes(url: String): ByteArray {
+        val conn = open(url)
+        try {
+            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            return conn.inputStream.use { it.readBytes() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** 원소 영문 이름 → 원소 색 리소스. */
+    fun elementColorRes(element: String) = when (element.lowercase()) {
+        "anemo" -> R.color.element_anemo
+        "geo" -> R.color.element_geo
+        "electro" -> R.color.element_electro
+        "dendro" -> R.color.element_dendro
+        "hydro" -> R.color.element_hydro
+        "pyro" -> R.color.element_pyro
+        "cryo" -> R.color.element_cryo
+        else -> R.color.hero
+    }
+
+    /** 원소 영문 이름 → 원소 아이콘. */
+    fun elementIcon(element: String) = when (element.lowercase()) {
+        "anemo" -> R.drawable.ic_element_anemo
+        "geo" -> R.drawable.ic_element_geo
+        "electro" -> R.drawable.ic_element_electro
+        "dendro" -> R.drawable.ic_element_dendro
+        "hydro" -> R.drawable.ic_element_hydro
+        "pyro" -> R.drawable.ic_element_pyro
+        "cryo" -> R.drawable.ic_element_cryo
+        else -> R.drawable.ic_item_primogem
+    }
+}

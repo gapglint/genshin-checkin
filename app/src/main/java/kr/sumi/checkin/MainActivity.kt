@@ -141,6 +141,7 @@ class MainActivity : Activity() {
         }
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
         screen.rowMainDisplay.setOnClickListener { showSettings(false); setEditing(true) }
+        screen.root.findViewById<View>(R.id.rowHomeStyle).setOnClickListener { startActivity(LobbyStyleActivity.intent(this)) }
         screen.editButton.setOnClickListener { setEditing(true) }
         screen.editDone.setOnClickListener { setEditing(false) }
         screen.rowGameApp.setOnClickListener { chooseGameApp() }
@@ -170,6 +171,7 @@ class MainActivity : Activity() {
         loadRerunsIfStale()
         loadEventsIfStale()
         loadCodesIfStale()
+        loadLobbyIfStale()
     }
 
     private var loadingCodes = false
@@ -279,12 +281,17 @@ class MainActivity : Activity() {
     /** 위에 열린 것부터 닫는다. 닫을 게 있었으면 true. */
     private fun closeTopPanel(): Boolean = when {
         screen.settingsPanel.visibility == View.VISIBLE -> { showSettings(false); true }
+        lobbyMenus.isNotEmpty() -> { closeLobbyMenu(); true }
         editing -> { setEditing(false); true }
+        // 로비에서 '카드'로 카드 화면을 보던 중이면 로비로 돌아간다.
+        lobbyHidden && lobbyEnabled() -> { lobbyHidden = false; refresh(); updateBackCallback(); true }
         else -> false
     }
 
     private fun updateBackCallback() {
-        if (Build.VERSION.SDK_INT >= 33) setPanelBackCallback(editing || screen.settingsPanel.visibility == View.VISIBLE)
+        if (Build.VERSION.SDK_INT >= 33) setPanelBackCallback(
+            editing || screen.settingsPanel.visibility == View.VISIBLE || lobbyMenus.isNotEmpty() || (lobbyHidden && lobbyEnabled())
+        )
     }
 
     @TargetApi(33)
@@ -593,8 +600,7 @@ class MainActivity : Activity() {
         val signedToday = store?.signedToday == true
         // 지난달 기록이면 이번 달 누적은 0부터 다시 센다.
         val sameMonth = store?.signedDay?.startsWith(today.toString().substring(0, 7)) == true
-        screen.render(
-            MainUiState(
+        val state = MainUiState(
                 loggedIn = store != null,
                 accounts = settings.accounts().map { AccountChip(it.accountId, it.displayName, it.signedToday) },
                 currentId = store?.accountId,
@@ -654,7 +660,8 @@ class MainActivity : Activity() {
                 cardOrder = settings.cardOrder,
                 editing = editing,
             )
-        )
+        screen.render(state)
+        renderLobby(state)
         editor.show(editing, settings.cardOrder.filter { !settings.isShown(it) })
         store?.let { countUnseenRewards(it) }
     }
@@ -1022,6 +1029,235 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("취소")
             .show()
+    }
+
+    // ---------- 로비형 홈(고르는 기능) ----------
+
+    private var lobby: LobbyView? = null
+    private val lobbyMenus = mutableListOf<View>()
+    /** 로비에서 '카드'를 눌러 카드 화면을 보는 중. 뒤로 가기로 로비에 돌아간다. */
+    private var lobbyHidden = false
+    private var lobbyArt: android.graphics.Bitmap? = null
+    private var lobbyArtKey: String? = null
+    private var lobbyBust: android.graphics.Bitmap? = null
+    private var lobbyBustUrl: String? = null
+    private var loadingLobbyArt = false
+    private var loadingLobby = false
+    private var dockAction: () -> Unit = {}
+
+    private fun lobbyEnabled() = settings.homeStyle == Lobby.STYLE_LOBBY && store != null && settings.favorite != null
+
+    /** 사이트 설정(공식 그림 스위치)과 내 캐릭터 목록을 가끔 받아 둔다. 로비형을 쓸 때만. */
+    private fun loadLobbyIfStale() {
+        val store = store ?: return
+        if (settings.homeStyle != Lobby.STYLE_LOBBY || loadingLobby) return
+        loadingLobby = true
+        Thread {
+            Lobby.refreshConfig(this)
+            try { Lobby.refreshCharacters(this, store) } catch (e: Exception) {}
+            runOnUiThread { loadingLobby = false; lobbyArtKey = null; refresh() }
+        }.start()
+    }
+
+    private fun renderLobby(s: MainUiState) {
+        val fav = settings.favorite
+        val store = store
+        if (!lobbyEnabled() || editing || lobbyHidden || fav == null || store == null) {
+            lobby?.visibility = View.GONE
+            return
+        }
+        val view = lobby ?: LobbyView(this).also { v ->
+            val root = screen.root as android.widget.FrameLayout
+            root.addView(v, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
+            applySystemBarInsets(v)
+            lobby = v
+        }
+        view.visibility = View.VISIBLE
+        val width = resources.displayMetrics.widthPixels
+        // 배경 그림: 방식·최애·스위치·사진이 바뀌었을 때만 다시 읽는다. 공식 그림이 아직 없으면 받아 온다.
+        val key = listOf(settings.lobbyBackground, fav.name, Lobby.officialArtAllowed(this), Lobby.photoFile(this).lastModified()).joinToString("|")
+        if (key != lobbyArtKey) {
+            lobbyArtKey = key
+            lobbyArt = Lobby.cachedBackground(this, settings, width)
+            if (lobbyArt == null && settings.lobbyBackground == Lobby.BG_OFFICIAL && Lobby.officialArtAllowed(this) && !loadingLobbyArt) {
+                loadingLobbyArt = true
+                Thread {
+                    val art = Lobby.background(this, settings, width)
+                    runOnUiThread { loadingLobbyArt = false; if (art != null) { lobbyArt = art; refresh() } }
+                }.start()
+            }
+        }
+        if (lobbyBustUrl != fav.image) {
+            lobbyBustUrl = fav.image
+            Thread { val b = Lobby.bust(this, fav.image); runOnUiThread { lobbyBust = b } }.start()
+        }
+        val owned = Lobby.cachedCharacters(this, store).firstOrNull { it.name == fav.name }
+        val elementKo = Lobby.ELEMENT_KO[fav.element] ?: ""
+        val meta = owned?.let { "$elementKo · Lv.${it.level} · 호감도 ${it.fetter} · 운명의 자리 ${it.constellation}" } ?: "$elementKo 원소"
+        val usingOfficial = lobbyArt != null && settings.lobbyBackground == Lobby.BG_OFFICIAL
+        view.bind(lobbyUi(s, fav, meta, usingOfficial), lobbyArt, lobbyActions)
+    }
+
+    /** 지금 상태로 로비에 보일 것(말풍선·아래 패널)을 정한다. 문제가 있으면 아래 패널이 경고로 바뀐다. */
+    private fun lobbyUi(s: MainUiState, fav: Favorite, meta: String, credit: Boolean): LobbyUi {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val hello = when (hour) { in 5..10 -> "좋은 아침이에요"; in 11..16 -> "좋은 오후예요"; in 17..21 -> "좋은 저녁이에요"; else -> "늦은 밤이에요" }
+        val who = "${s.nickname ?: "여행자"} 님"
+        val notes = s.notes
+        val resinFull = notes != null && notes.resin >= notes.maxResin
+        val redeemedToday = store?.lastRedeemAt?.let { it > 0 && ServerClock.dayOf(it) == ServerClock.today() } == true &&
+            s.redeemShort?.startsWith("새 코드") == true
+        val note = s.note
+        val greeting = when {
+            s.busy != null -> "$hello, $who.\n지금 ${s.busy.trimEnd('.', ' ')} 중이에요."
+            note != null -> "출석을 못 했어요.\n아래를 확인해 주세요."
+            s.signedToday && resinFull -> "$hello, $who.\n레진이 가득 찼어요! 출석은 받아 뒀어요."
+            s.signedToday && redeemedToday -> "$hello, $who.\n오늘 출석이랑 새 코드도 받아 뒀어요."
+            s.signedToday -> "$hello, $who.\n오늘 출석은 받아 뒀어요."
+            else -> "$hello, $who.\n오늘 출석은 곧 받아 둘게요."
+        }
+        val big = notes?.fullTime?.takeIf { it.isNotEmpty() && !resinFull }?.removePrefix("오전 ")?.removePrefix("오후 ")
+        val bigLabel = when {
+            resinFull -> null
+            big != null -> if (notes.fullTime.startsWith("오전")) "오전 레진 가득" else "레진 가득"
+            else -> null
+        }
+        val gameButton = if (s.gameInstalled) "원신 켜기" else null
+        val launchGame = { Game.launchIntent(this)?.let { startActivity(it) }; Unit }
+        val base = LobbyUi(
+            name = fav.name, element = fav.element, meta = meta, greeting = greeting,
+            resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
+            dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
+        )
+        return when {
+            s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }
+            note != null && note.startsWith("로그인이 풀려") -> {
+                dockAction = { startActivity(LoginActivity.loginIntent(this)) }
+                base.copy(dockTone = DockTone.WARN, dockTitle = "로그인이 풀렸어요", dockSub = "다시 로그인하면 바로 출석해요", dockButton = "다시 로그인")
+            }
+            note != null && note.contains("캡차") -> {
+                dockAction = { store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) } }
+                base.copy(dockTone = DockTone.WARN, dockTitle = "캡차 확인이 필요해요", dockSub = "출석 페이지에서 직접 눌러 주세요", dockButton = "출석 페이지 열기")
+            }
+            note != null -> {
+                dockAction = { checkInNow() }
+                base.copy(dockTone = DockTone.WARN, dockTitle = "출석하지 못했어요", dockSub = note.lineSequence().first().take(40), dockButton = "다시 시도")
+            }
+            !s.signedToday -> {
+                dockAction = { checkInNow() }
+                base.copy(dockTone = DockTone.WAIT, dockTitle = "아직 출석 전이에요", dockSub = s.nextRun?.let { "자동 출석 · $it" }, dockBig = big, dockBigLabel = bigLabel, dockButton = "지금 출석")
+            }
+            else -> {
+                dockAction = launchGame
+                val sub = listOfNotNull(s.reward, s.makeUpToday ?: s.nextRun?.let { "다음 자동 출석 $it" }).joinToString(" · ").ifEmpty { null }
+                base.copy(dockTone = DockTone.DONE, dockTitle = "오늘 출석 완료", dockSub = sub,
+                    dockBig = big ?: if (resinFull) "가득" else null, dockBigLabel = bigLabel ?: if (resinFull) "레진" else null, dockButton = gameButton)
+            }
+        }
+    }
+
+    private val lobbyActions = object : LobbyView.Actions {
+        override fun onResin() = openLobbyMenu("레진") { resinMenu() }
+        override fun onCheckIn() = openLobbyMenu("출석") { checkInMenu() }
+        override fun onDockButton() = dockAction()
+        override fun onSettings() = showSettings(true)
+        override fun onMenu(key: String) {
+            when (key) {
+                LobbyView.MENU_REDEEM -> openLobbyMenu("리딤 코드") { redeemMenu() }
+                LobbyView.MENU_REWARDS -> store?.let { startActivity(RewardHistoryActivity.intent(this@MainActivity, it.accountId)) }
+                LobbyView.MENU_PICKUP -> startActivity(RerunActivity.intent(this@MainActivity))
+                LobbyView.MENU_EVENTS -> startActivity(EventsActivity.intent(this@MainActivity))
+                LobbyView.MENU_CARDS -> { lobbyHidden = true; refresh(); updateBackCallback() }
+                LobbyView.MENU_DECORATE -> startActivity(LobbyStyleActivity.intent(this@MainActivity))
+            }
+        }
+    }
+
+    /** 로비 메뉴 화면을 오른쪽에서 밀어 넣는다. 내용은 연 시점의 상태로 그린다. */
+    private fun openLobbyMenu(title: String, build: LobbyMenu.() -> Unit) {
+        val fav = settings.favorite ?: return
+        val theme = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
+        val menu = LobbyMenu(this, title, theme, lobbyBust, fav.name) { closeLobbyMenu() }
+        menu.build()
+        val root = screen.root as android.widget.FrameLayout
+        root.addView(menu, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
+        applySystemBarInsets(menu)
+        menu.translationX = resources.displayMetrics.widthPixels * 0.3f
+        menu.alpha = 0f
+        menu.animate().translationX(0f).alpha(1f).setDuration(220).start()
+        lobbyMenus += menu
+        updateBackCallback()
+    }
+
+    private fun closeLobbyMenu() {
+        val menu = lobbyMenus.removeLastOrNull() ?: return
+        menu.animate().translationX(menu.width * 0.3f).alpha(0f).setDuration(180)
+            .withEndAction { (menu.parent as? android.view.ViewGroup)?.removeView(menu) }.start()
+        updateBackCallback()
+    }
+
+    private fun closeAllLobbyMenus() {
+        for (menu in lobbyMenus) (menu.parent as? android.view.ViewGroup)?.removeView(menu)
+        lobbyMenus.clear()
+        updateBackCallback()
+    }
+
+    private fun LobbyMenu.resinMenu() {
+        val n = store?.note?.let { Notes.ui(it) }
+        if (n == null) {
+            val problem = store?.noteProblem
+            card {
+                head("레진")
+                line(problem ?: "레진을 불러오는 중이에요")
+                if (problem == Notes.NOTES_OFF) line("실시간 메모 켜기 ›") { askEnableNotes() }
+            }
+            return
+        }
+        card { head("지금 레진"); meter(n.resin, n.maxResin, listOf(n.fullLabel, n.fullTime).filter { it.isNotEmpty() }.joinToString(" · ")) }
+        card { head("오늘 할 일"); stats(n.expeditions to "탐사 파견", n.coin to "주전자 동전", n.commissions to "일일 의뢰"); line(n.updated) }
+        if (Game.launchIntent(this@MainActivity) != null) card { line("원신 켜기 ›") { Game.launchIntent(this@MainActivity)?.let { startActivity(it) } } }
+    }
+
+    private fun LobbyMenu.checkInMenu() {
+        val store = store ?: return
+        val today = Store.checkInDay()
+        val signed = store.signedToday
+        val total = if (store.signedDay?.startsWith(today.toString().substring(0, 7)) == true) store.signedTotal else 0
+        val slots = store.takeIf { it.calendarDay?.take(7) == today.toString().take(7) }?.calendarAwards.orEmpty()
+        card {
+            head("${today.monthValue}월 출석 보상 · $total / ${slots.size.takeIf { it > 0 } ?: today.lengthOfMonth()}")
+            if (slots.isEmpty()) line("출석 보상 목록을 불러오는 중이에요")
+            else calendar(slots.map { if (it.count >= 1000) "${it.count / 1000}천" else "×${it.count}" }, total,
+                if (signed) total else total + 1, total + today.lengthOfMonth() - today.dayOfMonth + (if (signed) 0 else 1))
+        }
+        card {
+            head("오늘")
+            line(if (signed) "출석 완료" + (store.lastReward?.let { " · $it" } ?: "") else "아직 출석 전이에요")
+            settings.nextRunAt.takeIf { it > 0 }?.let { line("다음 자동 출석 · ${describeNextRun(it)}") }
+            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { line("놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
+            line("출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+        }
+    }
+
+    private fun LobbyMenu.redeemMenu() {
+        val store = store ?: return
+        card {
+            head("최근 결과")
+            line(store.lastRedeemSummary?.let { DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() + " · " + it } ?: "아직 입력한 코드가 없어요")
+        }
+        card {
+            head("자동 입력")
+            line(if (settings.redeemEnabled) "새 코드가 올라오면 앱이 알아서 넣어요" else "자동 입력이 꺼져 있어요")
+            line("지금 새 코드 확인 ›") {
+                closeAllLobbyMenus()
+                when {
+                    !settings.redeemEnabled -> showSettings(true)
+                    store.redeemRole == null -> chooseRedeemRole()
+                    else -> redeemNow()
+                }
+            }
+            line("코드 직접 입력 ›") { enterCode() }
+        }
     }
 
     companion object {

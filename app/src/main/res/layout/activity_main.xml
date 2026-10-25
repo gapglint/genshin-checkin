@@ -1230,6 +1230,37 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/rowHomeStyle"
+                style="@style/Row">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.RowTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="홈 꾸미기" />
+
+                    <TextView
+                        style="@style/Text.RowSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="카드형 · 로비형(최애 캐릭터가 홈의 주인공)" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_chevron" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/rowMainDisplay"
                 style="@style/Row">
 

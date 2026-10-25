@@ -268,12 +268,35 @@ val NOTE_STATS = listOf(NOTE_EXPEDITIONS, NOTE_COIN, NOTE_COMMISSIONS)
 val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_RERUNS, CARD_CALENDAR)
 
 /** 모든 계정이 함께 쓰는 설정과 계정 목록. */
+/** 로비형 홈의 최애 캐릭터. element는 원소 영문 이름(소문자), image는 전적의 작은 얼굴 그림 주소. */
+data class Favorite(val name: String, val element: String, val image: String, val id: Int)
+
 class AppSettings(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("hoyo", Context.MODE_PRIVATE)
 
     init {
         migrateSingleAccount()
     }
+
+    /** 메인 화면 모양: 카드형(기본) 또는 로비형(최애 캐릭터가 화면의 주인공). */
+    var homeStyle: String
+        get() = prefs.getString("home_style", Lobby.STYLE_CARD) ?: Lobby.STYLE_CARD
+        set(value) = prefs.edit { putString("home_style", value) }
+
+    /** 로비형 홈의 최애 캐릭터. 아직 안 골랐으면 null. */
+    var favorite: Favorite?
+        get() = prefs.getString("fav_name", null)?.let {
+            Favorite(it, prefs.getString("fav_element", "") ?: "", prefs.getString("fav_image", "") ?: "", prefs.getInt("fav_id", 0))
+        }
+        set(value) = prefs.edit {
+            if (value == null) { remove("fav_name"); remove("fav_element"); remove("fav_image"); remove("fav_id") }
+            else { putString("fav_name", value.name); putString("fav_element", value.element); putString("fav_image", value.image); putInt("fav_id", value.id) }
+        }
+
+    /** 로비 배경: 공식 그림(Lobby.BG_OFFICIAL) · 내 사진 · 원소 무늬. */
+    var lobbyBackground: String
+        get() = prefs.getString("lobby_bg", Lobby.BG_OFFICIAL) ?: Lobby.BG_OFFICIAL
+        set(value) = prefs.edit { putString("lobby_bg", value) }
 
     /** 보충 출석이 가능할 때 알릴지. */
     var makeUpAlerts: Boolean
