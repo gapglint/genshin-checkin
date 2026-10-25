@@ -43,6 +43,7 @@ class RerunActivity : Activity() {
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(ScrollView(this@RerunActivity).apply { addView(list) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
+        LobbyMenu.dress(this, header as LinearLayout, root, "복각표") { finish() }
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
         render()
