@@ -478,7 +478,7 @@ class LobbyMenu(
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
     // 다크 모드면 본문 바탕·카드·옅은 칸을 어둡게, 강조 글자는 밝게.
     private val night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-    private val pageBg = if (night) LobbyTheme.blend(t.el, Color.BLACK, 0.84f) else t.tint
+    private val pageBg = pageColor(context, t)
     private val cardBg = if (night) LobbyTheme.blend(t.el, Color.BLACK, 0.74f) else Color.WHITE
     private val soft = if (night) LobbyTheme.blend(t.el, Color.BLACK, 0.6f) else t.tint
     private val accent = if (night) t.light else t.deep
@@ -488,35 +488,54 @@ class LobbyMenu(
         isClickable = true
         setBackgroundColor(pageBg)
         val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(FrameLayout(context).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(t.deep, t.dark))
-            // 머리 뒤에 원소 문양을 옅게
-            addView(ImageView(context).apply {
-                setImageResource(Lobby.elementIcon(element))
-                setColorFilter(Color.WHITE)
-                alpha = 0.10f
-                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-            }, LayoutParams(dp(170), dp(170), Gravity.END or Gravity.TOP).apply { setMargins(0, -dp(30), -dp(30), 0) })
-            if (bust != null) addView(ImageView(context).apply { setImageBitmap(bust); scaleType = ImageView.ScaleType.FIT_END; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO },
-                LayoutParams(dp(150), dp(150), Gravity.END or Gravity.BOTTOM))
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(18), dp(12), dp(18), dp(20))
-                addView(LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    contentDescription = "로비로"
-                    setPadding(0, dp(6), dp(20), dp(10))
-                    setOnClickListener { onBack() }
-                    addView(ImageView(context).apply { setImageResource(R.drawable.ic_back); setColorFilter(Color.WHITE) }, LinearLayout.LayoutParams(dp(20), dp(20)))
-                    addView(text("로비", 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
-                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-                addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it }; setPadding(0, 0, 0, dp(4)) })
-                addView(text("$who 와 함께", 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
-            }, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(176)))
+        col.addView(header(context, title, t, bust, who, element, onBack), LinearLayout.LayoutParams(MATCH_PARENT, dp(HEADER_DP)))
         col.addView(ScrollView(context).apply { addView(body) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         addView(col, LayoutParams(MATCH_PARENT, MATCH_PARENT))
+    }
+
+    companion object {
+        const val HEADER_DP = 176
+
+        /** 로비 메뉴 바탕색(다크 모드면 어둡게). 로비에서 연 카드 화면도 같은 바탕을 쓴다. */
+        fun pageColor(context: Context, t: LobbyTheme): Int {
+            val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            return if (night) LobbyTheme.blend(t.el, Color.BLACK, 0.84f) else t.tint
+        }
+
+        /** 로비 메뉴 머리: 원소 색 바탕·문양, 최애 그림, '‹ 로비', 제목, '○○ 와 함께'. 로비에서 연 카드 화면도 쓴다. */
+        fun header(context: Context, title: String, t: LobbyTheme, bust: Bitmap?, who: String, element: String, onBack: () -> Unit): View {
+            fun dp(v: Int) = (v * context.resources.displayMetrics.density).toInt()
+            fun text(s: String, size: Float, color: Int, bold: Boolean = false) = TextView(context).apply {
+                text = s; textSize = size; setTextColor(color); if (bold) setTypeface(typeface, Typeface.BOLD)
+            }
+            return FrameLayout(context).apply {
+                background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(t.deep, t.dark))
+                // 머리 뒤에 원소 문양을 옅게
+                addView(ImageView(context).apply {
+                    setImageResource(Lobby.elementIcon(element))
+                    setColorFilter(Color.WHITE)
+                    alpha = 0.10f
+                    importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                }, LayoutParams(dp(170), dp(170), Gravity.END or Gravity.TOP).apply { setMargins(0, -dp(30), -dp(30), 0) })
+                if (bust != null) addView(ImageView(context).apply { setImageBitmap(bust); scaleType = ImageView.ScaleType.FIT_END; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO },
+                    LayoutParams(dp(150), dp(150), Gravity.END or Gravity.BOTTOM))
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(18), dp(12), dp(18), dp(20))
+                    addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        contentDescription = "로비로"
+                        setPadding(0, dp(6), dp(20), dp(10))
+                        setOnClickListener { onBack() }
+                        addView(ImageView(context).apply { setImageResource(R.drawable.ic_back); setColorFilter(Color.WHITE) }, LinearLayout.LayoutParams(dp(20), dp(20)))
+                        addView(text("로비", 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
+                    }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+                    addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it }; setPadding(0, 0, 0, dp(4)) })
+                    addView(text("$who 와 함께", 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
+                }, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
+            }
+        }
     }
 
     /** 흰 카드 하나를 본문에 더한다. */
