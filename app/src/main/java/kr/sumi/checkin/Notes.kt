@@ -190,7 +190,7 @@ object Notes {
         repeat(6) { append(letters[ThreadLocalRandom.current().nextInt(letters.length)]) }
     }
 
-    private fun headers() = mapOf(
+    internal fun headers() = mapOf(
         "DS" to ds(),
         "x-rpc-app_version" to "1.5.0",
         "x-rpc-client_type" to "5",

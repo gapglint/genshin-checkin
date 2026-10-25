@@ -116,5 +116,16 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
-    </application>
+            <!-- 실험(exp/lobby-characters 브랜치 전용): 캐릭터 그림 확인. 런처에 따로 보인다. -->
+        <activity
+            android:name=".CharacterLabActivity"
+            android:exported="true"
+            android:label="캐릭터 실험"
+            android:taskAffinity="kr.sumi.checkin.lab">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+</application>
 </manifest>
