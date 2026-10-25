@@ -733,6 +733,8 @@ class MainScreen(val root: View) {
 
     /** 캐릭터 얼굴 그림(한국어 이름으로). 없으면 null이고 원소 아이콘을 그린다. 액티비티가 정한다. */
     var faceFor: (String) -> android.graphics.Bitmap? = { null }
+    /** 얼굴을 받아 오는 중인지(그동안은 원소 아이콘 대신 빈 동그라미). */
+    var facePending: (String) -> Boolean = { false }
 
     /** 복각표 카드: 픽업 캐릭터를 원소 동그라미와 원소 색 이름으로. 자료가 없으면 안내만. */
     private fun renderReruns(r: RerunCardUi?) {
@@ -756,7 +758,7 @@ class MainScreen(val root: View) {
                         setPadding(dp(2), dp(2), dp(2), dp(2))
                         clipToOutline = true
                         outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-                    } else {
+                    } else if (!facePending(name)) {
                         RerunActivity.elementIcon(element)?.let { setImageResource(it) }
                         setPadding(dp(9), dp(9), dp(9), dp(9))
                     }

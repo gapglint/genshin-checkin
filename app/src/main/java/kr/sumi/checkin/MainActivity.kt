@@ -72,6 +72,7 @@ class MainActivity : Activity() {
         screen.setupBanner.setOnClickListener { showSettings(true) }
         screen.rerunCard.setOnClickListener { startActivity(RerunActivity.intent(this)) }
         screen.faceFor = { ko -> Lobby.cachedFace(this, ko) }
+        screen.facePending = { ko -> Lobby.officialArtAllowed(this) && ko !in failedFaces }
         screen.eventsButton.setOnClickListener { startActivity(EventsActivity.intent(this)) }
         screen.tileHistory.setOnClickListener {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
@@ -182,14 +183,17 @@ class MainActivity : Activity() {
     private var loadingFaces = false
 
     /** 메인 복각표 카드의 픽업 캐릭터 얼굴 그림을 받아 둔다(없을 때만). */
+    /** 받아 오지 못한 픽업 얼굴(원소 아이콘으로 둔다). */
+    private val failedFaces = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     private fun loadPickupFaces() {
         val chars = rerunCard()?.chars?.map { it.first }.orEmpty()
         val missing = chars.filter { Lobby.cachedFace(this, it) == null }
         if (loadingFaces || missing.isEmpty() || !Lobby.officialArtAllowed(this)) return
         loadingFaces = true
         Thread {
-            val got = missing.count { Lobby.face(this, it) != null }
-            runOnUiThread { loadingFaces = false; if (got > 0) refresh() }
+            for (ko in missing) if (Lobby.face(this, ko) == null) failedFaces += ko
+            runOnUiThread { loadingFaces = false; refresh() }
         }.start()
     }
 

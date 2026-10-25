@@ -71,7 +71,8 @@ class RerunActivity : Activity() {
         status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
 
         val settings = AppSettings(this)
-        RerunList(this, Reruns.watched(this), faces, { c -> toggleWatch(c) }, settings.rerunFours) {
+        prepareFaces(data)
+        RerunList(this, Reruns.watched(this), faces, { c -> toggleWatch(c) }, settings.rerunFours, pendingFaces = pendingFaces) {
             settings.rerunFours = !settings.rerunFours
             render()
             // 켰는데 저장된 자료에 4성이 없으면(4성이 생기기 전에 받은 것) 바로 새로 받는다.
@@ -80,25 +81,41 @@ class RerunActivity : Activity() {
                 runOnUiThread { if (!isFinishing) render(error) }
             }.start()
         }.fill(list, data, today)
-        loadFaces(data)
+        loadFaces()
     }
 
     /** 얼굴 그림(공식 그림, 받아서 폰에만 저장). 저장된 것은 바로, 없는 것은 받아서 다 모이면 다시 그린다. */
     private val faces = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
     private var loadingFaces = false
 
-    private fun loadFaces(data: RerunData) {
-        if (loadingFaces || !Lobby.officialArtAllowed(this)) return
-        val missing = (data.characters + if (AppSettings(this).rerunFours) data.fours else emptyList()).map { it.ko }.filter { !faces.containsKey(it) }
-        if (missing.isEmpty()) return
+    /** 받아 오는 중인 얼굴(그동안은 빈 동그라미). 끝내 못 받은 얼굴은 원소 아이콘으로 둔다. */
+    private val pendingFaces = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val failedFaces = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** 보여 줄 캐릭터들의 얼굴: 폰에 저장된 것은 바로 넣고, 없는 것은 받아 오는 중으로 둔다. */
+    private fun prepareFaces(data: RerunData) {
+        if (!Lobby.officialArtAllowed(this)) return
+        for (ko in (data.characters + if (AppSettings(this).rerunFours) data.fours else emptyList()).map { it.ko }) {
+            if (faces.containsKey(ko) || ko in failedFaces) continue
+            val cached = Lobby.cachedFace(this, ko)
+            if (cached != null) faces[ko] = cached else pendingFaces += ko
+        }
+    }
+
+    /** 받아 오는 중인 얼굴을 받는다. 몇 명씩 받을 때마다 바로 다시 그린다. */
+    private fun loadFaces() {
+        if (loadingFaces || pendingFaces.isEmpty()) return
         loadingFaces = true
         Thread {
-            var added = 0
-            for (ko in missing) {
+            var sinceDraw = 0
+            for (ko in pendingFaces.toList()) {
                 if (isDestroyed) break
-                Lobby.face(this, ko)?.let { faces[ko] = it; added++ }
+                val face = Lobby.face(this, ko)
+                if (face != null) faces[ko] = face else failedFaces += ko
+                pendingFaces -= ko
+                if (++sinceDraw >= 6) { sinceDraw = 0; runOnUiThread { if (!isDestroyed) render() } }
             }
-            runOnUiThread { loadingFaces = false; if (added > 0 && !isDestroyed) render() }
+            runOnUiThread { loadingFaces = false; if (!isDestroyed) render() }
         }.start()
     }
 
@@ -186,6 +203,8 @@ class RerunList(
     private val onToggle: ((RerunCharacter) -> Unit)? = null,
     /** 4성도 보일지(픽업 판과 '4성 캐릭터' 판). */
     private val showFours: Boolean = false,
+    /** 받아 오는 중인 얼굴(한국어 이름). 그동안은 원소 아이콘 대신 빈 동그라미. */
+    private val pendingFaces: Set<String> = emptySet(),
     /** '4성도 보기'를 누르면. null이면 그 줄을 그리지 않는다. */
     private val onFours: (() -> Unit)? = null,
 ) {
@@ -409,7 +428,8 @@ class RerunList(
                     setPadding(dp(2), dp(2), dp(2), dp(2))
                     clipToOutline = true
                     outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-                } else {
+                } else if (c.ko !in pendingFaces) {
+                    // 공식 그림이 꺼져 있거나 얼굴을 못 받았으면 원소 아이콘(받는 중이면 빈 동그라미)
                     RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
                     setPadding(dp(8), dp(8), dp(8), dp(8))
                 }
