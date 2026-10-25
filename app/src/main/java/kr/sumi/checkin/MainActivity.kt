@@ -1435,87 +1435,12 @@ class MainActivity : Activity() {
         }
     }
 
-    /**
-     * 로비 테마의 보상 내역(카드형의 보상 내역 화면으로 넘어가면 갑자기 다른 앱처럼 보여서).
-     * 이번 달 출석·보충 보상(호요랩 기록)과 이 앱이 받은 리딤 코드. 더 지난 기록은 원래 보상 내역 화면에서.
-     * 원래 화면처럼 열면 확인한 것으로 친다.
-     */
-    private fun openHistoryMenu() {
-        val store = store ?: return
-        val cookie = store.cookie ?: return
-        openLobbyMenu("보상 내역") { historyBody(store, null, null) }
-        val menu = lobbyMenus.lastOrNull() as? LobbyMenu ?: return
-        store.historySeenRedeemAt = ServerClock.now()
-        Thread {
-            val month = ServerClock.today().toString().take(7)
-            val entries = mutableListOf<RewardEntry>()
-            val error = try {
-                // 이번 달 합계가 맞도록, 받아 온 목록이 아직 이번 달에서 끝나면 더 받는다(최대 3쪽).
-                for (page in 1..3) {
-                    val json = CheckInClient(cookie).awardHistory(page, RewardHistory.PAGE_SIZE)
-                    if (json.optInt("retcode", -1) in CheckInClient.NOT_LOGGED_IN) throw IOException("로그인이 풀렸어요. 다시 로그인해 주세요.")
-                    val got = RewardHistory.parseAwards(json)
-                    if (page == 1) {
-                        RewardHistory.ensureBaseline(store, got)
-                        got.firstOrNull()?.let { store.historySeenAwardKey = it.key }
-                        store.historyUnseen = 0
-                    }
-                    entries += got
-                    if (got.size < RewardHistory.PAGE_SIZE || got.lastOrNull()?.date?.startsWith(month) != true) break
-                }
-                null
-            } catch (e: Exception) { // 네트워크·응답 형식 오류
-                "내역을 불러오지 못했어요. ${e.message ?: ""}".trim()
-            }
-            runOnUiThread {
-                if (menu.parent == null) return@runOnUiThread
-                menu.body.removeAllViews()
-                menu.historyBody(store, entries, error)
-                refresh()
-            }
-        }.start()
-    }
-
-    private fun LobbyMenu.historyBody(store: Store, entries: List<RewardEntry>?, error: String?) {
-        val month = ServerClock.today().toString().take(7)
-        val thisMonth = entries.orEmpty().filter { it.date.startsWith(month) }
-        val totals = RewardHistory.totals(thisMonth.map { it.name to it.count })
-        fun sum(name: String) = totals.firstOrNull { it.first == name }?.second ?: 0
-        card {
-            head("${month.takeLast(2).toInt()}월에 받은 보상")
-            when {
-                entries == null -> line("불러오는 중...")
-                error != null -> line(error)
-                else -> iconStats(
-                    Triple(R.drawable.ic_item_primogem, "%,d".format(sum("원석")), "원석"),
-                    Triple(R.drawable.ic_item_mora, "%,d".format(sum("모라")), "모라"),
-                    Triple(R.drawable.ic_item_gift, "${totals.count { it.first != "원석" && it.first != "모라" }}종", "그 밖의 아이템"),
-                )
-            }
-        }
-        card {
-            head("리딤 코드")
-            val log = store.redeemLog
-            if (log.isEmpty()) row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요")
-            for (r in log.take(10)) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
-        }
-        if (thisMonth.isNotEmpty()) card {
-            head("${RewardHistory.monthLabel(month)} 출석·보충")
-            for (e in thisMonth) row(ItemIcons.of(e.name), "${e.name} ×${"%,d".format(e.count)}", RewardHistory.dayLabel(e.date))
-        }
-        card {
-            row(R.drawable.ic_item_book, "지난달 이전 기록 전체 보기 ›") {
-                startActivity(RewardHistoryActivity.intent(this@MainActivity, store.accountId))
-            }
-        }
-    }
-
     private fun LobbyMenu.redeemMenu() {
         val store = store ?: return
         card {
             head("보상 내역")
             row(R.drawable.ic_item_primogem, "이번 달 받은 원석·모라 보기 ›", store.historyUnseen.takeIf { it > 0 }?.let { "새 보상 ${it}개" }) {
-                openHistoryMenu()
+                startActivity(RewardHistoryActivity.intent(this@MainActivity, store.accountId))
             }
         }
         card {
