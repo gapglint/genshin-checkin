@@ -502,6 +502,26 @@ class LobbyMenu(
             return if (night) LobbyTheme.blend(t.el, Color.BLACK, 0.84f) else t.tint
         }
 
+        /**
+         * 로비형을 쓰면 다른 화면(복각표·이벤트)도 로비 메뉴처럼: header_bar의 제목 줄 대신 로비 머리, 바탕은 옅은 원소 색.
+         * 로비형이 아니거나 최애가 없으면 그대로 둔다.
+         */
+        fun dress(context: Context, headerBar: LinearLayout, root: View, title: String, onBack: () -> Unit) {
+            val settings = AppSettings(context)
+            val fav = settings.favorite ?: return
+            if (settings.homeStyle != Lobby.STYLE_LOBBY) return
+            val t = LobbyTheme(context.getColor(Lobby.elementColorRes(fav.element)))
+            val bust = Lobby.cachedBust(context, fav.image)
+            headerBar.getChildAt(0)?.visibility = View.GONE
+            headerBar.addView(header(context, title, t, bust, fav.name, fav.element, onBack), 0,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (HEADER_DP * context.resources.displayMetrics.density).toInt()).apply {
+                    bottomMargin = (12 * context.resources.displayMetrics.density).toInt()
+                })
+            val page = pageColor(context, t)
+            headerBar.setBackgroundColor(page)
+            root.setBackgroundColor(page)
+        }
+
         /** 로비 메뉴 머리: 원소 색 바탕·문양, 최애 그림, '‹ 로비', 제목, '○○ 와 함께'. 로비에서 연 카드 화면도 쓴다. */
         fun header(context: Context, title: String, t: LobbyTheme, bust: Bitmap?, who: String, element: String, onBack: () -> Unit): View {
             fun dp(v: Int) = (v * context.resources.displayMetrics.density).toInt()
