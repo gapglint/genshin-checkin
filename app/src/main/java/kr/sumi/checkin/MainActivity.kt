@@ -1319,16 +1319,17 @@ class MainActivity : Activity() {
             }
             return null
         }
+        val all = Lobby.unlockedVoices(this, fav.name)
         // 저절로 바뀌는 인사는 접지 않고 보이는 길이만(긴 대사는 사용자가 눌러서 들을 때).
-        val voices = Lobby.unlockedVoices(this, fav.name).filter { it.text.length <= Lobby.BUBBLE_MAX }
+        val voices = all.filter { it.text.length <= Lobby.BUBBLE_MAX }
         val key = when {
             problem -> "problem"
             newReward -> "reward"
             else -> Lobby.timeGreeting(hour)
         }
         val fullKey = "${fav.name}|$key|${Store.checkInDay()}"
-        // 말풍선이나 캐릭터를 눌러 고른 대사는 상황이 바뀌기 전까지 그대로 둔다.
-        if (lobbyLineKey == "tap" && lobbyLine != null && lobbyLine in voices) return lobbyLine
+        // 말풍선이나 캐릭터를 눌러 고른 대사는 길어도 상황이 바뀌기 전까지 그대로 둔다(재생 중인 음성과 글이 어긋나지 않게).
+        if (lobbyLineKey == "tap" && lobbyLine != null && lobbyLine in all) return lobbyLine
         if (fullKey == lobbyLineKey && lobbyLine != null) return lobbyLine
         lobbyLineKey = fullKey
         lobbyLine = when {
