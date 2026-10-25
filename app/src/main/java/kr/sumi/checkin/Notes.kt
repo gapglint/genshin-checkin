@@ -88,6 +88,8 @@ sealed class NoteResult {
     data class Ok(val note: DailyNote) : NoteResult()
     object NoCharacter : NoteResult()
     object LoginExpired : NoteResult()
+    /** 호요랩 전적의 실시간 메모가 꺼져 있음. 앱이 몰래 켜지 않고, 사용자가 동의하면 enableNotes로 켠다. */
+    object NotesOff : NoteResult()
     data class Failed(val message: String) : NoteResult()
 }
 
@@ -255,23 +257,17 @@ object Notes {
         return store.redeemRole ?: store.accountRole
     }
 
-    /** 받아 오기만 한다. 실시간 메모가 꺼져 있으면 한 번 켜고 다시 받는다. */
+    /** 받아 오기만 한다. 실시간 메모가 꺼져 있으면 켜지 않고 NotesOff를 돌려준다(켜기는 사용자에게 묻고 enableNotes로). */
     @Throws(IOException::class)
     fun fetch(store: Store): NoteResult {
         val client = CheckInClient(store.cookie ?: return NoteResult.LoginExpired)
         val role = roleOf(store, client) ?: return NoteResult.NoCharacter
-        val url = "$NOTE_URL?server=${role.region}&role_id=${role.uid}"
-        var json = client.get(url, headers())
-        if (json.optInt("retcode") == NOT_PUBLIC) {
-            client.post(SWITCH_URL, """{"switch_id":3,"is_public":true,"game_id":"2"}""", headers())
-            Thread.sleep(CheckInClient.REQUEST_GAP_MS)
-            json = client.get(url, headers())
-        }
+        val json = client.get("$NOTE_URL?server=${role.region}&role_id=${role.uid}", headers())
         val code = json.optInt("retcode", Int.MIN_VALUE)
         return when {
             code == 0 -> parse(json, ServerClock.now())?.let { NoteResult.Ok(it) } ?: NoteResult.Failed("받은 내용을 읽지 못했어요")
             code in LOGIN || code in CheckInClient.NOT_LOGGED_IN -> NoteResult.LoginExpired
-            code == NOT_PUBLIC -> NoteResult.Failed("호요랩 전적 기록에서 '실시간 메모'를 켜 주세요")
+            code == NOT_PUBLIC -> NoteResult.NotesOff
             code in CAPTCHA -> NoteResult.Failed("호요랩이 확인을 요구해요. 잠시 뒤 다시 시도할게요")
             else -> NoteResult.Failed("${json.optString("message")} (retcode $code)")
         }
@@ -296,12 +292,26 @@ object Notes {
             }
             NoteResult.NoCharacter -> store.noteProblem = "원신 캐릭터를 찾지 못했어요"
             NoteResult.LoginExpired -> store.noteProblem = "로그인이 풀렸어요. 다시 로그인해 주세요"
+            NoteResult.NotesOff -> store.noteProblem = NOTES_OFF
             is NoteResult.Failed -> store.noteProblem = result.message
         }
         result
     }
 
     fun enabled(settings: AppSettings) = settings.noteAlerts.any
+
+    /** 카드에 보일 '실시간 메모가 꺼져 있음' 안내. 이 문구면 카드를 눌렀을 때 켤지 묻는다. */
+    const val NOTES_OFF = "호요랩 전적의 실시간 메모가 꺼져 있어요"
+
+    /**
+     * 사용자가 동의했을 때만 호요랩 전적의 실시간 메모를 켠다(호요랩 전적 설정의 그 스위치와 같다). 켜졌으면 true.
+     * 네트워크 오류는 IOException.
+     */
+    @Throws(IOException::class)
+    fun enableNotes(store: Store): Boolean {
+        val client = CheckInClient(store.cookie ?: return false)
+        return client.post(SWITCH_URL, """{"switch_id":3,"is_public":true,"game_id":"2"}""", headers()).optInt("retcode", -1) == 0
+    }
 
     /** 모든 계정을 받아 보고 다음 알람을 건다. 알림이 모두 꺼져 있으면 알람만 지운다. */
     fun checkAll(context: Context) {

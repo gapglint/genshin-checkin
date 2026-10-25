@@ -131,6 +131,7 @@ class MainActivity : Activity() {
         screen.rowBattery.setOnClickListener { requestBatteryExemption() }
         screen.rowHibernation.setOnClickListener { openHibernationSettings() }
         screen.notesCard.setOnClickListener {
+            if (store?.noteProblem == Notes.NOTES_OFF) return@setOnClickListener askEnableNotes()
             // 못 받았으면 다시 받고, 받았으면 펼치거나 접는다(펼칠 때 오래된 값이면 새로 받는다).
             if (store?.note == null) loadNotes(force = true) else if (settings.noteStats.isNotEmpty()) {
                 settings.notesExpanded = !settings.notesExpanded
@@ -350,6 +351,29 @@ class MainActivity : Activity() {
                 refresh()
             }
         }.start()
+    }
+
+    /** 실시간 메모가 꺼져 있을 때: 앱이 몰래 켜지 않고, 무엇이 바뀌는지 알린 뒤 동의하면 켠다. */
+    private fun askEnableNotes() {
+        val store = store ?: return
+        AppDialog(this)
+            .setTitle("실시간 메모를 켤까요?")
+            .setMessage("레진·탐사 파견·주전자 동전을 보려면 호요랩 전적의 '실시간 메모'를 켜야 해요. 켜면 호요랩 전적 설정의 그 스위치가 켜져요.\n\n" +
+                "호요랩 앱의 전적 설정에서 언제든 다시 끌 수 있어요.")
+            .setNegativeButton("나중에")
+            .setPositiveButton("켜기") {
+                Thread {
+                    val ok = try { Notes.enableNotes(store) } catch (e: IOException) { null }
+                    runOnUiThread {
+                        when (ok) {
+                            true -> loadNotes(force = true)
+                            false -> Toast.makeText(this, "켜지 못했어요. 호요랩 앱의 전적 설정에서 켜 주세요.", Toast.LENGTH_LONG).show()
+                            null -> Toast.makeText(this, "네트워크 오류로 켜지 못했어요.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }.start()
+            }
+            .show()
     }
 
     /** 레진 알림을 켜고 끄거나 기준을 바꾸면 다음 알림 시각을 다시 건다. 처음 켰으면 메모를 받아 온다. */
@@ -889,7 +913,7 @@ class MainActivity : Activity() {
                 "주전자 동전이 가득 찼을 때",
                 "밤(오후 10시~오전 8시)에는 소리·진동 없이",
             ), checked)
-            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요.\n레진·파견은 호요랩 '실시간 메모'를 써요. 꺼져 있으면 앱이 켜요.")
+            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요.\n레진·파견은 호요랩 '실시간 메모'를 써요. 꺼져 있으면 켤지 먼저 물어봐요.")
             .setNegativeButton("취소")
             .setPositiveButton("저장") {
                 settings.notifyCheckIn = checked[0]

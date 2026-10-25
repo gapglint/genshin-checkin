@@ -394,10 +394,15 @@ class MainScreen(val root: View) {
             notesResin.text = when {
                 s.notesLoading -> "불러오는 중..."
                 s.notesProblem == null -> "레진"
+                s.notesProblem == Notes.NOTES_OFF -> "실시간 메모가 꺼져 있어요"
                 else -> "불러오지 못했어요"
             }
             notesFullLabel.text = ""
-            notesFullTime.text = if (s.notesLoading) "" else "다시 시도"
+            notesFullTime.text = when {
+                s.notesLoading -> ""
+                s.notesProblem == Notes.NOTES_OFF -> "켜기"
+                else -> "다시 시도"
+            }
             notesFullTime.setTextColor(context.getColor(R.color.accent))
             notesCard.contentDescription = s.notesProblem
             return
@@ -432,7 +437,8 @@ class MainScreen(val root: View) {
         // 원신 켜기는 접혀 있어도 보인다. 기준 시각은 펼쳤거나 문제가 있을 때만(접힌 카드는 짧게).
         val expanded = s.notesExpanded && expandable
         notesPlay.visibility = if (s.gameInstalled) View.VISIBLE else View.GONE
-        notesUpdated.text = s.notesProblem?.let { "$it · 눌러서 다시 시도" } ?: n.updated.takeIf { expanded }
+        notesUpdated.text = s.notesProblem?.let { if (it == Notes.NOTES_OFF) "$it · 눌러서 켜기" else "$it · 눌러서 다시 시도" }
+            ?: n.updated.takeIf { expanded }
         notesFooter.visibility = if (s.gameInstalled || !notesUpdated.text.isNullOrEmpty()) View.VISIBLE else View.GONE
         if (!expanded) return
 
