@@ -120,6 +120,8 @@ data class MainUiState(
     val cardOrder: List<String> = CARDS,
     /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
     val editing: Boolean = false,
+    /** 로비형 소개 카드를 보일 때(로그인하고 며칠 뒤 한 번만, 다른 안내가 없을 때). */
+    val lobbyIntro: Boolean = false,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -224,6 +226,9 @@ class MainScreen(val root: View) {
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
     val eventsButton: View = root.findViewById(R.id.eventsButton)
+    val decorateButton: View = root.findViewById(R.id.decorateButton)
+    val lobbyIntro: View = root.findViewById(R.id.lobbyIntro)
+    val lobbyIntroClose: View = root.findViewById(R.id.lobbyIntroClose)
     private val eventsDot: View = root.findViewById(R.id.eventsDot)
     val editDone: View = root.findViewById(R.id.editDone)
     val cards: LinearLayout = root.findViewById(R.id.cards)
@@ -309,6 +314,8 @@ class MainScreen(val root: View) {
         // 메인에는 한 줄 안내만 두고, 자세한 항목은 설정 안에서 보여 준다.
         setupBanner.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
         setupText.text = "제때 출석하려면 설정 ${setupNeeded}개가 필요해요"
+        // 안내는 한 번에 하나만: 설정·보충·출석 문제 안내가 있으면 로비 소개는 미룬다.
+        lobbyIntro.visibility = if (s.lobbyIntro && setupNeeded == 0 && s.note == null && s.makeUpMissed == null && !s.editing) View.VISIBLE else View.GONE
         heroNote.text = s.note
         heroNote.visibility = if (s.note != null && s.busy == null) View.VISIBLE else View.GONE
 
@@ -348,6 +355,7 @@ class MainScreen(val root: View) {
         // 편집 중에는 머리줄에 '완료'만, 잠깐 뜨는 안내·버튼은 숨겨 카드에만 집중하게 한다.
         editDone.visibility = if (s.editing) View.VISIBLE else View.GONE
         editButton.visibility = if (s.editing || !s.loggedIn) View.GONE else View.VISIBLE
+        decorateButton.visibility = if (s.editing || !s.loggedIn) View.GONE else View.VISIBLE
         settingsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
         if (s.editing) {
             primaryButton.visibility = View.GONE

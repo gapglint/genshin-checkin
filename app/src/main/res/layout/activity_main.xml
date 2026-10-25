@@ -85,6 +85,16 @@
                     android:visibility="gone" />
             </FrameLayout>
 
+            <!-- 홈 꾸미기(로비형): 최애 캐릭터로 홈을 꾸민다 -->
+            <ImageButton
+                android:id="@+id/decorateButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="홈 꾸미기"
+                android:src="@drawable/ic_decorate"
+                android:visibility="gone" />
+
             <ImageButton
                 android:id="@+id/editButton"
                 android:layout_width="48dp"
@@ -385,6 +395,62 @@
                 android:layout_height="20dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_chevron" />
+        </LinearLayout>
+
+        <!-- 로비형 소개(한 번만): 로그인하고 며칠 지난 뒤, 다른 안내가 없을 때. 닫거나 누르면 다시 안 나온다 -->
+        <LinearLayout
+            android:id="@+id/lobbyIntro"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_make_up"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:minHeight="56dp"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingVertical="10dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_decorate" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="최애 캐릭터로 홈을 꾸며 보세요"
+                    android:textColor="@color/ink"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="최애가 인사하는 로비형 홈 · 언제든 되돌릴 수 있어요"
+                    android:textColor="@color/ink_muted"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/lobbyIntroClose"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="안내 닫기"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_lobby_close" />
         </LinearLayout>
 
         <!-- 로그인 전에만: 지금 쓸 수 있는 리딤 코드. 누르면 공식 입력 페이지, 맨 아래는 로그인 안내 -->

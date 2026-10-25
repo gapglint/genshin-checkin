@@ -143,6 +143,9 @@ class MainActivity : Activity() {
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
         screen.rowMainDisplay.setOnClickListener { showSettings(false); setEditing(true) }
         screen.root.findViewById<View>(R.id.rowHomeStyle).setOnClickListener { startActivity(LobbyStyleActivity.intent(this)) }
+        screen.decorateButton.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
+        screen.lobbyIntro.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
+        screen.lobbyIntroClose.setOnClickListener { settings.lobbyIntroDone = true; refresh() }
         screen.editButton.setOnClickListener { setEditing(true) }
         screen.editDone.setOnClickListener { setEditing(false) }
         screen.rowGameApp.setOnClickListener { chooseGameApp() }
@@ -677,6 +680,7 @@ class MainActivity : Activity() {
                 eventsUnseen = Events.unseen(this),
                 cardOrder = settings.cardOrder,
                 editing = editing,
+                lobbyIntro = lobbyIntroDue(),
             )
         screen.render(state)
         renderLobby(state)
@@ -1063,6 +1067,13 @@ class MainActivity : Activity() {
     private var loadingLobby = false
     private var dockAction: () -> Unit = {}
 
+    /** 로비형 소개 카드: 카드형을 쓰고, 처음 로그인하고 2일이 지났고, 아직 닫거나 눌러 보지 않았을 때 한 번. */
+    private fun lobbyIntroDue(): Boolean {
+        if (store == null || settings.lobbyIntroDone || settings.homeStyle == Lobby.STYLE_LOBBY) return false
+        if (settings.firstAccountAt == 0L) { settings.firstAccountAt = System.currentTimeMillis(); return false }
+        return System.currentTimeMillis() - settings.firstAccountAt >= 2 * 24 * 60 * 60_000L
+    }
+
     private fun lobbyEnabled() = settings.homeStyle == Lobby.STYLE_LOBBY && store != null && settings.favorite != null
 
     /** 사이트 설정(공식 그림 스위치)과 내 캐릭터 목록을 가끔 받아 둔다. 로비형을 쓸 때만. */
@@ -1124,6 +1135,8 @@ class MainActivity : Activity() {
             lobby = v
         }
         view.visibility = View.VISIBLE
+        // 이름·대사·메뉴 제목용 글꼴(구글 글꼴 제공자에서 한 번 받는다. 받으면 다시 그린다).
+        LobbyFont.load(this) { refresh() }
         val width = resources.displayMetrics.widthPixels
         // 배경 그림: 방식·최애·스위치·사진이 바뀌었을 때만 다시 읽는다. 공식 그림이 아직 없으면 받아 온다.
         val key = listOf(settings.lobbyBackground, fav.name, Lobby.officialArtAllowed(this), Lobby.photoFile(this).lastModified()).joinToString("|")

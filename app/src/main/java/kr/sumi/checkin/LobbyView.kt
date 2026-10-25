@@ -202,6 +202,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     addView(text("「${ui.quote}」", 14f, 0xFF1B2030.toInt()).apply {
+                        LobbyFont.title?.let { typeface = it }
                         setLineSpacing(dp(2).toFloat(), 1f)
                         maxLines = 4
                         ellipsize = android.text.TextUtils.TruncateAt.END
@@ -252,6 +253,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 background = GradientDrawable().apply { setColor(t.light); cornerRadius = dp(99).toFloat() }
             }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
             addView(text(ui.name, when { ui.name.length > 6 -> 26f; ui.name.length > 4 -> 30f; else -> 34f }, Color.WHITE, bold = true, shadow = true).apply {
+                LobbyFont.title?.let { typeface = it }
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
             })
@@ -416,7 +418,7 @@ class LobbyMenu(
                     addView(ImageView(context).apply { setImageResource(R.drawable.ic_back); setColorFilter(Color.WHITE) }, LinearLayout.LayoutParams(dp(20), dp(20)))
                     addView(text("로비", 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
                 }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-                addView(text(title, 28f, Color.WHITE, bold = true))
+                addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it } })
                 addView(text("$who 와 함께", 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
             }, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
         }, LinearLayout.LayoutParams(MATCH_PARENT, dp(176)))

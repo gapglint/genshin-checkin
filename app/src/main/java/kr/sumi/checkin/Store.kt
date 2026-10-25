@@ -293,6 +293,16 @@ class AppSettings(private val context: Context) {
             else { putString("fav_name", value.name); putString("fav_element", value.element); putString("fav_image", value.image); putInt("fav_id", value.id) }
         }
 
+    /** 로비형 소개 카드를 닫았거나 눌렀는지(다시 안 보인다). */
+    var lobbyIntroDone: Boolean
+        get() = prefs.getBoolean("lobby_intro_done", false)
+        set(value) = prefs.edit { putBoolean("lobby_intro_done", value) }
+
+    /** 처음으로 로그인한 계정을 본 때(ms). 로비 소개를 며칠 뒤에 보이려고 쓴다. 0이면 아직 없음. */
+    var firstAccountAt: Long
+        get() = prefs.getLong("first_account_at", 0)
+        set(value) = prefs.edit { putLong("first_account_at", value) }
+
     /** 로비 배경: 공식 그림(Lobby.BG_OFFICIAL) · 내 사진 · 원소 무늬. */
     var lobbyBackground: String
         get() = prefs.getString("lobby_bg", Lobby.BG_OFFICIAL) ?: Lobby.BG_OFFICIAL
