@@ -287,7 +287,7 @@ object Redeem {
     private fun shortStatus(status: RedeemStatus) = when (status) {
         RedeemStatus.REDEEMED -> "받음"
         // 호요랩은 '이 계정이 받음'과 '선착순 마감'을 같은 답(-2017)으로 준다.
-        RedeemStatus.USED -> "받았거나 마감"
+        RedeemStatus.USED -> "이미 받았거나 마감"
         RedeemStatus.EXPIRED -> "만료"
         RedeemStatus.INVALID -> "잘못된 코드"
         RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
