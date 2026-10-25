@@ -32,6 +32,8 @@ class LobbyStyleActivity : Activity() {
     private var characters: List<OwnedCharacter>? = null
     private var wiki: List<Lobby.WikiCharacter>? = null
     private var showWaiting = false
+    /** 받은 얼굴 그림(주소 → 그림). 화면을 다시 그릴 때 깜빡이지 않게 바로 넣는다. */
+    private val busts = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
     private var loadError: String? = null
     private val density by lazy { resources.displayMetrics.density }
     private fun dp(v: Int) = (v * density).toInt()
@@ -209,8 +211,9 @@ class LobbyStyleActivity : Activity() {
                 setPadding(dp(2), dp(4), dp(2), 0)
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             row!!.addView(cell, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            pool.execute {
+            busts[c.image]?.let { image.setImageBitmap(it) } ?: pool.execute {
                 val bmp = Lobby.bust(this, c.image)
+                if (bmp != null) busts[c.image] = bmp
                 runOnUiThread { if (bmp != null) image.setImageBitmap(bmp) }
             }
         }

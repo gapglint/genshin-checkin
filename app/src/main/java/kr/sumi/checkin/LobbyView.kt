@@ -106,8 +106,32 @@ class LobbyView(context: Context) : FrameLayout(context) {
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
+    /** 상태바·내비게이션 바 높이. 그림은 화면 끝까지 채우고, 누르는 것과 글자만 이만큼 안쪽에 둔다. */
+    private var insetTop = 0
+    private var insetBottom = 0
+    private var lastBind: (() -> Unit)? = null
+
     init {
         isClickable = true
+        setOnApplyWindowInsetsListener { _, insets ->
+            val bars = if (android.os.Build.VERSION.SDK_INT >= 30) {
+                insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout()).let { it.top to it.bottom }
+            } else {
+                @Suppress("DEPRECATION")
+                insets.systemWindowInsetTop to insets.systemWindowInsetBottom
+            }
+            if (bars.first != insetTop || bars.second != insetBottom) {
+                insetTop = bars.first
+                insetBottom = bars.second
+                lastBind?.invoke()
+            }
+            insets
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        requestApplyInsets()
     }
 
     private var shownArt: Bitmap? = null
@@ -120,6 +144,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
     }
 
     fun bind(ui: LobbyUi, art: Bitmap?, actions: Actions) {
+        lastBind = { bind(ui, art, actions) }
         breathing?.cancel()
         removeAllViews()
         val t = LobbyTheme(context.getColor(Lobby.elementColorRes(ui.element)))
@@ -127,8 +152,9 @@ class LobbyView(context: Context) : FrameLayout(context) {
         val w = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val h = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
         // 오른쪽 메뉴는 남는 높이에 맞춰 크기·간격·이름표를 고른다(이름표·아래 패널과 겹치지 않게).
-        val hDp = h / resources.displayMetrics.density
-        val menuTop = if (hDp < 720) 112 else 136
+        val top = insetTop / resources.displayMetrics.density
+        val hDp = (h - insetTop - insetBottom) / resources.displayMetrics.density
+        val menuTop = (if (hDp < 720) 112 else 136) + top.toInt()
         val room = hDp - menuTop - 290 // 아래 이름표·패널·출처 몫
         // (아이콘 크기, 간격, 이름 보이기) 중 메뉴 5개가 들어가는 가장 큰 것
         val (iconSize, gap, labels) = listOf(Triple(46, 10, true), Triple(40, 6, true), Triple(38, 4, false), Triple(32, 3, false))
@@ -202,7 +228,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { rightMargin = dp(8) })
         }
         hud.addView(roundIcon(R.drawable.ic_settings, 40, "설정") { actions.onSettings() })
-        addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(12), dp(16), 0) })
+        addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(12), dp(16), 0) })
 
         // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사.
         addView(LinearLayout(context).apply {
@@ -215,10 +241,11 @@ class LobbyView(context: Context) : FrameLayout(context) {
             if (ui.quote != null) {
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    addView(text("「${ui.quote}」", 14f, 0xFF1B2030.toInt()).apply {
+                    addView(text("「${ui.quote}」", if (ui.quote.length > 60) 12.5f else 14f, 0xFF1B2030.toInt()).apply {
                         LobbyFont.title?.let { typeface = it }
                         setLineSpacing(dp(2).toFloat(), 1f)
-                        maxLines = 4
+                        // 대사는 다 들어가는 길이만 고른다([Lobby.BUBBLE_MAX]). 혹시 길어도 일곱 줄까지.
+                        maxLines = 7
                         ellipsize = android.text.TextUtils.TruncateAt.END
                     }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
                     if (ui.voice) addView(text("🔊", 13f, t.deep).apply { setPadding(dp(6), 0, 0, 0) })
@@ -228,7 +255,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             } else {
                 addView(text(ui.greeting, 13.5f, 0xFF1B2030.toInt()).apply { setLineSpacing(dp(2).toFloat(), 1f) })
             }
-        }, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(68), dp(86), 0) })
+        }, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(68), dp(86), 0) })
 
         // 오른쪽 메뉴
         val side = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -288,6 +315,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, dp(12))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        bottom.setPadding(0, 0, 0, insetBottom)
         addView(bottom, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
         bound = true
     }

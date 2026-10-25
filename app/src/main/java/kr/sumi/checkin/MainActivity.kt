@@ -1131,8 +1131,8 @@ class MainActivity : Activity() {
         }
         val view = lobby ?: LobbyView(this).also { v ->
             val root = screen.root as android.widget.FrameLayout
+            // 상태바·내비게이션 바는 로비가 스스로 피한다(그림은 화면 끝까지).
             root.addView(v, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
-            applySystemBarInsets(v)
             lobby = v
         }
         view.visibility = View.VISIBLE
@@ -1241,7 +1241,8 @@ class MainActivity : Activity() {
         override fun onBubble() {
             val fav = settings.favorite ?: return
             // 평소 이야기 대사 중 하나(지금 것과 다르게, 게임에서 열린 것만). 음성이 있으면 들려준다.
-            val pool = Lobby.talk(Lobby.unlockedVoices(this@MainActivity, fav.name), fav.name).filter { it.text != lobbyLine?.text }
+            val pool = Lobby.talk(Lobby.unlockedVoices(this@MainActivity, fav.name), fav.name)
+                .filter { it.text != lobbyLine?.text && it.text.length <= Lobby.BUBBLE_MAX }
             val line = pool.randomOrNull() ?: return
             lobbyLine = line
             lobbyLineKey = "tap"
@@ -1280,6 +1281,7 @@ class MainActivity : Activity() {
         val root = screen.root as android.widget.FrameLayout
         root.addView(menu, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
         applySystemBarInsets(menu)
+        menu.requestApplyInsets() // 화면이 뜬 뒤에 붙이므로 바 높이를 다시 받는다.
         menu.translationX = resources.displayMetrics.widthPixels * 0.3f
         menu.alpha = 0f
         menu.animate().translationX(0f).alpha(1f).setDuration(220).start()
@@ -1317,7 +1319,7 @@ class MainActivity : Activity() {
             }
             return null
         }
-        val voices = Lobby.unlockedVoices(this, fav.name)
+        val voices = Lobby.unlockedVoices(this, fav.name).filter { it.text.length <= Lobby.BUBBLE_MAX }
         val key = when {
             problem -> "problem"
             newReward -> "reward"

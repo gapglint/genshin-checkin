@@ -49,6 +49,12 @@ class LobbySnapshotTest {
         greeting = "오늘 출석이랑 새 코드도 받아 뒀어요.", voice = true,
     ), fakeArt())
 
+    /** 긴 대사(말풍선에 넣는 최대 길이 가까이)는 글자를 조금 작게 해서 잘리지 않게. */
+    @Test fun longQuote() = lobby(base.copy(
+        quote = "테스트용 긴 대사예요. 말풍선에 넣는 가장 긴 대사가 이 정도 길이인데, 글자를 조금 작게 해서 끝까지 다 보이는지 확인하려고 만든 문장이에요. 끝까지",
+        greeting = "레진이 가득 찼어요! 출석은 받아 뒀어요.", voice = true,
+    ), fakeArt())
+
     @Test fun patternNoArt() = lobby(base.copy(name = "치치", element = "cryo", meta = "얼음 · Lv.90 · 호감도 10", credit = false), null)
 
     @Test fun problem() = lobby(base.copy(

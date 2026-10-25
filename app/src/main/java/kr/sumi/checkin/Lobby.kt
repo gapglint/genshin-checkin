@@ -482,6 +482,9 @@ object Lobby {
         return unlocked(voices(context, name), fetter)
     }
 
+    /** 로비 말풍선에 다 들어가는 대사 길이(글자). 이보다 긴 대사는 말풍선에서 쓰지 않는다(잘리지 않게). 60자가 넘으면 글자를 조금 작게 쓴다. */
+    const val BUBBLE_MAX = 90
+
     internal fun unlocked(lines: List<VoiceLine>, fetter: Int) =
         lines.filter { !it.story && !it.gendered && it.fetter <= fetter && it.text.length <= 120 }
 
