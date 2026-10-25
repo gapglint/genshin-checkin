@@ -40,6 +40,9 @@ data class TodayWidgetUi(
     val days: Int,
     val resin: String,
     val redeem: String,
+    /** 로비형을 쓰면 최애 원소 색(바탕)과 얼굴. 아니면 null(남색 바탕). */
+    val tint: Int? = null,
+    val face: android.graphics.Bitmap? = null,
 )
 
 /**
@@ -73,6 +76,8 @@ class TodayWidget : AppWidgetProvider() {
                     !settings.redeemEnabled -> "리딤 자동 입력 꺼짐"
                     else -> store.lastRedeemSummary?.substringBefore(":")?.trim() ?: "리딤 코드 기다리는 중"
                 },
+                tint = Lobby.favoriteLook(context)?.first,
+                face = Lobby.favoriteLook(context)?.second,
             )
         }
 
@@ -84,6 +89,15 @@ class TodayWidget : AppWidgetProvider() {
             setTextViewText(R.id.todayDays, s.days.toString())
             setTextViewText(R.id.todayResin, s.resin)
             setTextViewText(R.id.todayRedeem, s.redeem)
+            // 로비형: 바탕을 최애 원소의 짙은 색으로, 일수를 원소 파스텔로, 옆에 최애 얼굴.
+            if (s.tint != null) {
+                val t = LobbyTheme(s.tint)
+                setImageViewResource(R.id.todayBg, R.drawable.bg_widget)
+                setInt(R.id.todayBg, "setColorFilter", t.dark)
+                setTextColor(R.id.todayDays, t.light)
+            }
+            setViewVisibility(R.id.todayFace, if (s.face != null) View.VISIBLE else View.GONE)
+            s.face?.let { setImageViewBitmap(R.id.todayFace, it) }
             with(AppWidgets) { openOnClick(context, Intent(context, MainActivity::class.java), 1) }
         }
     }

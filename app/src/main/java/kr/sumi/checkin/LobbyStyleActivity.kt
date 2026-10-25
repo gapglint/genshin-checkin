@@ -62,6 +62,12 @@ class LobbyStyleActivity : Activity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        // 최애·홈 스타일이 바뀌었을 수 있으니 '오늘' 위젯도 맞춘다.
+        AppWidgets.updateAll(this)
+    }
+
     override fun onDestroy() {
         pool.shutdownNow()
         super.onDestroy()

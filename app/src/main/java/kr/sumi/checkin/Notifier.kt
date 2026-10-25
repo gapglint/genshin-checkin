@@ -75,8 +75,7 @@ object Notifier {
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
-            .setContentText(CheckIn.describe(outcome))
-            .setStyle(Notification.BigTextStyle().bigText(CheckIn.describe(outcome)))
+            .favorite(context, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -97,7 +96,7 @@ object Notifier {
         val notification = Notification.Builder(context, channel(context, CHANNEL_MAKE_UP))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + "보충 출석을 할 수 있어요")
-            .setContentText("이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.")
+            .favorite(context, "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -127,8 +126,7 @@ object Notifier {
         val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + title)
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+            .favorite(context, text, if (report.redeemed.isNotEmpty()) Mood.REWARD else Mood.WORRY)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -150,8 +148,7 @@ object Notifier {
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(who(context, store) + "호요랩 로그인이 곧 만료돼요")
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+            .favorite(context, text, Mood.WORRY)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -179,8 +176,7 @@ object Notifier {
             val notification = Notification.Builder(context, channel(context, CHANNEL_NOTES))
                 .setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle(who(context, store) + title)
-                .setContentText(text)
-                .setStyle(Notification.BigTextStyle().bigText(text))
+                .favorite(context, text, Mood.CHEER)
                 .setContentIntent(pending)
                 .apply { if (play != null) addAction(Notification.Action.Builder(null, "원신 켜기", play).build()) }
                 .setAutoCancel(true)
@@ -249,6 +245,32 @@ object Notifier {
             .setAutoCancel(true)
             .build()
         context.getSystemService(NotificationManager::class.java).notify(ID_NEW_CODES, notification)
+    }
+
+    /** 알림에 붙일 최애 대사의 분위기. 제목 앞부분으로 위키 대사를 고른다. */
+    enum class Mood { GREET, REWARD, WORRY, CHEER }
+
+    /**
+     * 본문을 넣는다. 로비형을 쓰고 최애가 있으면 큰 아이콘에 최애 얼굴, 펼쳤을 때 맨 위에 상황에 맞는 대사 한 줄.
+     * 접힌 알림의 한 줄은 늘 원래 내용이라 무엇을 알리는지는 그대로 보인다.
+     */
+    private fun Notification.Builder.favorite(context: Context, text: String, mood: Mood): Notification.Builder {
+        setContentText(text)
+        val look = Lobby.favoriteLook(context)
+        val fav = AppSettings(context).favorite
+        val line = if (look == null || fav == null) null else {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val prefixes = when (mood) {
+                Mood.GREET -> arrayOf(when (hour) { in 5..10 -> "아침 인사"; in 11..16 -> "점심 인사"; in 17..21 -> "저녁 인사"; else -> "굿나잇" })
+                Mood.REWARD -> arrayOf("보물상자 오픈")
+                Mood.WORRY -> arrayOf("동료 HP 감소", "HP 부족")
+                Mood.CHEER -> arrayOf("파티 가입")
+            }
+            Lobby.pick(Lobby.voices(context, fav.name), *prefixes).filter { it.text.length <= 70 }.randomOrNull()
+        }
+        look?.second?.let { setLargeIcon(it) }
+        setStyle(Notification.BigTextStyle().bigText(if (line != null) "${fav!!.name} 「${line.text}」\n$text" else text))
+        return this
     }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */

@@ -311,6 +311,45 @@ object Lobby {
         }
     }
 
+    /** 저장해 둔 작은 얼굴 그림만(받지 않는다). 알림·위젯처럼 바로 그려야 할 때 쓴다. */
+    fun cachedBust(context: Context, url: String): Bitmap? {
+        if (!url.startsWith("http") || !officialArtAllowed(context)) return null
+        val file = File(dir(context), "bust_${url.hashCode().toUInt()}.png")
+        return if (file.exists()) BitmapFactory.decodeFile(file.path) else null
+    }
+
+    /** 얼굴 그림을 원소 색 테두리가 있는 동그라미로(알림 큰 아이콘·위젯용). */
+    fun circle(src: Bitmap, ring: Int, size: Int = 144): Bitmap {
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        val r = size / 2f
+        paint.color = ring
+        c.drawCircle(r, r, r, paint)
+        paint.color = LobbyTheme.blend(ring, android.graphics.Color.WHITE, 0.55f)
+        c.drawCircle(r, r, r - size * 0.05f, paint)
+        val inset = size * 0.05f
+        val shader = android.graphics.BitmapShader(src, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+        val scale = (size - 2 * inset) / minOf(src.width, src.height)
+        shader.setLocalMatrix(android.graphics.Matrix().apply { setScale(scale, scale); postTranslate(inset, inset) })
+        paint.color = android.graphics.Color.WHITE
+        paint.shader = shader
+        c.drawCircle(r, r, r - inset, paint)
+        return out
+    }
+
+    /**
+     * 로비형을 쓰고 최애가 있으면 (원소 색, 얼굴 동그라미). 아니면 null. 알림·위젯이 쓴다.
+     * 공식 자료가 꺼져 있으면 얼굴은 null이고 색만 쓴다.
+     */
+    fun favoriteLook(context: Context): Pair<Int, Bitmap?>? {
+        val settings = AppSettings(context)
+        val fav = settings.favorite ?: return null
+        if (settings.homeStyle != STYLE_LOBBY) return null
+        val color = context.getColor(elementColorRes(fav.element))
+        return color to cachedBust(context, fav.image)?.let { circle(it, color) }
+    }
+
     /** 고른 사진을 화면 크기에 맞게 줄여 앱 안에만 저장한다(원본 사진은 건드리지 않는다). */
     @Throws(IOException::class)
     fun savePhoto(context: Context, uri: Uri, maxWidth: Int) {
