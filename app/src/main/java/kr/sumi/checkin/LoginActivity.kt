@@ -205,13 +205,25 @@ class LoginActivity : Activity() {
                     // 구글은 앱 안 로그인 화면을 막기도 한다('브라우저 또는 앱이 안전하지 않을 수 있습니다').
                     // 그 화면이면 팝업을 닫고 이메일·비밀번호로 로그인하는 방법을 알려 준다.
                     override fun onPageFinished(view: WebView, url: String) {
-                        if (!url.startsWith("https://accounts.google.com/")) return
-                        view.evaluateJavascript(GOOGLE_BLOCKED_JS) { found ->
-                            if (found == "true" && view === popup) {
-                                closePopup()
-                                googleBlocked()
+                        if (url.startsWith("https://accounts.google.com/")) {
+                            view.evaluateJavascript(GOOGLE_BLOCKED_JS) { found ->
+                                if (found == "true" && view === popup) {
+                                    closePopup()
+                                    googleBlocked("구글 로그인이 막혔어요")
+                                }
                             }
                         }
+                        // 로그인 마지막 단계에서 빈 흰 화면으로 멈추는 경우: 몇 초 뒤에도 같은 빈 화면이고
+                        // 로그인도 안 됐으면 팝업을 닫고 이메일 로그인을 안내한다.
+                        handler.postDelayed({
+                            if (view !== popup || view.url != url || loginCookie() != null) return@postDelayed
+                            view.evaluateJavascript(BLANK_PAGE_JS) { blank ->
+                                if (blank == "true" && view === popup && loginCookie() == null) {
+                                    closePopup()
+                                    googleBlocked("로그인이 끝나지 않았어요")
+                                }
+                            }
+                        }, BLANK_POPUP_MS)
                     }
                 }
             }
@@ -227,10 +239,10 @@ class LoginActivity : Activity() {
         }
     }
 
-    private fun googleBlocked() {
+    private fun googleBlocked(title: String) {
         AppDialog(this)
-            .setTitle("구글 로그인이 막혔어요")
-            .setMessage("구글은 다른 앱 안에서 하는 구글 로그인을 막아요. 이 로그인 창에서 구글 이메일 주소와 호요버스 비밀번호로 로그인해 주세요.\n\n" +
+            .setTitle(title)
+            .setMessage("구글은 다른 앱 안에서 하는 구글 로그인을 막기도 해요. 이 로그인 창에서 구글 이메일 주소와 호요버스 비밀번호로 로그인해 주세요.\n\n" +
                 "비밀번호가 없다면 로그인 창의 「문제 발생」에서 새로 만들 수 있어요. 같은 계정이라 게임 데이터는 그대로예요.")
             .setPositiveButton("이메일로 로그인")
             .show()
@@ -356,6 +368,16 @@ class LoginActivity : Activity() {
         private const val EXTRA_ACCOUNT = "account"
         private const val EXTRA_URL = "url"
         private const val EXTRA_TITLE = "title"
+        /** 팝업이 빈 화면으로 이만큼 멈춰 있으면 로그인이 끝나지 않은 것으로 본다. */
+        private const val BLANK_POPUP_MS = 8_000L
+        /** 보이는 글자도 그림·입력칸도 없는 빈 화면인지. */
+        private const val BLANK_PAGE_JS = """
+            (function () {
+              var b = document.body;
+              if (!b) return true;
+              return b.innerText.trim().length === 0 && !b.querySelector('img,svg,canvas,input,button,iframe,video');
+            })()
+        """
         private const val LOGIN_HINT_HEAD = "호요버스 계정 이메일과 비밀번호로 로그인해 주세요"
         /** 구글의 '로그인할 수 없음(안전하지 않은 브라우저)' 화면인지. 주소(rejected·disallowed)나 문구로 본다. */
         private const val GOOGLE_BLOCKED_JS = """
