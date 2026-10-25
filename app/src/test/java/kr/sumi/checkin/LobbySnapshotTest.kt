@@ -21,6 +21,7 @@ class LobbySnapshotTest {
         override fun onDockButton() {}
         override fun onMenu(key: String) {}
         override fun onSettings() {}
+        override fun onAccount() {}
     }
 
     /** 사진 대신: 하늘색 → 초록 세로 그라데이션(1080×1920). */
@@ -49,9 +50,15 @@ class LobbySnapshotTest {
         dockBig = null, dockBigLabel = null, dockButton = "다시 로그인",
     ), fakeArt())
 
+    /** 계정이 여럿이면 위에 계정 이름, 레진이 가득이면 금색 테두리. 이름이 긴 캐릭터는 글자를 줄인다. */
+    @Test fun accountAndFullResin() = lobby(base.copy(
+        name = "카에데하라 카즈하", element = "anemo", meta = "바람 · Lv.90 · 호감도 10 · 운명의 자리 0",
+        resin = 200, account = "부계정", dockBig = "가득", dockBigLabel = "레진",
+    ), fakeArt())
+
     @Test fun resinMenu() {
         val t = LobbyTheme(paparazzi.context.getColor(R.color.element_dendro))
-        val menu = LobbyMenu(paparazzi.context, "레진", t, null, "나히다") {}
+        val menu = LobbyMenu(paparazzi.context, "레진", t, null, "나히다", "dendro") {}
         menu.card { with(menu) { head("지금 레진"); meter(142, 200, "오후 3:20 가득") } }
         menu.card { with(menu) { head("오늘 할 일"); stats("4/5" to "탐사 파견 완료", "1,800" to "주전자 동전", "4/4" to "일일 의뢰") } }
         menu.card { with(menu) { head("10월 출석 보상 · 17 / 31"); calendar((1..31).map { if (it % 7 == 0) "원석" else "모라" }, 17, 18, 29) } }

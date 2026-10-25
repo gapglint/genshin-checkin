@@ -1075,7 +1075,40 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private var lobbyReturn: TextView? = null
+
+    /** 로비에서 '카드'로 카드 화면을 보는 중이면 아래에 '로비로' 단추를 띄운다. */
+    private fun updateLobbyReturn() {
+        val fav = settings.favorite
+        if (!(lobbyHidden && lobbyEnabled() && !editing) || fav == null) { lobbyReturn?.visibility = View.GONE; return }
+        val t = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
+        val d = resources.displayMetrics.density
+        val chip = lobbyReturn ?: TextView(this).apply {
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding((18 * d).toInt(), (11 * d).toInt(), (18 * d).toInt(), (11 * d).toInt())
+            elevation = 8 * d
+            setOnClickListener { lobbyHidden = false; refresh(); updateBackCallback() }
+            setOnApplyWindowInsetsListener { v, insets ->
+                @Suppress("DEPRECATION")
+                (v.layoutParams as android.view.ViewGroup.MarginLayoutParams).bottomMargin = (20 * d).toInt() + insets.systemWindowInsetBottom
+                v.requestLayout()
+                insets
+            }
+            val root = screen.root as android.widget.FrameLayout
+            root.addView(this, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-2, -2,
+                android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL).apply { bottomMargin = (36 * d).toInt() })
+            requestApplyInsets()
+            lobbyReturn = this
+        }
+        chip.text = "‹  ${fav.name}의 로비로"
+        chip.setTextColor(t.dark)
+        chip.background = android.graphics.drawable.GradientDrawable().apply { setColor(t.light); cornerRadius = 99 * d; setStroke((1 * d).toInt(), t.el) }
+        chip.visibility = View.VISIBLE
+    }
+
     private fun renderLobby(s: MainUiState) {
+        updateLobbyReturn()
         val fav = settings.favorite
         val store = store
         if (!lobbyEnabled() || editing || lobbyHidden || fav == null || store == null) {
@@ -1128,6 +1161,7 @@ class MainActivity : Activity() {
             s.busy != null -> "$hello, $who.\n지금 ${s.busy.trimEnd('.', ' ')} 중이에요."
             note != null -> "출석을 못 했어요.\n아래를 확인해 주세요."
             s.signedToday && resinFull -> "$hello, $who.\n레진이 가득 찼어요! 출석은 받아 뒀어요."
+            s.signedToday && s.totalDays >= Store.checkInDay().dayOfMonth && s.totalDays >= 7 -> "$hello, $who.\n이번 달 하루도 안 빠졌어요. 오늘도 받아 뒀어요."
             s.signedToday && redeemedToday -> "$hello, $who.\n오늘 출석이랑 새 코드도 받아 뒀어요."
             s.signedToday -> "$hello, $who.\n오늘 출석은 받아 뒀어요."
             else -> "$hello, $who.\n오늘 출석은 곧 받아 둘게요."
@@ -1144,6 +1178,7 @@ class MainActivity : Activity() {
             name = fav.name, element = fav.element, meta = meta, greeting = greeting,
             resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
             dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
+            account = s.accounts.takeIf { it.size > 1 }?.firstOrNull { it.id == s.currentId }?.label,
         )
         return when {
             s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }
@@ -1177,6 +1212,18 @@ class MainActivity : Activity() {
         override fun onCheckIn() = openLobbyMenu("출석") { checkInMenu() }
         override fun onDockButton() = dockAction()
         override fun onSettings() = showSettings(true)
+        override fun onAccount() {
+            val accounts = settings.accounts()
+            val names = accounts.map { it.displayName } + "+ 계정 추가"
+            AppDialog(this@MainActivity)
+                .setTitle("계정 바꾸기")
+                .setSingleChoiceItems(names.toTypedArray(), accounts.indexOfFirst { it.accountId == store?.accountId }) { dialog, which ->
+                    dialog.dismiss()
+                    if (which == accounts.size) startActivity(LoginActivity.loginIntent(this@MainActivity))
+                    else { settings.currentId = accounts[which].accountId; lobbyArtKey = null; refresh() }
+                }
+                .show()
+        }
         override fun onMenu(key: String) {
             when (key) {
                 LobbyView.MENU_REDEEM -> openLobbyMenu("리딤 코드") { redeemMenu() }
@@ -1193,7 +1240,7 @@ class MainActivity : Activity() {
     private fun openLobbyMenu(title: String, build: LobbyMenu.() -> Unit) {
         val fav = settings.favorite ?: return
         val theme = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
-        val menu = LobbyMenu(this, title, theme, lobbyBust, fav.name) { closeLobbyMenu() }
+        val menu = LobbyMenu(this, title, theme, lobbyBust, fav.name, fav.element) { closeLobbyMenu() }
         menu.build()
         val root = screen.root as android.widget.FrameLayout
         root.addView(menu, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
