@@ -1234,10 +1234,8 @@ class MainActivity : Activity() {
         override fun onSettings() = showSettings(true)
         override fun onBubble() {
             val fav = settings.favorite ?: return
-            // 잡담·날씨·취미 대사 중 하나(지금 것과 다르게). 음성이 있으면 들려준다.
-            val pool = Lobby.pick(Lobby.voices(this@MainActivity, fav.name), "잡담", "비가 올 때", "햇살이 좋을 때", "바람이 불 때", "눈이 올 때",
-                "${fav.name.split(" ").last()}의 취미", "흥미있는", "하고 싶은 이야기", "우리에 대해")
-                .filter { it.text != lobbyLine?.text && it.text.length <= 90 }
+            // 평소 이야기 대사 중 하나(지금 것과 다르게, 게임에서 열린 것만). 음성이 있으면 들려준다.
+            val pool = Lobby.talk(Lobby.unlockedVoices(this@MainActivity, fav.name), fav.name).filter { it.text != lobbyLine?.text }
             val line = pool.randomOrNull() ?: return
             lobbyLine = line
             lobbyLineKey = "tap"
@@ -1306,28 +1304,29 @@ class MainActivity : Activity() {
      * 대사가 아직 없으면 받아 오고, 없으면 null(기본 인사).
      */
     private fun lobbyQuote(fav: Favorite, hour: Int, problem: Boolean, newReward: Boolean): Lobby.VoiceLine? {
-        val voices = Lobby.voices(this, fav.name)
-        if (voices.isEmpty()) {
+        if (Lobby.voices(this, fav.name).isEmpty()) {
             if (loadingVoices != fav.name && Lobby.officialArtAllowed(this)) {
                 loadingVoices = fav.name
                 Thread { Lobby.loadVoices(this, fav.name); runOnUiThread { if (Lobby.voices(this, fav.name).isNotEmpty()) refresh() } }.start()
             }
             return null
         }
-        val (key, prefixes) = when {
-            problem -> "problem" to arrayOf("HP 부족", "동료 HP 감소")
-            newReward -> "reward" to arrayOf("보물상자 오픈")
-            hour in 5..10 -> "morning" to arrayOf("아침 인사")
-            hour in 11..16 -> "noon" to arrayOf("점심 인사")
-            hour in 17..21 -> "evening" to arrayOf("저녁 인사")
-            else -> "night" to arrayOf("굿나잇")
+        val voices = Lobby.unlockedVoices(this, fav.name)
+        val key = when {
+            problem -> "problem"
+            newReward -> "reward"
+            else -> Lobby.timeGreeting(hour)
         }
         val fullKey = "${fav.name}|$key|${Store.checkInDay()}"
-        // 말풍선을 눌러 고른 대사는 상황이 바뀌기 전까지 그대로 둔다.
+        // 말풍선이나 캐릭터를 눌러 고른 대사는 상황이 바뀌기 전까지 그대로 둔다.
         if (lobbyLineKey == "tap" && lobbyLine != null && lobbyLine in voices) return lobbyLine
         if (fullKey == lobbyLineKey && lobbyLine != null) return lobbyLine
         lobbyLineKey = fullKey
-        lobbyLine = Lobby.pick(voices, *prefixes).randomOrNull() ?: Lobby.pick(voices, "첫 만남").firstOrNull()
+        lobbyLine = when {
+            problem -> Lobby.pick(voices, "HP 부족", "동료 HP 감소").randomOrNull()
+            newReward -> Lobby.pick(voices, "보물상자 오픈").randomOrNull()
+            else -> null
+        } ?: Lobby.greetingLine(voices, fav.name, hour)
         return lobbyLine
     }
 

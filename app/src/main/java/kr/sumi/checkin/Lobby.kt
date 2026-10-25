@@ -323,22 +323,44 @@ object Lobby {
 
     // ---------- 캐릭터 대사 ----------
 
-    /** 캐릭터 대사 한 줄: 제목(예: "아침 인사…"), 한국어 대사, 한국어 음성 주소(없을 수 있음). */
-    data class VoiceLine(val title: String, val text: String, val audio: String?)
+    /**
+     * 캐릭터 대사 한 줄: 제목(예: "아침 인사…"), 한국어 대사, 한국어 음성 주소(없을 수 있음),
+     * 게임에서 열리는 호감도(0이면 처음부터), 스토리를 깨야 열리는지, 여행자 성별 전용인지.
+     */
+    data class VoiceLine(
+        val title: String, val text: String, val audio: String?,
+        val fetter: Int = 0, val story: Boolean = false, val gendered: Boolean = false,
+    )
 
-    /** 위키 문서의 음성(voice) 목록. 태그와 '돌파 Lv.… 개방' 같은 안내는 뗀다. */
     /** 위키 대사 칸의 개방 조건(예: "호감도 Lv.4 달성 후 개방", "「물의 아이」 스토리 클리어"). 문단 하나가 통째로 조건(뒤에 ※주의가 붙기도)이거나 대사 끝에 붙어 있다. */
     private val UNLOCK_TAIL = Regex("(호감도|돌파) Lv\\.?\\s*「?\\d+」?\\s*달성 후 개방$")
     private val UNLOCK_PARAGRAPH = Regex("^((호감도|돌파) Lv|※|.{0,40}(스토리 (클리어|완료)|후 개방)$)")
+    private val FETTER = Regex("호감도 Lv\\.?\\s*(\\d+)")
+    private val GENDERED = Regex("\\(「[^」]*」 전용 음성\\)")
 
-    /** 대사 칸(HTML)에서 대사만: 문단별로 끝에 붙은 조건을 지우고, 조건만 있는 문단은 뺀다. */
-    internal fun voiceText(desc: String): String =
-        desc.replace(Regex("<br\\s*/?>"), " ").replace("</p>", "\n").replace(Regex("<[^>]+>"), "").replace("&nbsp;", " ")
-            .split("\n")
-            .map { it.trim().replace(UNLOCK_TAIL, "").replace(Regex("\\(「[^」]*」 전용 음성\\)"), "").trim() }
-            .filter { it.isNotEmpty() && !UNLOCK_PARAGRAPH.containsMatchIn(it) }
-            .joinToString(" ")
+    /** 대사 칸(HTML) 하나를 대사와 개방 조건으로 나눈다. 조건은 문단(또는 줄) 하나이거나 대사 끝에 붙어 있다. 남은 줄은 한 칸 띄워 잇는다. */
+    internal fun voiceLine(title: String, desc: String, audio: String?): VoiceLine? {
+        var fetter = 0
+        var story = false
+        val kept = mutableListOf<String>()
+        val paragraphs = desc.replace(Regex("<br\\s*/?>|</p>"), "\n").replace(Regex("<[^>]+>"), "").replace("&nbsp;", " ").split("\n")
+        for (raw in paragraphs) {
+            var p = raw.trim()
+            val conditions = mutableListOf<String>()
+            UNLOCK_TAIL.find(p)?.let { conditions += it.value; p = p.substring(0, it.range.first).trim() }
+            if (UNLOCK_PARAGRAPH.containsMatchIn(p)) { conditions += p; p = "" }
+            for (c in conditions) {
+                FETTER.find(c)?.let { fetter = maxOf(fetter, it.groupValues[1].toInt()) }
+                if (c.contains("스토리") || c.contains("임무") || c.contains("클리어")) story = true
+            }
+            p = p.replace(GENDERED, "").trim()
+            if (p.isNotEmpty()) kept += p
+        }
+        val text = kept.joinToString(" ")
+        return if (text.isEmpty()) null else VoiceLine(title, text, audio, fetter, story, GENDERED.containsMatchIn(desc))
+    }
 
+    /** 위키 문서의 음성(voice) 목록. */
     internal fun voiceLines(page: JSONObject): List<VoiceLine> {
         val modules = page.optJSONObject("data")?.optJSONObject("page")?.optJSONArray("modules") ?: return emptyList()
         for (i in 0 until modules.length()) {
@@ -346,39 +368,54 @@ object Lobby {
             for (j in 0 until comps.length()) {
                 val comp = comps.getJSONObject(j)
                 if (comp.optString("component_id") != "voice") continue
-                val list = JSONObject(comp.optString("data", "{}")).optJSONArray("list") ?: return emptyList()
+                val list = try { JSONObject(comp.optString("data", "{}")).optJSONArray("list") } catch (e: Exception) { null } ?: return emptyList()
                 return (0 until list.length()).map { list.getJSONObject(it) }.mapNotNull { v ->
-                    val text = voiceText(v.optString("desc"))
                     val audios = v.optJSONArray("audios")
                     val ko = (0 until (audios?.length() ?: 0)).map { audios!!.getJSONObject(it) }.firstOrNull { it.optString("name") == "한국어" }?.optString("url")
-                    if (text.isEmpty()) null else VoiceLine(v.optString("title").trim(), text, ko?.takeIf { it.startsWith("https://") })
+                    voiceLine(v.optString("title").trim(), v.optString("desc"), ko?.takeIf { it.startsWith("https://") })
                 }
             }
         }
         return emptyList()
     }
 
-    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_v2_${name.hashCode().toUInt()}.json")
+    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_v3_${name.hashCode().toUInt()}.json")
 
     private fun saveVoices(context: Context, name: String, lines: List<VoiceLine>) {
         if (lines.isEmpty()) return
         // 다른 캐릭터 대사는 지운다(최애 하나만 둔다).
         dir(context).listFiles { f -> f.name.startsWith("voices_") }?.forEach { it.delete() }
-        voicesFile(context, name).writeText(org.json.JSONArray(lines.map { JSONObject().put("t", it.title).put("x", it.text).put("a", it.audio ?: "") }).toString())
+        voicesFile(context, name).writeText(org.json.JSONArray(lines.map {
+            JSONObject().put("t", it.title).put("x", it.text).put("a", it.audio ?: "").put("f", it.fetter).put("s", it.story).put("g", it.gendered)
+        }).toString())
     }
 
-    /** 저장해 둔 최애 대사. 공식 자료가 꺼져 있으면 비어 있다. */
+    /** 저장해 둔 최애 대사 전부(잠긴 것 포함). 공식 자료가 꺼져 있으면 비어 있다. 보여 줄 때는 [unlockedVoices]. */
     fun voices(context: Context, name: String): List<VoiceLine> {
         if (!officialArtAllowed(context)) return emptyList()
         val file = voicesFile(context, name)
         if (!file.exists()) return emptyList()
         return try {
             val a = org.json.JSONArray(file.readText())
-            (0 until a.length()).map { a.getJSONObject(it) }.map { VoiceLine(it.optString("t"), it.optString("x"), it.optString("a").ifEmpty { null }) }
+            (0 until a.length()).map { a.getJSONObject(it) }.map {
+                VoiceLine(it.optString("t"), it.optString("x"), it.optString("a").ifEmpty { null }, it.optInt("f"), it.optBoolean("s"), it.optBoolean("g"))
+            }
         } catch (e: Exception) {
             emptyList()
         }
     }
+
+    /**
+     * 게임에서 이미 열렸을 대사만: 내 호감도(전적, 계정 중 가장 높은 것. 없으면 0)까지 열리는 것.
+     * 스토리를 깨야 열리는 대사는 진행도를 알 수 없어 늘 빼고(스포일러), 여행자 성별 전용 대사와 너무 긴 대사도 뺀다.
+     */
+    fun unlockedVoices(context: Context, name: String): List<VoiceLine> {
+        val fetter = AppSettings(context).accounts().maxOfOrNull { store -> cachedCharacters(context, store).firstOrNull { it.name == name }?.fetter ?: 0 } ?: 0
+        return unlocked(voices(context, name), fetter)
+    }
+
+    internal fun unlocked(lines: List<VoiceLine>, fetter: Int) =
+        lines.filter { !it.story && !it.gendered && it.fetter <= fetter && it.text.length <= 120 }
 
     /** 대사가 아직 없으면 받아 둔다(공식 그림을 안 써도 대사는 쓴다). */
     fun loadVoices(context: Context, name: String) {
@@ -389,6 +426,27 @@ object Lobby {
     /** 상황에 맞는 대사 묶음(제목 앞부분으로 고른다). */
     fun pick(lines: List<VoiceLine>, vararg prefixes: String): List<VoiceLine> =
         lines.filter { l -> prefixes.any { l.title.startsWith(it) } }
+
+    /**
+     * 평소 이야기 대사(잡담·하고 싶은 이야기·취미·고민·자기 이야기·우리에 대해 등). 위키가 캐릭터마다 같은 제목을 쓴다.
+     * 날씨 대사(실제 날씨와 어긋남)와 다른 캐릭터 이야기(분위기가 무거운 것이 섞임), 전투 대사는 넣지 않는다.
+     */
+    fun talk(lines: List<VoiceLine>, name: String): List<VoiceLine> {
+        val names = listOf(name, name.split(" ").last()).distinct()
+        val own = names.flatMap { listOf("${it}의 취미", "${it}의 고민", "${it}에 대해 알기", "${it} 자신에 대해") }
+        return pick(lines, "잡담", "하고 싶은 이야기", "흥미있는 일", "좋아하는 음식", "우리에 대해", "「신의 눈」에 대해", *own.toTypedArray())
+    }
+
+    /** 시간대 공식 인사 묶음의 제목. */
+    fun timeGreeting(hour: Int) = when (hour) { in 5..10 -> "아침 인사"; in 11..16 -> "점심 인사"; in 17..21 -> "저녁 인사"; else -> "굿나잇" }
+
+    /** 인사 대사 하나: 반쯤은 시간대 공식 인사, 반쯤은 평소 이야기(공식 인사가 없으면 평소 이야기만). */
+    fun greetingLine(lines: List<VoiceLine>, name: String, hour: Int, random: kotlin.random.Random = kotlin.random.Random): VoiceLine? {
+        val official = pick(lines, timeGreeting(hour))
+        val chat = talk(lines, name)
+        val pool = if (official.isNotEmpty() && (chat.isEmpty() || random.nextBoolean())) official else chat
+        return pool.randomOrNull(random) ?: pick(lines, "첫 만남").firstOrNull()
+    }
 
     /** 위키 문서에서 갤러리(gallery_character)의 세로 그림 주소. */
     internal fun galleryPortrait(page: JSONObject): String? {

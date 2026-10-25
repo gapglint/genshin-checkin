@@ -31,6 +31,7 @@ class LobbyTest {
             .put(JSONObject().put("title", "아침 인사…").put("desc", "<p>좋은 아침이에요.<br>오늘도 힘내요</p>")
                 .put("audios", org.json.JSONArray().put(JSONObject().put("name", "한국어").put("url", "https://example.com/ko.wav"))))
             .put(JSONObject().put("title", "돌파의 느낌·기").put("desc", "<p>정말 감사해요돌파 Lv.「1」 달성 후 개방</p>"))
+            .put(JSONObject().put("title", "첫 만남…").put("desc", "<p>안녕하세요 (「루미네」 전용 음성)</p>"))
             .put(JSONObject().put("title", "눈이 올 때…").put("desc", "<p><span class=\"wk-shady\">같이 할래요?</span></p><p>호감도 Lv.6 달성 후 개방</p>"))
             .put(JSONObject().put("title", "우리에 대해").put("desc", "<p>호감도 Lv.4 달성 후 개방</p><p>「물의 아이」 스토리 클리어</p><p>이제 우리 이야기야</p>"))
             .put(JSONObject().put("title", "누군가에 대해").put("desc", "<p>미안해서랄까</p><p>호감도 Lv.4 달성 및 「천수백안의 세상」 스토리 완료 후 개방<br><br>※주의: 더 이상 들을 수 없습니다</p>"))
@@ -41,10 +42,30 @@ class LobbyTest {
         assertEquals(listOf(
             Lobby.VoiceLine("아침 인사…", "좋은 아침이에요. 오늘도 힘내요", "https://example.com/ko.wav"),
             Lobby.VoiceLine("돌파의 느낌·기", "정말 감사해요", null),
-            Lobby.VoiceLine("눈이 올 때…", "같이 할래요?", null),
-            Lobby.VoiceLine("우리에 대해", "이제 우리 이야기야", null),
-            Lobby.VoiceLine("누군가에 대해", "미안해서랄까", null),
+            Lobby.VoiceLine("첫 만남…", "안녕하세요", null, gendered = true),
+            Lobby.VoiceLine("눈이 올 때…", "같이 할래요?", null, fetter = 6),
+            Lobby.VoiceLine("우리에 대해", "이제 우리 이야기야", null, fetter = 4, story = true),
+            Lobby.VoiceLine("누군가에 대해", "미안해서랄까", null, fetter = 4, story = true),
         ), lines)
         assertEquals(1, Lobby.pick(lines, "아침 인사").size)
+        // 호감도 4면 Lv.6 대사는 아직 잠겨 있고, 스토리 조건 대사는 늘 뺀다.
+        assertEquals(listOf("아침 인사…", "돌파의 느낌·기"), Lobby.unlocked(lines, 4).map { it.title })
+        assertEquals(listOf("아침 인사…", "돌파의 느낌·기", "눈이 올 때…"), Lobby.unlocked(lines, 10).map { it.title })
+    }
+
+    @Test fun greetingMixesOfficialAndTalk() {
+        val lines = listOf(
+            Lobby.VoiceLine("아침 인사…", "아침인가요?", null),
+            Lobby.VoiceLine("잡담·더위에 약함", "시원한 곳으로 가고 싶어", null),
+            Lobby.VoiceLine("치치의 취미…", "애완동물이 있었으면 좋겠어요", null),
+            Lobby.VoiceLine("저녁 인사…", "저녁이네", null),
+            Lobby.VoiceLine("비가 올 때…", "우산을 깜빡했네", null),
+            Lobby.VoiceLine("호두에 대해…", "싫어", null),
+        )
+        val seen = (0 until 200).mapNotNull { Lobby.greetingLine(lines, "치치", 8, kotlin.random.Random(it))?.text }.toSet()
+        // 아침에는 아침 인사와 평소 이야기만(저녁 인사·날씨·다른 캐릭터 이야기는 안 나온다).
+        assertEquals(setOf("아침인가요?", "시원한 곳으로 가고 싶어", "애완동물이 있었으면 좋겠어요"), seen)
+        // 공식 인사가 없는 캐릭터는 평소 이야기만.
+        assertEquals("시원한 곳으로 가고 싶어", Lobby.greetingLine(lines.drop(1).take(1), "치치", 8)?.text)
     }
 }

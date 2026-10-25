@@ -94,6 +94,15 @@ class LobbyView(context: Context) : FrameLayout(context) {
         const val MENU_DECORATE = "decorate"
     }
 
+    /** 눌렀을 때 살짝 위로 들썩였다 돌아온다(애니메이션을 끈 기기에서는 그대로). */
+    private fun hop(v: View) {
+        if (!android.animation.ValueAnimator.areAnimatorsEnabled()) return
+        v.animate().cancel()
+        v.animate().translationY(-dp(6).toFloat()).setDuration(110).withEndAction {
+            v.animate().translationY(0f).setDuration(180).setInterpolator(android.view.animation.OvershootInterpolator()).start()
+        }.start()
+    }
+
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
@@ -131,7 +140,11 @@ class LobbyView(context: Context) : FrameLayout(context) {
         shownArt = art
         if (art != null) {
             val imgH = w * art.height / art.width
-            val image = ImageView(context).apply { setImageBitmap(art); scaleType = ImageView.ScaleType.FIT_XY; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+            // 캐릭터를 누르면 말풍선을 누른 것처럼 다른 대사(음성). 살짝 들썩여 반응한다. 화면 읽기는 말풍선으로 같은 일을 한다.
+            val image = ImageView(context).apply {
+                setImageBitmap(art); scaleType = ImageView.ScaleType.FIT_XY; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                setOnClickListener { hop(this); actions.onBubble() }
+            }
             addView(image, LayoutParams(MATCH_PARENT, imgH))
             artBottom = minOf(imgH, (h * 0.76f).toInt())
             // 새 그림이면 부드럽게 나타나고, 그림은 숨 쉬듯 아주 천천히 커졌다 작아진다.
@@ -156,6 +169,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 setColorFilter(Color.WHITE)
                 alpha = 0.10f
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                setOnClickListener { hop(this); actions.onBubble() }
             }, LayoutParams((w * 0.9f).toInt(), (w * 0.9f).toInt(), Gravity.CENTER_HORIZONTAL).apply { topMargin = (h * 0.14f).toInt() })
             artBottom = (h * 0.7f).toInt()
         }

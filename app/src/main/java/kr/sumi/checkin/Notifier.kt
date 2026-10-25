@@ -261,14 +261,13 @@ object Notifier {
         val look = Lobby.favoriteLook(context)
         val fav = AppSettings(context).favorite
         val line = if (look == null || fav == null) null else {
-            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-            val prefixes = when (mood) {
-                Mood.GREET -> arrayOf(when (hour) { in 5..10 -> "아침 인사"; in 11..16 -> "점심 인사"; in 17..21 -> "저녁 인사"; else -> "굿나잇" })
-                Mood.REWARD -> arrayOf("보물상자 오픈")
-                Mood.WORRY -> arrayOf("동료 HP 감소", "HP 부족")
-                Mood.CHEER -> arrayOf("파티 가입")
+            val voices = Lobby.unlockedVoices(context, fav.name)
+            when (mood) {
+                Mood.GREET -> Lobby.greetingLine(voices.filter { it.text.length <= 70 }, fav.name, java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY))
+                Mood.REWARD -> Lobby.pick(voices, "보물상자 오픈").filter { it.text.length <= 70 }.randomOrNull()
+                Mood.WORRY -> Lobby.pick(voices, "동료 HP 감소", "HP 부족").filter { it.text.length <= 70 }.randomOrNull()
+                Mood.CHEER -> Lobby.pick(voices, "파티 가입").filter { it.text.length <= 70 }.randomOrNull()
             }
-            Lobby.pick(Lobby.voices(context, fav.name), *prefixes).filter { it.text.length <= 70 }.randomOrNull()
         }
         val quote = if (line != null) "${fav!!.name} 「${line.text}」" else null
         val art = if (look != null && fav != null) Lobby.cachedNotifArt(context, fav.name) else null
