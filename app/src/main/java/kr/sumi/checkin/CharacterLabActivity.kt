@@ -290,7 +290,12 @@ class CharacterLabActivity : Activity() {
         scroll.setOnScrollChangeListener { _, _, y, _, _ ->
             val t = (y / (screenH * 0.5f)).coerceIn(0f, 1f)
             image.translationY = -y * 0.35f
-            dim.alpha = t * 0.85f
+            dim.alpha = t * 0.55f
+            // 안드로이드 12 이상: 밀어 올릴수록 그림을 흐리게(유리 카드 뒤 배경처럼)
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                val r = t * dp(18)
+                image.setRenderEffect(if (r < 1f) null else android.graphics.RenderEffect.createBlurEffect(r, r, android.graphics.Shader.TileMode.CLAMP))
+            }
             side.alpha = 1f - t * 2f
             bubble.alpha = 1f - t * 2f
         }
@@ -319,7 +324,7 @@ class CharacterLabActivity : Activity() {
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.END
-                addView(label("3:20", 28f, light))
+                addView(label("3:20", 30f, light, numeral = true))
                 addView(label("레진 가득", 10.5f, 0xDDFFFFFF.toInt()))
             })
         })
@@ -332,48 +337,96 @@ class CharacterLabActivity : Activity() {
             LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
     }
 
-    /** 밀어 올리면 나오는 지금의 카드들(예시 값). */
+    /** 밀어 올리면 나오는 카드들(예시 값). 로비와 같은 유리 카드·원소 파스텔·숫자 글씨체로 이어진다. */
     private fun detailCards(el: Int, light: Int) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(16), dp(18), dp(16), dp(40))
-        background = GradientDrawable().apply {
-            setColor(getColor(R.color.bg))
-            val r = dp(26).toFloat(); cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+        setPadding(dp(14), dp(4), dp(14), dp(48))
+        val soft = 0xCCFFFFFF.toInt()
+        fun glass() = GradientDrawable().apply { setColor(0x24FFFFFF); setStroke(dp(1), 0x33FFFFFF); cornerRadius = dp(22).toFloat() }
+        fun head(text: String) = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(View(context).apply { background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(light) } }, LinearLayout.LayoutParams(dp(7), dp(7)))
+            addView(label(text, 13f, soft, bold = true).apply { setPadding(dp(8), 0, 0, 0) })
         }
-        addView(View(context).apply { background = GradientDrawable().apply { setColor(0xFFC5CAD6.toInt()); cornerRadius = dp(3).toFloat() } },
-            LinearLayout.LayoutParams(dp(40), dp(5)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(10) })
-        fun card(title: String, vararg lines: String) = addView(LinearLayout(context).apply {
+        fun card(build: LinearLayout.() -> Unit) = addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = GradientDrawable().apply { setColor(getColor(R.color.surface)); cornerRadius = dp(20).toFloat() }
-            addView(label(title, 14f, getColor(R.color.ink), bold = true))
-            for (l in lines) addView(label(l, 13f, getColor(R.color.ink_muted)).apply { setPadding(0, dp(6), 0, 0) })
-        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
-        card("레진 142 / 200 · 오후 3:20 가득", "탐사 파견 4/5 완료", "주전자 동전 1,800 / 2,400", "일일 의뢰 4 / 4 · 보상 받음")
-        // 이번 달 출석 달력(간단히)
-        addView(LinearLayout(context).apply {
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            background = glass()
+            build()
+        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
+        fun stat(row: LinearLayout, value: String, unit: String) = row.addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = GradientDrawable().apply { setColor(getColor(R.color.surface)); cornerRadius = dp(20).toFloat() }
-            addView(label("10월 출석 보상 · 17 / 31", 14f, getColor(R.color.ink), bold = true))
+            addView(label(value, 26f, Color.WHITE, numeral = true))
+            addView(label(unit, 11f, 0xAAFFFFFF.toInt()))
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+
+        card {
+            addView(head("레진"))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.BOTTOM
+                setPadding(0, dp(8), 0, 0)
+                addView(label("142", 40f, Color.WHITE, numeral = true))
+                addView(label(" / 200", 18f, 0x99FFFFFF.toInt(), numeral = true).apply { setPadding(0, 0, 0, dp(6)) })
+                addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+                addView(label("오후 3:20 가득", 13f, light, bold = true).apply { setPadding(0, 0, 0, dp(8)) })
+            })
+            addView(FrameLayout(context).apply {
+                background = GradientDrawable().apply { setColor(0x26FFFFFF); cornerRadius = dp(4).toFloat() }
+                addView(View(context).apply { background = GradientDrawable().apply { setColor(light); cornerRadius = dp(4).toFloat() } },
+                    FrameLayout.LayoutParams((resources.displayMetrics.widthPixels - dp(64)) * 142 / 200, MATCH_PARENT))
+            }, LinearLayout.LayoutParams(MATCH_PARENT, dp(7)).apply { topMargin = dp(8) })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(14), 0, 0)
+                stat(this, "4/5", "탐사 파견 완료")
+                stat(this, "1,800", "주전자 동전")
+                stat(this, "4/4", "일일 의뢰")
+            })
+        }
+        card {
+            addView(head("10월 출석 보상 · 17 / 31"))
             var row: LinearLayout? = null
             for (d in 1..35) {
-                if ((d - 1) % 7 == 0) row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, 0) }.also { addView(it) }
-                row!!.addView(label(if (d <= 31) "$d" else "", 11f, if (d <= 17) Color.WHITE else getColor(R.color.ink_muted)).apply {
+                if ((d - 1) % 7 == 0) row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, 0) }.also { addView(it) }
+                val done = d <= 17
+                row!!.addView(label(if (d <= 31) "$d" else "", 13f, if (done) blend(el, Color.BLACK, 0.6f) else 0xBBFFFFFF.toInt(), numeral = true).apply {
                     gravity = Gravity.CENTER
-                    if (d <= 31) background = GradientDrawable().apply { setColor(if (d <= 17) el else 0xFFF0F2F7.toInt()); cornerRadius = dp(8).toFloat() }
-                }, LinearLayout.LayoutParams(0, dp(34), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+                    if (d <= 31) background = GradientDrawable().apply {
+                        setColor(if (done) light else 0x14FFFFFF)
+                        if (d == 18) setStroke(dp(2), light)
+                        cornerRadius = dp(10).toFloat()
+                    }
+                }, LinearLayout.LayoutParams(0, dp(36), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
             }
-        }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
-        card("이번 달 받은 것", "원석 140 · 모라 25,000 · 영웅의 경험 6", "10/18 리딤 PJ2KEBRAYSRM · 원석 ×60")
-        card("지금 픽업 · 11월 3일까지", "에스코피에 · 스커크", "가장 오래 기다린 캐릭터 · 호두 17버전째")
-        card("메인 화면 편집", "카드 순서·숨기기·홈 스타일(카드형 / 로비형)")
+            addView(label("다음 원석 4일 뒤 ×20", 12f, light).apply { setPadding(0, dp(10), 0, 0) })
+        }
+        card {
+            addView(head("이번 달 받은 것"))
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(10), 0, 0)
+                stat(this, "140", "원석")
+                stat(this, "25,000", "모라")
+                stat(this, "6", "영웅의 경험")
+            })
+            addView(label("10/18 리딤 PJ2KEBRAYSRM · 원석 ×60", 12.5f, 0xAAFFFFFF.toInt()).apply { setPadding(0, dp(12), 0, 0) })
+        }
+        card {
+            addView(head("지금 픽업 · 11월 3일까지"))
+            addView(label("에스코피에 · 스커크", 17f, Color.WHITE, bold = true).apply { setPadding(0, dp(8), 0, 0) })
+            addView(label("가장 오래 기다린 캐릭터 · 호두 17버전째", 12.5f, 0xAAFFFFFF.toInt()).apply { setPadding(0, dp(4), 0, 0) })
+        }
     }
 
-    private fun label(text: String, size: Float, color: Int, bold: Boolean = false, shadow: Boolean = false) = TextView(this).apply {
+    private val numerals by lazy { resources.getFont(R.font.hoyo_numerals) }
+
+    private fun label(text: String, size: Float, color: Int, bold: Boolean = false, shadow: Boolean = false, numeral: Boolean = false) = TextView(this).apply {
         this.text = text
         textSize = size
         setTextColor(color)
+        if (numeral) typeface = numerals
         if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
         if (shadow) setShadowLayer(dp(6).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
     }
