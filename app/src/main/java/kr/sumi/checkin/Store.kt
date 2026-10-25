@@ -407,6 +407,10 @@ class AppSettings(private val context: Context) {
     var rerunAlert: Boolean
         get() = prefs.getBoolean("rerun_alert", true)
         set(value) = prefs.edit { putBoolean("rerun_alert", value) }
+    /** 로비 캐릭터 음성 언어: ko·ja·zh·en, 또는 off(음성 없이 대사만). 대사 글은 늘 한국어. */
+    var voiceLanguage: String
+        get() = prefs.getString("voice_language", "ko") ?: "ko"
+        set(value) = prefs.edit { putString("voice_language", value) }
     /** 복각표에 4성도 보일지(기본은 5성만). */
     var rerunFours: Boolean
         get() = prefs.getBoolean("rerun_fours", false)

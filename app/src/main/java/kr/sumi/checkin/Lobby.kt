@@ -374,12 +374,20 @@ object Lobby {
 
     /**
      * 캐릭터 대사 한 줄: 제목(예: "아침 인사…"), 한국어 대사, 한국어 음성 주소(없을 수 있음),
-     * 게임에서 열리는 호감도(0이면 처음부터), 스토리를 깨야 열리는지, 여행자 성별 전용인지.
+     * 게임에서 열리는 호감도(0이면 처음부터), 스토리를 깨야 열리는지, 여행자 성별 전용인지,
+     * 다른 언어 음성 주소(ja·zh·en → 주소).
      */
     data class VoiceLine(
         val title: String, val text: String, val audio: String?,
         val fetter: Int = 0, val story: Boolean = false, val gendered: Boolean = false,
-    )
+        val others: Map<String, String> = emptyMap(),
+    ) {
+        /** 고른 음성 언어(ko·ja·zh·en)의 주소. 없거나 음성을 껐으면 null. */
+        fun audioFor(language: String): String? = if (language == "ko") audio else others[language]
+    }
+
+    /** 음성 언어: 앱 설정 값 → 위키 음성 이름. */
+    val VOICE_LANGUAGES = linkedMapOf("ko" to "한국어", "ja" to "일본어", "zh" to "중국어", "en" to "영어")
 
     /** 위키 대사 칸의 개방 조건(예: "호감도 Lv.4 달성 후 개방", "「물의 아이」 스토리 클리어"). 문단 하나가 통째로 조건(뒤에 ※주의가 붙기도)이거나 대사 끝에 붙어 있다. */
     private val UNLOCK_TAIL = Regex("(호감도|돌파) Lv\\.?\\s*「?\\d+」?\\s*달성 후 개방$")
@@ -388,7 +396,7 @@ object Lobby {
     private val GENDERED = Regex("\\(「[^」]*」 전용 음성\\)")
 
     /** 대사 칸(HTML) 하나를 대사와 개방 조건으로 나눈다. 조건은 문단(또는 줄) 하나이거나 대사 끝에 붙어 있다. 남은 줄은 한 칸 띄워 잇는다. */
-    internal fun voiceLine(title: String, desc: String, audio: String?): VoiceLine? {
+    internal fun voiceLine(title: String, desc: String, audio: String?, others: Map<String, String> = emptyMap()): VoiceLine? {
         var fetter = 0
         var story = false
         val kept = mutableListOf<String>()
@@ -406,7 +414,7 @@ object Lobby {
             if (p.isNotEmpty()) kept += p
         }
         val text = kept.joinToString(" ")
-        return if (text.isEmpty()) null else VoiceLine(title, text, audio, fetter, story, GENDERED.containsMatchIn(desc))
+        return if (text.isEmpty()) null else VoiceLine(title, text, audio, fetter, story, GENDERED.containsMatchIn(desc), others)
     }
 
     /** 위키 문서의 음성(voice) 목록. */
@@ -420,15 +428,17 @@ object Lobby {
                 val list = try { JSONObject(comp.optString("data", "{}")).optJSONArray("list") } catch (e: Exception) { null } ?: return emptyList()
                 return (0 until list.length()).map { list.getJSONObject(it) }.mapNotNull { v ->
                     val audios = v.optJSONArray("audios")
-                    val ko = (0 until (audios?.length() ?: 0)).map { audios!!.getJSONObject(it) }.firstOrNull { it.optString("name") == "한국어" }?.optString("url")
-                    voiceLine(v.optString("title").trim(), v.optString("desc"), ko?.takeIf { it.startsWith("https://") })
+                    val byName = (0 until (audios?.length() ?: 0)).map { audios!!.getJSONObject(it) }
+                        .associate { it.optString("name") to it.optString("url") }.filterValues { it.startsWith("https://") }
+                    val others = VOICE_LANGUAGES.filterKeys { it != "ko" }.mapNotNull { (code, name) -> byName[name]?.let { code to it } }.toMap()
+                    voiceLine(v.optString("title").trim(), v.optString("desc"), byName["한국어"], others)
                 }
             }
         }
         return emptyList()
     }
 
-    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_v3_${name.hashCode().toUInt()}.json")
+    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_v4_${name.hashCode().toUInt()}.json")
 
     private fun saveVoices(context: Context, name: String, lines: List<VoiceLine>) {
         if (lines.isEmpty()) return
@@ -436,6 +446,7 @@ object Lobby {
         dir(context).listFiles { f -> f.name.startsWith("voices_") }?.forEach { it.delete() }
         voicesFile(context, name).writeText(org.json.JSONArray(lines.map {
             JSONObject().put("t", it.title).put("x", it.text).put("a", it.audio ?: "").put("f", it.fetter).put("s", it.story).put("g", it.gendered)
+                .put("o", JSONObject(it.others))
         }).toString())
     }
 
@@ -447,7 +458,9 @@ object Lobby {
         return try {
             val a = org.json.JSONArray(file.readText())
             (0 until a.length()).map { a.getJSONObject(it) }.map {
-                VoiceLine(it.optString("t"), it.optString("x"), it.optString("a").ifEmpty { null }, it.optInt("f"), it.optBoolean("s"), it.optBoolean("g"))
+                val o = it.optJSONObject("o")
+                VoiceLine(it.optString("t"), it.optString("x"), it.optString("a").ifEmpty { null }, it.optInt("f"), it.optBoolean("s"), it.optBoolean("g"),
+                    o?.keys()?.asSequence()?.associateWith { k -> o.optString(k) }.orEmpty())
             }
         } catch (e: Exception) {
             emptyList()
@@ -465,6 +478,31 @@ object Lobby {
 
     internal fun unlocked(lines: List<VoiceLine>, fetter: Int) =
         lines.filter { !it.story && !it.gendered && it.fetter <= fetter && it.text.length <= 120 }
+
+    private const val VOICE_CACHE_BYTES = 10L * 1024 * 1024
+
+    /**
+     * 음성 파일. 한 번 받은 것은 앱 임시 저장 공간에 두고 다시 쓴다(같은 대사를 또 눌러도 공식 서버에서 다시 받지 않게).
+     * 최근에 쓴 것부터 남기고 모두 합쳐 10MB를 넘으면 오래된 것부터 지운다. 시스템이 공간이 모자라면 비울 수도 있다.
+     * 네트워크에서 받으니 배경 스레드에서 부른다. 실패하면 null.
+     */
+    fun voiceFile(context: Context, url: String): File? {
+        if (!url.startsWith("https://")) return null
+        val dir = File(context.cacheDir, "voices").apply { mkdirs() }
+        val file = File(dir, "${url.hashCode().toUInt()}.wav")
+        if (file.exists() && file.length() > 0) { file.setLastModified(System.currentTimeMillis()); return file }
+        return try {
+            val tmp = File(dir, file.name + ".part")
+            tmp.writeBytes(getBytes(url))
+            tmp.renameTo(file)
+            val files = dir.listFiles { f -> f.name.endsWith(".wav") }.orEmpty().sortedByDescending { it.lastModified() }
+            var total = 0L
+            for (f in files) { total += f.length(); if (total > VOICE_CACHE_BYTES && f != file) f.delete() }
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     /** 대사가 아직 없으면 받아 둔다(공식 그림을 안 써도 대사는 쓴다). */
     fun loadVoices(context: Context, name: String) {

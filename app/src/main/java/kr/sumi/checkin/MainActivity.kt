@@ -1204,7 +1204,7 @@ class MainActivity : Activity() {
             resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
             dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
             account = s.accounts.takeIf { it.size > 1 }?.firstOrNull { it.id == s.currentId }?.label,
-            quote = quote?.text, voice = quote?.audio != null,
+            quote = quote?.text, voice = quote?.audioFor(settings.voiceLanguage) != null,
         )
         return when {
             s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }
@@ -1246,7 +1246,7 @@ class MainActivity : Activity() {
             lobbyLine = line
             lobbyLineKey = "tap"
             refresh()
-            playVoice(line.audio)
+            playVoice(line.audioFor(settings.voiceLanguage))
         }
         override fun onAccount() {
             val accounts = settings.accounts()
@@ -1338,18 +1338,32 @@ class MainActivity : Activity() {
 
     private var voicePlayer: android.media.MediaPlayer? = null
 
-    /** 대사 음성(공식 서버에서 바로 재생, 저장하지 않는다). 말풍선을 눌렀을 때만. */
+    /** 같은 대사를 연달아 눌렀을 때 앞 것만 재생하지 않게 셈한다. */
+    private var voiceRequest = 0
+
+    /**
+     * 대사 음성(말풍선이나 캐릭터를 눌렀을 때만). 공식 서버에서 한 번 받아 임시 저장 공간에 두고([Lobby.voiceFile]) 그 파일을 재생한다.
+     */
     private fun playVoice(url: String?) {
         voicePlayer?.release()
         voicePlayer = null
+        val request = ++voiceRequest
         if (url == null) return
+        Thread {
+            val file = Lobby.voiceFile(this, url)
+            runOnUiThread { if (file != null && request == voiceRequest && !isDestroyed) startVoice(file.path) }
+        }.start()
+    }
+
+    private fun startVoice(path: String) {
+        voicePlayer?.release()
         voicePlayer = android.media.MediaPlayer().apply {
             setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                 .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
             setOnPreparedListener { it.start() }
             setOnCompletionListener { it.release(); if (voicePlayer === it) voicePlayer = null }
             setOnErrorListener { mp, _, _ -> mp.release(); if (voicePlayer === mp) voicePlayer = null; true }
-            try { setDataSource(url); prepareAsync() } catch (e: Exception) { release(); voicePlayer = null }
+            try { setDataSource(path); prepareAsync() } catch (e: Exception) { release(); voicePlayer = null }
         }
     }
 

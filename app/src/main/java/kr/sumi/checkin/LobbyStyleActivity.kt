@@ -117,6 +117,10 @@ class LobbyStyleActivity : Activity() {
         }
         if (store != null && chars != null) waitingSection(chars, fav)
 
+        section("캐릭터 음성")
+        voiceChips()
+        note("대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때만 받아서, 한 번 받은 건 폰에 잠시 두고 다시 써요(최대 10MB).")
+
         section("로비 배경")
         val official = Lobby.officialArtAllowed(this)
         if (official) choice("공식 그림", "호요랩 위키의 캐릭터 그림을 받아 이 폰에만 저장해요", settings.lobbyBackground == Lobby.BG_OFFICIAL) {
@@ -209,6 +213,29 @@ class LobbyStyleActivity : Activity() {
         repeat((4 - sorted.size % 4) % 4) { row?.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }
         list.addView(grid, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
     }
+
+    /** 음성 언어 고르기: 한국어·일본어·중국어·영어·끄기를 한 줄 칩으로. */
+    private fun voiceChips() = list.addView(LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        val options = Lobby.VOICE_LANGUAGES.keys.map { it to Lobby.VOICE_LANGUAGES.getValue(it) } + ("off" to "끄기")
+        for ((code, label) in options) {
+            val selected = settings.voiceLanguage == code
+            addView(TextView(this@LobbyStyleActivity).apply {
+                text = label
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setTextColor(getColor(if (selected) R.color.on_action else R.color.ink))
+                if (selected) setTypeface(typeface, Typeface.BOLD)
+                setPadding(0, dp(10), 0, dp(10))
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(99).toFloat()
+                    if (selected) setColor(getColor(R.color.action)) else { setColor(getColor(R.color.surface)); setStroke(dp(1), getColor(R.color.line)) }
+                }
+                contentDescription = "음성 ${text}" + if (selected) ", 선택됨" else ""
+                setOnClickListener { settings.voiceLanguage = code; render() }
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { if (code != "ko") leftMargin = dp(6) })
+        }
+    }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
 
     private fun section(title: String) = list.addView(TextView(this).apply {
         text = title
