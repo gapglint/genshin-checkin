@@ -95,19 +95,22 @@ data class RerunData(
     }
 
     /** 메인 화면 카드와 홈 화면 위젯에 쓰는 요약: 지금(없으면 다음) 픽업 캐릭터, 기간, 가장 오래 기다린 캐릭터. */
-    fun card(today: LocalDate): RerunCardUi {
+    /** 홈 카드에 보일 것. [fours]면 같은 픽업의 4성도 5성 뒤에 붙인다(복각표의 '4성 캐릭터도 보기'를 따른다). */
+    fun card(today: LocalDate, fours: Boolean = false): RerunCardUi {
         fun day(d: LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
         val live = live(today)
         val next = if (live.isEmpty()) upcoming(today) else emptyList()
         val shown = live.ifEmpty { next }
-        val chars = shown.flatMap { it.chars }.distinct().mapNotNull { character(it) }.map { it.ko to it.element }
+        val five = shown.flatMap { it.chars }.distinct().mapNotNull { character(it) }.map { it.ko to it.element }
+        val four = if (fours) shown.flatMap { it.four }.distinct().mapNotNull { character(it) }.map { it.ko to it.element } else emptyList()
+        val chars = five + four
         val period = when {
             live.isNotEmpty() -> live.minOf { it.end }.let { "${day(it)}까지 · ${java.time.temporal.ChronoUnit.DAYS.between(today, it)}일 남음" }
             next.isNotEmpty() -> "${day(next.minOf { it.start })}부터"
             else -> ""
         }
         val oldest = ranked(today, standard = false).firstOrNull()?.let { (c, since) -> "가장 오래 기다린 캐릭터 · ${c.ko} ${since}버전째" }
-        return RerunCardUi(if (live.isNotEmpty()) "지금 픽업" else if (next.isNotEmpty()) "다음 픽업" else "복각표", period, chars, oldest)
+        return RerunCardUi(if (live.isNotEmpty()) "지금 픽업" else if (next.isNotEmpty()) "다음 픽업" else "복각표", period, chars, oldest, four.map { it.first }.toSet())
     }
 
     /** 오래 안 나온 순(같으면 이름순). 상시 캐릭터는 따로 보여 주므로 standard로 거른다. */

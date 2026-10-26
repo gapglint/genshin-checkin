@@ -146,6 +146,8 @@ data class RerunCardUi(
     val period: String,
     val chars: List<Pair<String, String>>,
     val oldest: String?,
+    /** [chars] 중 4성(보라 테두리). */
+    val fours: Set<String> = emptySet(),
 )
 
 class MainScreen(val root: View) {
@@ -745,7 +747,11 @@ class MainScreen(val root: View) {
         rerunPeriod.text = r?.period ?: ""
         rerunOldest.text = r?.oldest ?: "캐릭터마다 마지막 픽업 뒤 몇 버전 지났는지 봐요"
         rerunChars.visibility = if (r?.chars.isNullOrEmpty()) View.GONE else View.VISIBLE
-        for ((name, element) in r?.chars.orEmpty().take(4)) {
+        // 4성까지 보이면 한 줄에 다섯까지(조금 작게) 나눠 놓는다.
+        val shown = r?.chars.orEmpty().take(if (r?.fours.isNullOrEmpty()) 4 else 5)
+        val many = shown.size > 4
+        for ((name, element) in shown) {
+            val ring = context.getColor(if (name in r?.fours.orEmpty()) R.color.rarity4 else R.color.gold)
             val base = context.getColor(RerunActivity.elementColor(element))
             val face = faceFor(name)
             rerunChars.addView(LinearLayout(context).apply {
@@ -766,9 +772,9 @@ class MainScreen(val root: View) {
                     background = android.graphics.drawable.GradientDrawable().apply {
                         shape = android.graphics.drawable.GradientDrawable.OVAL
                         setColor(base)
-                        setStroke(dp(2), context.getColor(R.color.gold))
+                        setStroke(dp(if (many) 3 else 2), ring)
                     }
-                }, LinearLayout.LayoutParams(dp(52), dp(52)))
+                }, LinearLayout.LayoutParams(dp(if (many) 48 else 52), dp(if (many) 48 else 52)))
                 addView(TextView(context).apply {
                     text = name.trim().split(" ").last()
                     textSize = 13f
@@ -779,7 +785,7 @@ class MainScreen(val root: View) {
                     ellipsize = android.text.TextUtils.TruncateAt.END
                     setPadding(0, dp(6), 0, 0)
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            }, LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
+            }, if (many) LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) else LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
         }
         rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, "눌러서 복각표").joinToString(", ")
     }

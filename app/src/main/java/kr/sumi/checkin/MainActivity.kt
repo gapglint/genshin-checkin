@@ -267,7 +267,7 @@ class MainActivity : Activity() {
     }
 
     /** 복각표 카드: 지금 픽업(없으면 다음 픽업) 캐릭터와 기간, 그리고 가장 오래 기다린 캐릭터. */
-    private fun rerunCard(): RerunCardUi? = Reruns.cached(this)?.card(ServerClock.today())
+    private fun rerunCard(): RerunCardUi? = Reruns.cached(this)?.card(ServerClock.today(), settings.rerunFours)
 
     /**
      * 방금 로그인한 계정은 출석 상태를 아직 모른다(0일로 보인다). 예약 작업은 시스템이 늦게 돌릴 수 있어서,
@@ -1113,7 +1113,7 @@ class MainActivity : Activity() {
         val content = screen.root.findViewById<android.view.ViewGroup>(R.id.content)
         val on = lobbyHidden && lobbyEnabled() && !editing && fav != null
         if (!on || fav == null) {
-            lobbyCardHeader?.let { content.removeView(it) }
+            lobbyCardHeader?.let { content.removeView(it); content.clipToPadding = true }
             lobbyCardHeader = null
             lobbyCardHeaderKey = null
             cardPageBackground?.let { screen.root.background = it }
@@ -1132,6 +1132,8 @@ class MainActivity : Activity() {
         content.addView(header, 0, android.widget.LinearLayout.LayoutParams(-1, (LobbyMenu.HEADER_DP * d).toInt()).apply {
             setMargins(-content.paddingStart, -(12 * d).toInt(), -content.paddingEnd, (12 * d).toInt())
         })
+        // 머리가 목록 여백(좌우·위) 밖까지 보이게.
+        content.clipToPadding = false
         lobbyCardHeader = header
         lobbyCardHeaderKey = key
     }
