@@ -166,6 +166,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // 한동안 나가 있다 돌아오면 새로 인사한다(음성을 켰으면 들려준다). 잠깐 다른 화면을 보고 온 것이면 그대로 둔다.
+        if (pausedAt > 0 && System.currentTimeMillis() - pausedAt > GREET_AGAIN_MS && lobbyLineKey != null) lobbyLineKey = null
         // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
         if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
@@ -276,8 +278,12 @@ class MainActivity : Activity() {
         if (busy == null && !store.signedToday && store.lastRunAt < store.loginAt) checkInNow()
     }
 
+    /** 마지막으로 화면을 떠난 때. 돌아왔을 때 새로 인사할지 정한다. */
+    private var pausedAt = 0L
+
     override fun onPause() {
         super.onPause()
+        pausedAt = System.currentTimeMillis()
         voicePlayer?.release()
         voicePlayer = null
         // 계정을 바꿨거나 메모를 새로 받았을 수 있으니 홈 화면 위젯도 맞춘다.
@@ -1547,6 +1553,8 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        /** 이만큼 넘게 나가 있다 돌아오면 새 인사(5분). */
+        private const val GREET_AGAIN_MS = 5 * 60_000L
         private const val EXTRA_MAKE_UP = "make_up"
         private const val EXTRA_ACCOUNT = "account"
         private const val PRIVACY_URL = "https://apps.sumi.kr/checkin/privacy/"
