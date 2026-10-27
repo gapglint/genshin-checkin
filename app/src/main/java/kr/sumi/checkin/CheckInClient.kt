@@ -158,7 +158,9 @@ class CheckInClient(private val cookie: String) {
             ServerClock.observe(conn.getHeaderFieldDate("Date", 0))
             val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
                 ?: throw IOException("HTTP ${conn.responseCode}")
-            return JSONObject(stream.bufferedReader().use { it.readText() })
+            val text = stream.bufferedReader().use { it.readText() }
+            // 와이파이 로그인 화면·서버 오류 화면처럼 JSON이 아닌 응답은 네트워크 오류로 다룬다(다시 시도하게, 앱이 죽지 않게).
+            return try { JSONObject(text) } catch (e: org.json.JSONException) { throw IOException("HTTP ${conn.responseCode}: 응답을 읽을 수 없어요") }
         } finally {
             conn.disconnect()
         }
