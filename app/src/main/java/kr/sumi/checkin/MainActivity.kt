@@ -284,6 +284,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         pausedAt = System.currentTimeMillis()
+        voiceRequest++ // 받는 중이던 음성은 앱을 떠난 뒤에 재생하지 않는다
         voicePlayer?.release()
         voicePlayer = null
         // 계정을 바꿨거나 메모를 새로 받았을 수 있으니 홈 화면 위젯도 맞춘다.
@@ -859,9 +860,12 @@ class MainActivity : Activity() {
                 if (isFinishing || isDestroyed) return
                 val now = Redeem.running
                 if (now != null) {
-                    busy = now.first
-                    busyProgress = now.second
-                    refresh()
+                    // 바뀐 게 있을 때만 다시 그린다(코드 사이 6초 동안은 그대로다).
+                    if (busy != now.first || busyProgress != now.second) {
+                        busy = now.first
+                        busyProgress = now.second
+                        refresh()
+                    }
                     root.postDelayed(this, 500)
                     return
                 }
@@ -1095,7 +1099,7 @@ class MainActivity : Activity() {
             Lobby.refreshConfig(this)
             try { Lobby.refreshCharacters(this, store) } catch (e: Exception) {}
             settings.favorite?.let { Lobby.loadNotifArt(this, it.name) }
-            runOnUiThread { loadingLobby = false; lobbyArtKey = null; refresh() }
+            runOnUiThread { loadingLobby = false; refresh() }
         }.start()
     }
 
@@ -1142,6 +1146,8 @@ class MainActivity : Activity() {
         updateLobbyReturn()
         val fav = settings.favorite
         val store = store
+        // 카드 화면을 보다가 카드형으로 바꿨으면 '로비로 돌아가기' 상태를 지운다(뒤로 가기가 막히지 않게).
+        if (lobbyHidden && !lobbyEnabled()) { lobbyHidden = false; updateBackCallback() }
         if (!lobbyEnabled() || editing || lobbyHidden || fav == null || store == null) {
             lobby?.visibility = View.GONE
             return
@@ -1165,7 +1171,11 @@ class MainActivity : Activity() {
                 loadingLobbyArt = true
                 Thread {
                     val art = Lobby.background(this, settings, width)
-                    runOnUiThread { loadingLobbyArt = false; if (art != null) { lobbyArt = art; refresh() } }
+                    runOnUiThread {
+                        loadingLobbyArt = false
+                        // 받는 사이 최애·배경을 바꿨으면 이 그림은 버리고 지금 것으로 다시.
+                        if (key != lobbyArtKey) { lobbyArtKey = null; refresh() } else if (art != null) { lobbyArt = art; refresh() }
+                    }
                 }.start()
             }
         }

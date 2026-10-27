@@ -129,7 +129,8 @@ class Store(private val context: Context, val accountId: String) {
     /** 이미 코드를 찾아본 커뮤니티 글 ID. */
     var redeemScannedPosts: Set<String>
         get() = prefs.getStringSet("redeem_scanned_posts", emptySet())!!.toSet()
-        set(value) = prefs.edit { putStringSet("redeem_scanned_posts", value) }
+        // 글 번호는 커지기만 하니 최근 것 300개만 둔다(오래된 글은 다시 찾아보지 않는 나이를 넘는다).
+        set(value) = prefs.edit { putStringSet("redeem_scanned_posts", value.sortedByDescending { it.toLongOrNull() ?: 0 }.take(300).toSet()) }
 
     var lastRedeemAt: Long
         get() = prefs.getLong("last_redeem_at", 0)

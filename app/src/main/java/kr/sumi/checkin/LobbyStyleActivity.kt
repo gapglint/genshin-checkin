@@ -225,7 +225,7 @@ class LobbyStyleActivity : Activity() {
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             row!!.addView(cell, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             busts[c.image]?.let { image.setImageBitmap(it) } ?: pool.execute {
-                val bmp = Lobby.bust(this, c.image)
+                val bmp = Lobby.bust(this, c.image, keep = false)
                 if (bmp != null) busts[c.image] = bmp
                 runOnUiThread { if (bmp != null) image.setImageBitmap(bmp) }
             }

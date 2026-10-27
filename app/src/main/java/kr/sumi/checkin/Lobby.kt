@@ -98,8 +98,14 @@ object Lobby {
     }
 
     /** 받아 둔 내 캐릭터 목록(계정별). */
-    fun cachedCharacters(context: Context, store: Store): List<OwnedCharacter> =
-        prefs(context).getString("chars_${store.accountId}", null)?.let { parseCharacters(JSONObject(it)) }.orEmpty()
+    fun cachedCharacters(context: Context, store: Store): List<OwnedCharacter> {
+        val raw = prefs(context).getString("chars_${store.accountId}", null) ?: return emptyList()
+        // 같은 글이면 다시 풀지 않는다(화면을 그릴 때마다 부른다).
+        charsMemo[store.accountId]?.let { (k, v) -> if (k === raw || k == raw) return v }
+        return parseCharacters(JSONObject(raw)).also { charsMemo[store.accountId] = raw to it }
+    }
+
+    private val charsMemo = java.util.concurrent.ConcurrentHashMap<String, Pair<String, List<OwnedCharacter>>>()
 
     /** 내 캐릭터 목록을 호요랩 전적에서 받는다(하루에 한 번까지). 네트워크 오류는 IOException. */
     @Throws(IOException::class)
@@ -111,7 +117,9 @@ object Lobby {
         val role = store.redeemRole ?: store.accountRole ?: return emptyList()
         val json = client.get("$INDEX_URL?server=${role.region}&role_id=${role.uid}", Notes.headers())
         if (json.optInt("retcode", -1) != 0) throw IOException(json.optString("message"))
-        p.edit().putString(key, json.toString()).putLong("${key}_at", System.currentTimeMillis()).apply()
+        // 캐릭터 목록에 쓰는 부분만 저장한다(전적 전체는 크다).
+        val slim = JSONObject().put("data", JSONObject().put("avatars", json.optJSONObject("data")?.optJSONArray("avatars") ?: org.json.JSONArray()))
+        p.edit().putString(key, slim.toString()).putLong("${key}_at", System.currentTimeMillis()).apply()
         return parseCharacters(json)
     }
 
@@ -202,7 +210,9 @@ object Lobby {
             return
         }
         val pic = entry.optString("pic")
-        if (cachedNotifArt(context, name) != null && p.getString("notif_art_pic", null) == pic) return
+        // 이미 만들어 둔 그림이면 그대로(파일이 있는지만 본다. 매번 풀어 보지 않는다).
+        if (p.getString("notif_art_name", null) == name && p.getString("notif_art_pic", null) == pic &&
+            notifArtFile(context, "small").exists() && notifArtFile(context, "big").exists()) return
         val face = entry.optJSONArray("face") ?: return
         try {
             val bytes = getBytes(pic)
@@ -300,7 +310,7 @@ object Lobby {
             val bytes = getBytes(url)
             // 다른 캐릭터 그림은 지운다(최애 하나만 둔다).
             dir(context).listFiles { f -> f.name.startsWith("portrait_") }?.forEach { it.delete() }
-            file.writeBytes(bytes)
+            saveImage(file, bytes)
             file
         } catch (e: Exception) {
             null
@@ -372,6 +382,7 @@ object Lobby {
             else -> {}
         }
         val since = data.since(c, today) ?: return "아직 만나지 못했어요"
+        if (since == 0) return "아직 만나지 못했어요 · 이번 버전 전반에 픽업했어요"
         return "아직 만나지 못했어요 · 마지막 픽업 ${since}버전 전"
     }
 
@@ -466,6 +477,15 @@ object Lobby {
         if (!officialArtAllowed(context)) return emptyList()
         val file = voicesFile(context, name)
         if (!file.exists()) return emptyList()
+        // 화면을 그릴 때마다 부르므로, 파일이 그대로면 읽어 둔 것을 쓴다.
+        val stamp = "${file.path}|${file.lastModified()}|${file.length()}"
+        voicesMemo?.let { (k, v) -> if (k == stamp) return v }
+        return readVoices(file).also { voicesMemo = stamp to it }
+    }
+
+    private var voicesMemo: Pair<String, List<VoiceLine>>? = null
+
+    private fun readVoices(file: File): List<VoiceLine> {
         return try {
             val a = org.json.JSONArray(file.readText())
             (0 until a.length()).map { a.getJSONObject(it) }.map {
@@ -567,12 +587,22 @@ object Lobby {
     }
 
     /** 전적의 작은 얼굴 그림(메뉴 화면 머리용). 받아서 저장해 둔다. */
-    fun bust(context: Context, url: String): Bitmap? {
-        if (!url.startsWith("http")) return null
-        val file = File(dir(context), "bust_${url.hashCode().toUInt()}.png")
+    fun bust(context: Context, url: String, keep: Boolean = true): Bitmap? {
+        if (!url.startsWith("http") || !officialArtAllowed(context)) return null
+        val name = "bust_${url.hashCode().toUInt()}.png"
+        val kept = File(dir(context), name)
+        val temp = File(File(context.cacheDir, "busts").apply { mkdirs() }, name)
         return try {
-            if (!file.exists()) file.writeBytes(getBytes(url))
-            BitmapFactory.decodeFile(file.path)
+            if (keep) {
+                // 최애 것만 앱 저장 공간에 둔다(알림·위젯이 바로 쓴다). 이전 최애 것은 지운다.
+                if (!kept.exists()) { if (temp.exists()) temp.copyTo(kept, overwrite = true) else saveImage(kept, getBytes(url)) }
+                dir(context).listFiles { f -> f.name.startsWith("bust_") && f != kept }?.forEach { it.delete() }
+                BitmapFactory.decodeFile(kept.path)
+            } else {
+                // 최애 고르기 화면의 다른 캐릭터들은 임시 저장 공간에(시스템이 비울 수 있다).
+                val file = if (kept.exists()) kept else temp.also { if (!it.exists()) saveImage(it, getBytes(url)) }
+                BitmapFactory.decodeFile(file.path)
+            }
         } catch (e: Exception) {
             null
         }
@@ -627,7 +657,29 @@ object Lobby {
         while (bounds.outWidth / (sample * 2) >= maxWidth) sample *= 2
         val bmp = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
             ?: throw IOException("사진을 읽을 수 없어요")
-        photoFile(context).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        // 폰 카메라 사진은 돌려 찍은 방향을 따로 적어 둔다. 그대로 저장하면 옆으로 누워 보인다.
+        val degrees = try {
+            resolver.openInputStream(uri)?.use { when (android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1)) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            } } ?: 0
+        } catch (e: Exception) { 0 }
+        val upright = if (degrees == 0) bmp else
+            Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, android.graphics.Matrix().apply { postRotate(degrees.toFloat()) }, true)
+        photoFile(context).outputStream().use { upright.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+    }
+
+    /** 그림으로 읽히는 것만, 다 쓴 뒤에 이름을 바꿔 저장한다(오류 화면이나 끊긴 파일이 남아 계속 쓰이지 않게). */
+    @Throws(IOException::class)
+    private fun saveImage(file: File, bytes: ByteArray) {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0) throw IOException("그림이 아니에요")
+        val part = File(file.parentFile, file.name + ".part")
+        part.writeBytes(bytes)
+        if (!part.renameTo(file)) { part.delete(); throw IOException("저장 실패") }
     }
 
     private fun decode(file: File, maxWidth: Int): Bitmap? {
@@ -635,7 +687,10 @@ object Lobby {
         BitmapFactory.decodeFile(file.path, bounds)
         var sample = 1
         while (bounds.outWidth / (sample * 2) >= maxWidth) sample *= 2
-        return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+        val bmp = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        // 2의 거듭제곱으로만 줄이면 화면의 두 배 가까이 남는다. 화면 폭에 맞춰 메모리를 줄인다.
+        if (bmp.width <= maxWidth * 5 / 4) return bmp
+        return Bitmap.createScaledBitmap(bmp, maxWidth, bmp.height * maxWidth / bmp.width, true).also { if (it !== bmp) bmp.recycle() }
     }
 
     // ---------- 네트워크 ----------

@@ -144,6 +144,12 @@ class LobbyView(context: Context) : FrameLayout(context) {
     private var bound = false
     private var breathing: android.animation.ValueAnimator? = null
 
+    /** 안 보일 때(카드 화면·메뉴 아래·앱 밖)는 숨쉬기 움직임을 멈춘다(배터리). */
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        breathing?.let { if (isVisible) it.resume() else it.pause() }
+    }
+
     override fun onDetachedFromWindow() {
         breathing?.cancel()
         super.onDetachedFromWindow()
