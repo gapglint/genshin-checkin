@@ -4,47 +4,156 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>원신 리딤 자동출첵</title>
-<meta name="description" content="방송 리딤코드 자동 입력과 원신 호요랩 새벽 1시 자동출석, 레진 알림까지. 광고 없음. 지금 플레이스토어 비공개 테스트 중이에요.">
+<meta name="description" content="방송 리딤코드 자동 입력과 원신 호요랩 새벽 1시 자동출석, 레진 알림까지. 광고 없음. 아이폰은 웹에서 코드와 새 코드 알림을 받아요.">
 <meta property="og:title" content="원신 리딤 자동출첵 · 테스터 모집">
-<meta property="og:description" content="방송 리딤코드도, 매일 출석도 알아서. 링크 세 번 누르면 설치돼요.">
+<meta property="og:description" content="링크 안 눌러도, 원석은 우편함에. 안드로이드는 앱으로, 아이폰은 웹으로.">
 <meta property="og:image" content="https://apps.sumi.kr/checkin/img/icon.png">
 <link rel="icon" href="/checkin/img/icon.png">
 <link rel="stylesheet" href="/style.css">
+<style>
+  [hidden] { display: none !important; }
+  main { max-width: 560px; }
+  /* 첫 화면: 밤하늘 카드 하나에 약속 한 줄 */
+  .stage { position: relative; overflow: hidden; background: var(--hero); color: var(--hero-ink); border-radius: 28px;
+           padding: 26px 22px 22px; margin: 18px 0 16px; }
+  .stage::before { content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%;
+                   border: 1px solid rgba(255,255,255,.12); }
+  .stage svg.star { position: absolute; right: 18px; top: 22px; width: 92px; height: 92px; opacity: .16; }
+  .stage .who svg.mark { width: 18px; height: 18px; flex: none; }
+  .stage .who { display: flex; align-items: center; gap: 10px; color: #A8AFC6; font-size: 13px; }
+  .stage .who img { width: 40px; height: 40px; border-radius: 12px; }
+  /* 제목만 나눔명조 ExtraBold(제목 글자만 담은 7KB 파일, SIL OFL). 홍보 이미지와 같은 글씨체. */
+  @font-face { font-family: "Sumi Title Serif"; src: url("/checkin/fonts/title-serif.woff2") format("woff2"); font-display: swap; }
+  .stage h1 { margin: 18px 0 8px; font-family: "Sumi Title Serif", serif; font-weight: 400; font-size: 33px; line-height: 1.3; letter-spacing: -.01em; text-wrap: balance; }
+  .stage h1 em { font-style: normal; color: var(--gold); }
+  .stage p { margin: 0; color: #A8AFC6; font-size: 15px; line-height: 1.6; }
+  .stage { padding-bottom: 0; }
+  .phone { position: relative; width: 74%; max-width: 300px; height: 290px; margin: 20px auto 0; border-radius: 26px 26px 0 0;
+           overflow: hidden; border: 6px solid #2E3756; border-bottom: 0; box-shadow: 0 -10px 40px rgba(0,0,0,.35); background: #EDEFF5; }
+  .phone img { display: block; width: 100%; height: auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .chips span { font-size: 13px; padding: 5px 10px; border-radius: 12px; background: rgba(255,255,255,.09); color: var(--hero-ink); }
+
+  /* 기기 고르기 */
+  .seg { display: flex; gap: 4px; background: var(--line); border-radius: 16px; padding: 4px; }
+  .seg button { flex: 1; border: 0; background: none; font: inherit; font-size: 15px; font-weight: 700; color: var(--muted);
+                padding: 10px 0; border-radius: 12px; cursor: pointer; }
+  .seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .seg button small { font-weight: 400; font-size: 12px; margin-left: 4px; }
+  .seg button { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .seg svg.os { width: 20px; height: 20px; flex: none; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 16px; margin-top: 10px; }
+  .panel .lead { margin: 0 2px 12px; font-size: 14px; color: var(--muted); line-height: 1.55; }
+  .panel .lead strong { color: var(--ink); }
+  .step { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--line); }
+  .step:first-of-type { border-top: 0; }
+  .step .n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px;
+             background: var(--hero); color: var(--gold); }
+  .step div { flex: 1; min-width: 0; line-height: 1.4; }
+  .step div small { display: block; color: var(--muted); font-size: 12px; }
+  .go { flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 20px; font-weight: 700;
+        font-size: 14px; text-decoration: none; border: 1px solid var(--line); color: var(--accent); white-space: nowrap; }
+  .go.primary { background: var(--hero); border-color: var(--hero); color: var(--gold); }
+  @media (prefers-color-scheme: dark) { .go.primary { background: var(--gold); border-color: var(--gold); color: #2A1F08; } }
+  .cta { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; border-radius: 16px; margin-top: 6px;
+         background: var(--hero); color: var(--gold); font-weight: 700; font-size: 17px; text-decoration: none; }
+  .cta span { font-size: 22px; line-height: 1; }
+  @media (prefers-color-scheme: dark) { .cta { background: var(--gold); color: #2A1F08; } }
+  .step-cta { justify-content: flex-start; padding: 0 18px; gap: 12px; }
+  .step-cta i { font-style: normal; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px;
+                background: rgba(255,255,255,.14); }
+  .step-cta span { margin-left: auto; }
+  .cta-note { margin: 6px 4px 12px; font-size: 12px; color: var(--muted); }
+  .then { margin: 2px 4px 0; font-size: 14px; line-height: 1.7; color: var(--ink); }
+  .then b { color: var(--accent); }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 6px; }
+  .panel-head b { font-size: 16px; }
+  .panel-head span { font-size: 12px; color: var(--muted); }
+  details.help { margin: 8px 0 0; padding: 10px 12px; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--gold) 16%, var(--surface)); }
+  details.help summary { font-size: 13px; color: var(--accent); }
+  details.help p { font-size: 13px; color: var(--ink); line-height: 1.55; }
+  .warn-tip { margin: 8px 2px 0; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--gold) 16%, var(--surface));
+              font-size: 13px; line-height: 1.55; color: var(--ink); }
+  .warn-tip b { display: block; color: var(--accent); }
+  .panel .fine { margin: 10px 2px 0; font-size: 12px; color: var(--muted); }
+  .web-go { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); background: var(--hero); color: var(--hero-ink);
+            border-radius: 18px; padding: 14px 16px; }
+  .web-go img { width: 40px; height: 40px; border-radius: 12px; }
+  .web-go div { flex: 1; line-height: 1.4; }
+  .web-go small { display: block; color: #A8AFC6; font-size: 12px; }
+  .web-go span { color: var(--gold); font-weight: 700; }
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; font-size: 13px; }
+  .vs div { background: var(--bg); border-radius: 14px; padding: 10px 12px; line-height: 1.5; }
+  .vs b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .vs .no { color: var(--muted); }
+
+  /* 화면 미리보기: 옆으로 넘기기(이 페이지의 주인공이라 크게) */
+  .shots { margin: 22px -16px 6px; gap: 14px; }
+  .shots img { width: 64%; max-width: 300px; border-radius: 20px; border: 0; box-shadow: 0 10px 30px rgba(20,26,46,.18); }
+  .assure { display: flex; gap: 10px; align-items: flex-start; margin: 14px 4px 6px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+  .assure svg { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--accent); }
+  .faq { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
+  .faq details { margin: 0; border: 0; border-radius: 0; border-top: 1px solid var(--line); background: none; padding: 14px 16px; }
+  .faq details:first-child { border-top: 0; }
+  .faq summary { font-size: 15px; font-weight: 600; }
+
+  /* 하는 일: 작은 타일 */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0 10px; }
+  .tiles div { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .tiles div b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 2px; }
+  .trust { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; }
+  .trust span { font-size: 12px; padding: 5px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+  h2 { margin: 22px 4px 8px; font-size: 16px; }
+  footer { text-align: center; font-size: 12px; }
+  /* 스크린샷 크게 보기 */
+  .shots img { cursor: zoom-in; }
+  .viewer { position: fixed; inset: 0; z-index: 30; background: rgba(8,10,18,.92); display: flex; align-items: center; justify-content: center;
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); touch-action: pan-y; }
+  .viewer img { max-width: min(92vw, 520px); max-height: 86vh; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .viewer button { position: absolute; border: 0; background: rgba(255,255,255,.12); color: #fff; width: 44px; height: 44px; border-radius: 50%;
+                   font-size: 22px; line-height: 1; cursor: pointer; }
+  .viewer .close { top: calc(14px + env(safe-area-inset-top)); right: 14px; }
+  .viewer .prev { left: 10px; top: 50%; transform: translateY(-50%); }
+  .viewer .next { right: 10px; top: 50%; transform: translateY(-50%); }
+  .viewer .count { position: absolute; bottom: calc(16px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #A8AFC6; font-size: 13px; }
+</style>
 </head>
 <body>
 <main>
-  <header class="hero">
-    <div class="app-title">
-      <img src="/checkin/img/icon.png" alt="" width="56" height="56">
-      <div>
-        <p class="eyebrow">SUMI LAB · 안드로이드</p>
-        <h1>원신 리딤 자동출첵</h1>
-      </div>
-    </div>
-    <p>방송 리딤코드도, 매일 출석도 알아서 챙겨요. 한 번 로그인해 두면 끝이에요.</p>
-  </header>
-
-  <section class="notice">
-    <strong>지금은 플레이스토어 비공개 테스트 중이에요</strong>
-    <span>정식 출시 전이라 아래 순서대로 해야 설치할 수 있어요. 1번을 건너뛰면 2번이 열리지 않아요.</span>
+  <section class="stage">
+    <svg class="star" viewBox="0 0 24 24" fill="#F2EEE3" aria-hidden="true"><path d="M12 0c.8 6.4 5.6 11.2 12 12-6.4.8-11.2 5.6-12 12-.8-6.4-5.6-11.2-12-12C6.4 11.2 11.2 6.4 12 0Z"/></svg>
+    <div class="who"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#E1BB66" d="M12 1.5c.7 5.4 4.6 9.3 10 10-5.4.7-9.3 4.6-10 10-.7-5.4-4.6-9.3-10-10 5.4-.7 9.3-4.6 10-10Z"/></svg>원신 리딤 자동출첵 · Sumi Lab · 비공식 앱</div>
+    <h1 data-for="android">링크 안 눌러도,<br><em>원석은 우편함에.</em></h1>
+    <p data-for="android">새 리딤 코드가 나오면 앱이 알아서 입력해요. 출석도 매일 새벽에.</p>
+    <h1 data-for="ios" hidden>새 리딤 코드,<br><em>놓치지 않게.</em></h1>
+    <p data-for="ios" hidden>누르면 코드가 채워진 입력 페이지로. 새 코드가 나오면 알림도 와요.</p>
+    <div class="phone"><img data-for="android" src="/checkin/img/hero-app.webp" alt="오늘 출석 완료, 17일째, 레진 142/200이 보이는 앱 메인 화면" width="635" height="1000"><img data-for="ios" hidden src="/checkin/img/hero-web.webp" alt="지금 쓸 수 있는 리딤 코드 16개가 보이는 웹 화면" width="635" height="1000"></div>
   </section>
 
-  <ol class="steps">
-    <li>
-      <div class="step-text"><strong>테스터 그룹 가입</strong><span>구글 계정으로 '그룹 가입'을 눌러 주세요.</span></div>
-      <a class="button" href="https://groups.google.com/g/sumi-checkin-testers" target="_blank" rel="noopener">그룹 가입</a>
-    </li>
-    <li>
-      <div class="step-text"><strong>플레이스토어에서 설치</strong><span>그룹에 가입한 계정으로 열고 설치해 주세요. '테스터 되기'가 보이면 먼저 눌러 주세요.</span></div>
-      <a class="button primary" href="https://play.google.com/store/apps/details?id=kr.sumi.checkin" target="_blank" rel="noopener">설치하기</a>
-    </li>
-    <li>
-      <div class="step-text"><strong>앱에서 로그인</strong><span>앱에서 호요랩에 한 번 로그인하면 매일 알아서 돌아가요.</span></div>
-    </li>
-  </ol>
-  <p class="muted">안드로이드 8.0 이상. 정식 출시를 위해 테스터가 2주 동안 앱을 유지해야 해요. 지우지 말아 주세요. 불편한 점은 <a href="mailto:apps@sumi.kr">apps@sumi.kr</a>로 알려 주시면 고쳐서 올릴게요.</p>
+  <div class="seg" role="tablist">
+    <button role="tab" aria-selected="true" data-device="android"><svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.6 9.48l1.84-3.18a.38.38 0 0 0-.66-.38l-1.86 3.22a11.4 11.4 0 0 0-9.84 0L5.22 5.92a.38.38 0 0 0-.66.38L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52ZM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z"/></svg>안드로이드<small>앱</small></button>
+    <button role="tab" aria-selected="false" data-device="ios"><svg class="os" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 3.8 5.8 3.8 9s-1.2 6.2-3.8 9c-2.6-2.8-3.8-5.8-3.8-9S9.4 5.8 12 3Z"/></svg>아이폰·PC<small>웹</small></button>
+  </div>
 
-  <div class="shots" aria-label="앱 화면">
+  <section class="panel" data-for="android">
+    <div class="panel-head"><b>두 번 누르면 설치</b><span>비공개 테스트 · 순서대로</span></div>
+    <a class="cta step-cta" href="https://groups.google.com/g/sumi-checkin-testers" target="_blank" rel="noopener"><i>1</i>테스터 그룹 가입<span aria-hidden="true">›</span></a>
+    <p class="cta-note">구글 계정으로 '그룹 가입'을 눌러요</p>
+    <a class="cta step-cta" href="https://play.google.com/store/apps/details?id=kr.sumi.checkin" target="_blank" rel="noopener"><i>2</i>플레이스토어에서 설치<span aria-hidden="true">›</span></a>
+    <p class="cta-note">같은 계정으로 · '테스터 되기'가 보이면 먼저 눌러요</p>
+    <p class="then">그다음 앱에서 호요랩 로그인하면 끝.<br><b>로그인이 망설여지면 새 코드 알림만 받아도 돼요.</b></p>
+    <details class="help"><summary>'항목을 찾을 수 없음'이 떠요</summary>
+      <p>그룹에 가입한 계정과 플레이스토어 계정이 달라서 그래요. 플레이스토어 앱 오른쪽 위 프로필에서 <strong>가입한 계정으로 바꾼 뒤</strong> 다시 '설치'를 눌러 주세요.</p></details>
+    <p class="fine">안드로이드 8.0 이상 · 무료 · 광고 없음 · 테스트 2주 동안 지우지 말아 주세요</p>
+  </section>
+
+  <section class="panel" data-for="ios" hidden>
+    <div class="panel-head"><b>웹에서 바로 써요</b><span>설치·로그인 없음</span></div>
+    <a class="cta" href="/genshin-codes/">원신 코드·픽업 열기<span aria-hidden="true">›</span></a>
+    <p class="fine">아이폰은 사파리 공유 → '홈 화면에 추가'하면 앱처럼 열리고 새 코드 알림도 와요(iOS 16.4 이상). 자동 입력·출석은 안드로이드 앱만 돼요.</p>
+  </section>
+
+  <div class="shots" aria-label="앱 화면" data-for="android">
     <img src="/checkin/img/screenshot1Redeem.webp" alt="받은 리딤 코드와 보상 합계 화면" width="540" height="960" loading="lazy">
     <img src="/checkin/img/screenshot2CheckIn.webp" alt="새벽 1시 서버 시각에 자동 출석하는 메인 화면" width="540" height="960" loading="lazy">
     <img src="/checkin/img/screenshot3Resin.webp" alt="레진과 가득 차는 시각, 탐사 파견·주전자·일일 의뢰와 원신 켜기 버튼" width="540" height="960" loading="lazy">
@@ -54,27 +163,20 @@
     <img src="/checkin/img/screenshot7Trust.webp" alt="비밀번호 저장 안 함, 서버·광고 없음, 1MB 미만" width="540" height="960" loading="lazy">
   </div>
 
-  <h2>하는 일</h2>
-  <ul class="features">
-    <li><strong>리딤코드 자동 입력</strong> 방송·이벤트로 공개된 코드를 찾아 고른 캐릭터로 입력해요. 원석은 게임 우편함으로 와요.</li>
-    <li><strong>새벽 1시 자동 출석</strong> 폰 시계가 아니라 호요랩 서버 시각에 맞춰, 날짜가 바뀐 직후에 출석해요. 이번 달 출석 보상은 달력으로 한눈에 봐요.</li>
-    <li><strong>레진 알림·위젯</strong> 레진이 정한 개수가 되면 알려 줘요. 탐사 파견·주전자 동전까지 보고, '원신 켜기'로 게임을 바로 열어요. 홈 화면 위젯으로 레진과 가득 차는 시각을 바로 봐요.</li>
-    <li><strong>보상 내역</strong> 이번 달 받은 원석·모라와 리딤 코드로 받은 보상의 합계를 한눈에 봐요.</li>
-    <li><strong>보충 출석</strong> 놓친 날이 있으면 알려 주고, 누르면 바로 보충해요.</li>
-    <li><strong>여러 계정, 알림 골라 받기</strong> 계정을 여러 개 등록할 수 있어요. 알림은 종류별로 끌 수 있고, 켜 둔 알림도 밤에는 소리 없이 와요.</li>
-    <li><strong>내 맘대로 메인 화면</strong> 카드를 꾹 눌러 순서를 바꾸고, 안 보는 카드는 서랍에 넣어 둬요.</li>
-  </ul>
+  <div class="shots" aria-label="웹 화면" data-for="ios" hidden>
+    <img src="/genshin-codes/img/web1Codes.webp" alt="지금 쓸 수 있는 리딤 코드 목록, 누르면 공식 입력 페이지" width="540" height="960" loading="lazy">
+    <img src="/genshin-codes/img/web2Alert.webp" alt="새 코드 알림 받기 창" width="540" height="960" loading="lazy">
+    <img src="/genshin-codes/img/web3Reruns.webp" alt="한정 캐릭터 복각표" width="540" height="960" loading="lazy">
+    <img src="/genshin-codes/img/web4Events.webp" alt="진행 중인 이벤트 목록" width="540" height="960" loading="lazy">
+  </div>
 
-  <h2>안심하고 쓰세요</h2>
-  <ul>
-    <li>로그인은 앱 안에서 <strong>호요랩 공식 로그인 페이지</strong>로 직접 해요.</li>
-    <li>아이디·비밀번호는 저장하지 않고, 로그인 정보는 <strong>폰 안에만</strong> 있어요.</li>
-    <li>개발자 서버가 없고, 광고·분석 도구도 없어요.</li>
-    <li>앱 크기 1MB 미만. 앱을 열지 않아도 알아서 돌고, 하루에 몇 번 호요랩과 짧게 통신할 뿐이라 <strong>배터리·데이터 부담이 거의 없어요</strong>.</li>
-    <li>소스 코드를 모두 공개해 두었어요: <a href="https://github.com/lesumein/genshin-checkin" target="_blank" rel="noopener">GitHub</a></li>
-  </ul>
+  <p class="assure" data-for="android"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5Zm-1.2 13.6-3.4-3.4 1.4-1.4 2 2 4.6-4.6 1.4 1.4Z"/></svg>
+    공식 로그인 페이지로 직접 로그인하고, 비밀번호는 저장하지 않아요. 로그인 정보는 폰 안에만 있고, 서버도 광고도 없어요.</p>
+  <p class="assure" data-for="ios" hidden><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5Zm-1.2 13.6-3.4-3.4 1.4-1.4 2 2 4.6-4.6 1.4 1.4Z"/></svg>
+    로그인도 설치도 없어요. 무료이고 광고도 없어요. 알림은 켤 때만 알림 서비스에 정보가 저장돼요.</p>
 
   <h2>자주 묻는 것</h2>
+  <div class="faq">
   <details>
     <summary>계정에 문제 생기지 않아요?</summary>
     <p>호요랩 웹에서 사람이 출석 버튼을 누를 때와 같은 요청을 하루 한 번 보내요. 다만 HoYoverse가 만든 공식 앱은 아니라는 점은 알고 써 주세요.</p>
@@ -84,19 +186,84 @@
     <p>호요랩 앱이나 브라우저에서 따로 로그인해도 이 앱 로그인은 그대로예요. 로그인은 1년 동안 유지되고, 만료 2주 전에 알림으로 알려 드려요. 알림을 눌러 다시 로그인하면 그 자리에서 바로 출석해요.</p>
   </details>
   <details>
-    <summary>아이폰은요?</summary>
-    <p>지금은 안드로이드만 있어요.</p>
+    <summary>구글로 로그인이 안 돼요</summary>
+    <p>구글은 다른 앱 안에서 하는 구글 로그인을 막아요. <strong>구글 이메일 주소와 호요버스 비밀번호</strong>로 로그인해 주세요. 비밀번호가 없으면 로그인 창의 「문제 발생」에서 새로 만들 수 있어요. 같은 계정이라 게임 데이터는 그대로예요.</p>
   </details>
   <details>
-    <summary>'항목을 찾을 수 없음'이 떠요</summary>
-    <p>그룹에 가입한 구글 계정과 플레이스토어 계정이 같은지 확인해 주세요. 가입 직후에는 몇 분 걸릴 수 있어요. 브라우저에 구글 계정이 여러 개 로그인돼 있으면 시크릿 창에서 그 계정 하나로만 열어 보세요.</p>
+    <summary>더 자세히(하는 일, 개인정보)</summary>
+    <p>여러 계정 등록, 보충 출석, 이번 달 보상 합계, 출석 보상 달력, 알림 종류별로 끄기(밤에는 소리 없이), 메인 화면 카드 순서 바꾸기도 돼요.
+한정 캐릭터 복각표(기다리는 캐릭터 픽업 알림)와 진행 중인 이벤트 모아 보기도 있어요.
+원하면 최애 캐릭터와 함께하는 '로비형' 홈으로 바꿀 수 있어요. 시간에 맞춰 인사하고, 누르면 다른 대사와 음성(기본은 꺼짐)을 들려줘요. 그림·대사·음성은 켰을 때만 HoYoLAB 위키의 공개 자료를 받아 써요.
+      앱은 하루에 몇 번 호요랩과 짧게 통신할 뿐이라 배터리·데이터 부담이 거의 없어요.
+      자세한 내용은 <a href="/checkin/privacy/">개인정보처리방침</a>과 <a href="https://github.com/lesumein/genshin-checkin" target="_blank" rel="noopener">소스 코드</a>에 있어요.</p>
   </details>
+  </div>
 
-  <footer>
-    <a href="/checkin/privacy/">개인정보처리방침</a> · <a href="mailto:apps@sumi.kr">apps@sumi.kr</a><br>
+
+  <footer class="muted">
+    불편한 점은 <a href="mailto:apps@sumi.kr">apps@sumi.kr</a> · <a href="/checkin/privacy/">개인정보처리방침</a><br>
     HoYoverse와 관계없는 비공식 앱이에요. 원신과 HoYoLAB은 HoYoverse의 상표예요.<br>
-    © 2026 Sumi Lab
+    Android 로봇은 Google이 만들어 공유한 저작물을 바탕으로 했어요(CC BY 3.0). © 2026 Sumi Lab
   </footer>
 </main>
+<script>
+  // 아이폰·아이패드로 열면 웹 쪽을 먼저 보여 준다. 고른 쪽은 이 기기에서 기억한다.
+  (() => {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    let saved = null;
+    try { saved = localStorage.getItem("device"); } catch {}
+    function show(d) {
+      document.querySelectorAll("[data-device]").forEach(b => b.setAttribute("aria-selected", b.dataset.device === d));
+      document.querySelectorAll("[data-for]").forEach(p => p.hidden = p.dataset.for !== d);
+    }
+    document.querySelectorAll("[data-device]").forEach(b => b.onclick = () => {
+      show(b.dataset.device);
+      try { localStorage.setItem("device", b.dataset.device); } catch {}
+    });
+    show(saved || (ios ? "ios" : "android"));
+  })();
+</script>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="화면 크게 보기">
+  <img id="viewerImg" alt="">
+  <button class="close" type="button" aria-label="닫기">×</button>
+  <button class="prev" type="button" aria-label="이전">‹</button>
+  <button class="next" type="button" aria-label="다음">›</button>
+  <div class="count" id="viewerCount"></div>
+</div>
+<script>
+  // 스크린샷을 누르면 크게 보고, 옆으로 넘기거나 화살표로 다음 장, 바깥을 누르거나 ×로 닫는다.
+  (() => {
+    const viewer = document.getElementById("viewer"), big = document.getElementById("viewerImg"), count = document.getElementById("viewerCount");
+    let list = [], at = 0, startX = null;
+    function show(i) {
+      at = (i + list.length) % list.length;
+      big.src = list[at].src; big.alt = list[at].alt;
+      count.textContent = `${at + 1} / ${list.length}`;
+    }
+    function open(img) {
+      list = [...img.closest(".shots").querySelectorAll("img")];
+      show(list.indexOf(img)); viewer.hidden = false; document.body.style.overflow = "hidden";
+    }
+    function close() { viewer.hidden = true; document.body.style.overflow = ""; }
+    document.querySelectorAll(".shots img").forEach(img => img.addEventListener("click", () => open(img)));
+    viewer.querySelector(".close").onclick = close;
+    viewer.querySelector(".prev").onclick = e => { e.stopPropagation(); show(at - 1); };
+    viewer.querySelector(".next").onclick = e => { e.stopPropagation(); show(at + 1); };
+    viewer.addEventListener("click", e => { if (e.target === viewer) close(); });
+    big.addEventListener("click", e => { e.stopPropagation(); show(at + 1); });
+    viewer.addEventListener("touchstart", e => { startX = e.touches[0].clientX; }, { passive: true });
+    viewer.addEventListener("touchend", e => {
+      if (startX === null) return;
+      const dx = e.changedTouches[0].clientX - startX; startX = null;
+      if (Math.abs(dx) > 40) show(at + (dx < 0 ? 1 : -1));
+    });
+    document.addEventListener("keydown", e => {
+      if (viewer.hidden) return;
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowRight") show(at + 1);
+      if (e.key === "ArrowLeft") show(at - 1);
+    });
+  })();
+</script>
 </body>
 </html>
