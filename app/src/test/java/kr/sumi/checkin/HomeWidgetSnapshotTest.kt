@@ -36,6 +36,16 @@ class HomeWidgetSnapshotTest {
         TodayWidget.views(paparazzi.context, TodayWidgetUi("여우별", "완료", true, 17, "142 / 200", "새 코드 3개 입력")), 170, 170,
     )
 
+    /** 로비형을 쓰면: 최애 원소 색 바탕과 얼굴(얼굴 그림 대신 만든 동그라미). */
+    @Test fun todayLobby() {
+        val c = paparazzi.context
+        val el = c.getColor(R.color.element_dendro)
+        val fake = android.graphics.Bitmap.createBitmap(128, 128, android.graphics.Bitmap.Config.ARGB_8888).also {
+            android.graphics.Canvas(it).apply { drawColor(0xFFF0E0C8.toInt()); drawCircle(64f, 56f, 30f, android.graphics.Paint().apply { color = 0xFF8A9A70.toInt() }) }
+        }
+        place(TodayWidget.views(c, TodayWidgetUi("여우별", "완료", true, 17, "142 / 200", "새 코드 3개 입력", tint = el, face = Lobby.circle(fake, el))), 170, 170)
+    }
+
     @Test fun todayNotYet() = place(
         TodayWidget.views(paparazzi.context, TodayWidgetUi("여우별", "출석 전", false, 16, "200 / 200", "새 코드 없음")), 170, 170,
     )

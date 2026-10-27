@@ -5,6 +5,17 @@ import android.widget.TextView
 import android.widget.Button
 import android.widget.LinearLayout
 
+/** 보상 이름(한국어)에 맞는 직접 그린 아이템 아이콘. */
+object ItemIcons {
+    fun of(reward: String?) = when {
+        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
+        reward.contains("모라") -> R.drawable.ic_item_mora
+        reward.contains("경험") -> R.drawable.ic_item_book
+        reward.contains("광석") -> R.drawable.ic_item_ore
+        else -> R.drawable.ic_item_gift
+    }
+}
+
 /** 계정 칩 하나. */
 data class AccountChip(val id: String, val label: String, val signedToday: Boolean)
 
@@ -109,6 +120,8 @@ data class MainUiState(
     val cardOrder: List<String> = CARDS,
     /** 메인 화면을 그 자리에서 편집하는 중인지. 보이기로 한 카드는 내용이 없어도 보인다. */
     val editing: Boolean = false,
+    /** 로비형 소개 카드를 보일 때(로그인하고 며칠 뒤 한 번만, 다른 안내가 없을 때). */
+    val lobbyIntro: Boolean = false,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -133,6 +146,8 @@ data class RerunCardUi(
     val period: String,
     val chars: List<Pair<String, String>>,
     val oldest: String?,
+    /** [chars] 중 4성(보라 테두리). */
+    val fours: Set<String> = emptySet(),
 )
 
 class MainScreen(val root: View) {
@@ -213,6 +228,9 @@ class MainScreen(val root: View) {
     val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
     val eventsButton: View = root.findViewById(R.id.eventsButton)
+    val decorateButton: View = root.findViewById(R.id.decorateButton)
+    val lobbyIntro: View = root.findViewById(R.id.lobbyIntro)
+    val lobbyIntroClose: View = root.findViewById(R.id.lobbyIntroClose)
     private val eventsDot: View = root.findViewById(R.id.eventsDot)
     val editDone: View = root.findViewById(R.id.editDone)
     val cards: LinearLayout = root.findViewById(R.id.cards)
@@ -298,6 +316,8 @@ class MainScreen(val root: View) {
         // 메인에는 한 줄 안내만 두고, 자세한 항목은 설정 안에서 보여 준다.
         setupBanner.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
         setupText.text = "제때 출석하려면 설정 ${setupNeeded}개가 필요해요"
+        // 안내는 한 번에 하나만: 설정·보충·출석 문제 안내가 있으면 로비 소개는 미룬다.
+        lobbyIntro.visibility = if (s.lobbyIntro && setupNeeded == 0 && s.note == null && s.makeUpMissed == null && !s.editing) View.VISIBLE else View.GONE
         heroNote.text = s.note
         heroNote.visibility = if (s.note != null && s.busy == null) View.VISIBLE else View.GONE
 
@@ -337,6 +357,7 @@ class MainScreen(val root: View) {
         // 편집 중에는 머리줄에 '완료'만, 잠깐 뜨는 안내·버튼은 숨겨 카드에만 집중하게 한다.
         editDone.visibility = if (s.editing) View.VISIBLE else View.GONE
         editButton.visibility = if (s.editing || !s.loggedIn) View.GONE else View.VISIBLE
+        decorateButton.visibility = if (s.editing || !s.loggedIn) View.GONE else View.VISIBLE
         settingsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
         if (s.editing) {
             primaryButton.visibility = View.GONE
@@ -570,13 +591,7 @@ class MainScreen(val root: View) {
     }
 
     /** 보상 이름에 맞는 아이콘. 모르는 아이템은 선물 상자. */
-    private fun itemIcon(reward: String?) = when {
-        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
-        reward.contains("모라") -> R.drawable.ic_item_mora
-        reward.contains("경험") -> R.drawable.ic_item_book
-        reward.contains("광석") -> R.drawable.ic_item_ore
-        else -> R.drawable.ic_item_gift
-    }
+    private fun itemIcon(reward: String?) = ItemIcons.of(reward)
 
     /** 바로가기 타일: 리딤 코드(누르면 지금 확인), 보상 내역(누르면 열기). */
     private fun renderTiles(s: MainUiState) {
@@ -718,6 +733,11 @@ class MainScreen(val root: View) {
         ripple.recycle()
     }
 
+    /** 캐릭터 얼굴 그림(한국어 이름으로). 없으면 null이고 원소 아이콘을 그린다. 액티비티가 정한다. */
+    var faceFor: (String) -> android.graphics.Bitmap? = { null }
+    /** 얼굴을 받아 오는 중인지(그동안은 원소 아이콘 대신 빈 동그라미). */
+    var facePending: (String) -> Boolean = { false }
+
     /** 복각표 카드: 픽업 캐릭터를 원소 동그라미와 원소 색 이름으로. 자료가 없으면 안내만. */
     private fun renderReruns(r: RerunCardUi?) {
         val d = context.resources.displayMetrics.density
@@ -727,21 +747,34 @@ class MainScreen(val root: View) {
         rerunPeriod.text = r?.period ?: ""
         rerunOldest.text = r?.oldest ?: "캐릭터마다 마지막 픽업 뒤 몇 버전 지났는지 봐요"
         rerunChars.visibility = if (r?.chars.isNullOrEmpty()) View.GONE else View.VISIBLE
-        for ((name, element) in r?.chars.orEmpty().take(4)) {
+        // 4성까지 보이면 한 줄에 다섯까지(조금 작게) 나눠 놓는다.
+        val shown = r?.chars.orEmpty().take(if (r?.fours.isNullOrEmpty()) 4 else 5)
+        val many = shown.size > 4
+        for ((name, element) in shown) {
+            val ring = context.getColor(if (name in r?.fours.orEmpty()) R.color.rarity4 else R.color.gold)
             val base = context.getColor(RerunActivity.elementColor(element))
+            val face = faceFor(name)
             rerunChars.addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = android.view.Gravity.CENTER_HORIZONTAL
                 addView(android.widget.ImageView(context).apply {
-                    RerunActivity.elementIcon(element)?.let { setImageResource(it) }
-                    setPadding(dp(9), dp(9), dp(9), dp(9))
+                    if (face != null) {
+                        setImageBitmap(face)
+                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                        setPadding(dp(2), dp(2), dp(2), dp(2))
+                        clipToOutline = true
+                        outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                    } else if (!facePending(name)) {
+                        RerunActivity.elementIcon(element)?.let { setImageResource(it) }
+                        setPadding(dp(9), dp(9), dp(9), dp(9))
+                    }
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                     background = android.graphics.drawable.GradientDrawable().apply {
                         shape = android.graphics.drawable.GradientDrawable.OVAL
                         setColor(base)
-                        setStroke(dp(2), context.getColor(R.color.gold))
+                        setStroke(dp(if (many) 3 else 2), ring)
                     }
-                }, LinearLayout.LayoutParams(dp(52), dp(52)))
+                }, LinearLayout.LayoutParams(dp(if (many) 48 else 52), dp(if (many) 48 else 52)))
                 addView(TextView(context).apply {
                     text = name.trim().split(" ").last()
                     textSize = 13f
@@ -752,7 +785,7 @@ class MainScreen(val root: View) {
                     ellipsize = android.text.TextUtils.TruncateAt.END
                     setPadding(0, dp(6), 0, 0)
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            }, LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
+            }, if (many) LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) else LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
         }
         rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, "눌러서 복각표").joinToString(", ")
     }

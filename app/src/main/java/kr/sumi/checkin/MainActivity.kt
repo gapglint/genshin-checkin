@@ -71,6 +71,8 @@ class MainActivity : Activity() {
         screen.settingsBack.setOnClickListener { showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
         screen.rerunCard.setOnClickListener { startActivity(RerunActivity.intent(this)) }
+        screen.faceFor = { ko -> Lobby.cachedFace(this, ko) }
+        screen.facePending = { ko -> Lobby.officialArtAllowed(this) && ko !in failedFaces }
         screen.eventsButton.setOnClickListener { startActivity(EventsActivity.intent(this)) }
         screen.tileHistory.setOnClickListener {
             store?.let { startActivity(RewardHistoryActivity.intent(this, it.accountId)) }
@@ -141,6 +143,10 @@ class MainActivity : Activity() {
         }
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
         screen.rowMainDisplay.setOnClickListener { showSettings(false); setEditing(true) }
+        screen.root.findViewById<View>(R.id.rowHomeStyle).setOnClickListener { startActivity(LobbyStyleActivity.intent(this)) }
+        screen.decorateButton.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
+        screen.lobbyIntro.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
+        screen.lobbyIntroClose.setOnClickListener { settings.lobbyIntroDone = true; refresh() }
         screen.editButton.setOnClickListener { setEditing(true) }
         screen.editDone.setOnClickListener { setEditing(false) }
         screen.rowGameApp.setOnClickListener { chooseGameApp() }
@@ -160,6 +166,10 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // 앱을 켤 때마다(홈·최근 앱에서 돌아올 때도) 새로 인사한다(음성을 켰으면 들려준다).
+        // 앱 안의 다른 화면(복각표·꾸미기 등)을 보고 돌아온 것이면 지금 대사를 그대로 둔다.
+        if (!openedOwnScreen) lobbyLineKey = null
+        openedOwnScreen = false
         // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
         if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
@@ -170,6 +180,25 @@ class MainActivity : Activity() {
         loadRerunsIfStale()
         loadEventsIfStale()
         loadCodesIfStale()
+        loadLobbyIfStale()
+        loadPickupFaces()
+    }
+
+    private var loadingFaces = false
+
+    /** 메인 복각표 카드의 픽업 캐릭터 얼굴 그림을 받아 둔다(없을 때만). */
+    /** 받아 오지 못한 픽업 얼굴(원소 아이콘으로 둔다). */
+    private val failedFaces = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private fun loadPickupFaces() {
+        val chars = rerunCard()?.chars?.map { it.first }.orEmpty()
+        val missing = chars.filter { Lobby.cachedFace(this, it) == null }
+        if (loadingFaces || missing.isEmpty() || !Lobby.officialArtAllowed(this)) return
+        loadingFaces = true
+        Thread {
+            for (ko in missing) if (Lobby.face(this, ko) == null) failedFaces += ko
+            runOnUiThread { loadingFaces = false; refresh() }
+        }.start()
     }
 
     private var loadingCodes = false
@@ -240,7 +269,7 @@ class MainActivity : Activity() {
     }
 
     /** 복각표 카드: 지금 픽업(없으면 다음 픽업) 캐릭터와 기간, 그리고 가장 오래 기다린 캐릭터. */
-    private fun rerunCard(): RerunCardUi? = Reruns.cached(this)?.card(ServerClock.today())
+    private fun rerunCard(): RerunCardUi? = Reruns.cached(this)?.card(ServerClock.today(), settings.rerunFours)
 
     /**
      * 방금 로그인한 계정은 출석 상태를 아직 모른다(0일로 보인다). 예약 작업은 시스템이 늦게 돌릴 수 있어서,
@@ -251,8 +280,19 @@ class MainActivity : Activity() {
         if (busy == null && !store.signedToday && store.lastRunAt < store.loginAt) checkInNow()
     }
 
+    /** 이 화면에서 다른 화면을 열었는지. 돌아왔을 때 새로 인사할지 정한다. */
+    private var openedOwnScreen = false
+
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        openedOwnScreen = true
+        super.startActivityForResult(intent, requestCode, options)
+    }
+
     override fun onPause() {
         super.onPause()
+        voiceRequest++ // 받는 중이던 음성은 앱을 떠난 뒤에 재생하지 않는다
+        voicePlayer?.release()
+        voicePlayer = null
         // 계정을 바꿨거나 메모를 새로 받았을 수 있으니 홈 화면 위젯도 맞춘다.
         AppWidgets.updateAll(this)
     }
@@ -279,12 +319,17 @@ class MainActivity : Activity() {
     /** 위에 열린 것부터 닫는다. 닫을 게 있었으면 true. */
     private fun closeTopPanel(): Boolean = when {
         screen.settingsPanel.visibility == View.VISIBLE -> { showSettings(false); true }
+        lobbyMenus.isNotEmpty() -> { closeLobbyMenu(); true }
         editing -> { setEditing(false); true }
+        // 로비에서 '카드'로 카드 화면을 보던 중이면 로비로 돌아간다.
+        lobbyHidden && lobbyEnabled() -> { lobbyHidden = false; refresh(); updateBackCallback(); true }
         else -> false
     }
 
     private fun updateBackCallback() {
-        if (Build.VERSION.SDK_INT >= 33) setPanelBackCallback(editing || screen.settingsPanel.visibility == View.VISIBLE)
+        if (Build.VERSION.SDK_INT >= 33) setPanelBackCallback(
+            editing || screen.settingsPanel.visibility == View.VISIBLE || lobbyMenus.isNotEmpty() || (lobbyHidden && lobbyEnabled())
+        )
     }
 
     @TargetApi(33)
@@ -593,8 +638,7 @@ class MainActivity : Activity() {
         val signedToday = store?.signedToday == true
         // 지난달 기록이면 이번 달 누적은 0부터 다시 센다.
         val sameMonth = store?.signedDay?.startsWith(today.toString().substring(0, 7)) == true
-        screen.render(
-            MainUiState(
+        val state = MainUiState(
                 loggedIn = store != null,
                 accounts = settings.accounts().map { AccountChip(it.accountId, it.displayName, it.signedToday) },
                 currentId = store?.accountId,
@@ -653,8 +697,10 @@ class MainActivity : Activity() {
                 eventsUnseen = Events.unseen(this),
                 cardOrder = settings.cardOrder,
                 editing = editing,
+                lobbyIntro = lobbyIntroDue(),
             )
-        )
+        screen.render(state)
+        renderLobby(state)
         editor.show(editing, settings.cardOrder.filter { !settings.isShown(it) })
         store?.let { countUnseenRewards(it) }
     }
@@ -820,9 +866,12 @@ class MainActivity : Activity() {
                 if (isFinishing || isDestroyed) return
                 val now = Redeem.running
                 if (now != null) {
-                    busy = now.first
-                    busyProgress = now.second
-                    refresh()
+                    // 바뀐 게 있을 때만 다시 그린다(코드 사이 6초 동안은 그대로다).
+                    if (busy != now.first || busyProgress != now.second) {
+                        busy = now.first
+                        busyProgress = now.second
+                        refresh()
+                    }
                     root.postDelayed(this, 500)
                     return
                 }
@@ -1022,6 +1071,503 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("취소")
             .show()
+    }
+
+    // ---------- 로비형 홈(고르는 기능) ----------
+
+    private var lobby: LobbyView? = null
+    private val lobbyMenus = mutableListOf<View>()
+    /** 로비에서 '카드'를 눌러 카드 화면을 보는 중. 뒤로 가기로 로비에 돌아간다. */
+    private var lobbyHidden = false
+    private var lobbyArt: android.graphics.Bitmap? = null
+    private var lobbyArtKey: String? = null
+    private var lobbyBust: android.graphics.Bitmap? = null
+    private var lobbyBustUrl: String? = null
+    private var loadingLobbyArt = false
+    private var loadingLobby = false
+    private var dockAction: () -> Unit = {}
+
+    /** 로비형 소개 카드: 카드형을 쓰고, 처음 로그인하고 2일이 지났고, 아직 닫거나 눌러 보지 않았을 때 한 번. */
+    private fun lobbyIntroDue(): Boolean {
+        if (store == null || settings.lobbyIntroDone || settings.homeStyle == Lobby.STYLE_LOBBY) return false
+        if (settings.firstAccountAt == 0L) { settings.firstAccountAt = System.currentTimeMillis(); return false }
+        return System.currentTimeMillis() - settings.firstAccountAt >= 2 * 24 * 60 * 60_000L
+    }
+
+    private fun lobbyEnabled() = settings.homeStyle == Lobby.STYLE_LOBBY && store != null && settings.favorite != null
+
+    /** 사이트 설정(공식 그림 스위치), 내 캐릭터 목록, 알림용 최애 그림을 가끔 받아 둔다. 로비형을 쓸 때만. */
+    private fun loadLobbyIfStale() {
+        val store = store ?: return
+        if (settings.homeStyle != Lobby.STYLE_LOBBY || loadingLobby) return
+        loadingLobby = true
+        Thread {
+            Lobby.refreshConfig(this)
+            try { Lobby.refreshCharacters(this, store) } catch (e: Exception) {}
+            settings.favorite?.let { Lobby.loadNotifArt(this, it.name) }
+            runOnUiThread { loadingLobby = false; refresh() }
+        }.start()
+    }
+
+    /** 로비에서 '카드'로 연 카드 화면의 머리(로비 메뉴와 같은 모양)와, 그때의 원래 바탕. */
+    private var lobbyCardHeader: View? = null
+    private var lobbyCardHeaderKey: String? = null
+    private var cardPageBackground: android.graphics.drawable.Drawable? = null
+
+    /**
+     * 로비에서 '카드'를 누르면 카드 화면을 로비 메뉴처럼 보여 준다: 위에 원소 색 머리('‹ 로비', 최애 그림)와
+     * 옅은 원소 색 바탕. 로비로 돌아가거나 카드형을 쓰면 원래대로.
+     */
+    private fun updateLobbyReturn() {
+        val fav = settings.favorite
+        val content = screen.root.findViewById<android.view.ViewGroup>(R.id.content)
+        val on = lobbyHidden && lobbyEnabled() && !editing && fav != null
+        if (!on || fav == null) {
+            lobbyCardHeader?.let { content.removeView(it); content.clipToPadding = true }
+            lobbyCardHeader = null
+            lobbyCardHeaderKey = null
+            cardPageBackground?.let { screen.root.background = it }
+            cardPageBackground = null
+            return
+        }
+        val t = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
+        if (cardPageBackground == null) cardPageBackground = screen.root.background
+        screen.root.setBackgroundColor(LobbyMenu.pageColor(this, t))
+        val key = "${fav.name}|${fav.element}|${lobbyBust != null}"
+        if (lobbyCardHeader != null && key == lobbyCardHeaderKey) return
+        lobbyCardHeader?.let { content.removeView(it) }
+        val d = resources.displayMetrics.density
+        val header = LobbyMenu.header(this, "카드", t, lobbyBust, fav.name, fav.element) { lobbyHidden = false; refresh(); updateBackCallback() }
+        // 목록의 좌우·위 여백을 넘어 화면 폭에 맞게(위 상태 바 여백은 그대로 둔다).
+        content.addView(header, 0, android.widget.LinearLayout.LayoutParams(-1, (LobbyMenu.HEADER_DP * d).toInt()).apply {
+            setMargins(-content.paddingStart, -(12 * d).toInt(), -content.paddingEnd, (12 * d).toInt())
+        })
+        // 머리가 목록 여백(좌우·위) 밖까지 보이게.
+        content.clipToPadding = false
+        lobbyCardHeader = header
+        lobbyCardHeaderKey = key
+    }
+
+    private fun renderLobby(s: MainUiState) {
+        updateLobbyReturn()
+        val fav = settings.favorite
+        val store = store
+        // 카드 화면을 보다가 카드형으로 바꿨으면 '로비로 돌아가기' 상태를 지운다(뒤로 가기가 막히지 않게).
+        if (lobbyHidden && !lobbyEnabled()) { lobbyHidden = false; updateBackCallback() }
+        if (!lobbyEnabled() || editing || lobbyHidden || fav == null || store == null) {
+            lobby?.visibility = View.GONE
+            return
+        }
+        val view = lobby ?: LobbyView(this).also { v ->
+            val root = screen.root as android.widget.FrameLayout
+            // 상태바·내비게이션 바는 로비가 스스로 피한다(그림은 화면 끝까지).
+            root.addView(v, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
+            lobby = v
+        }
+        view.visibility = View.VISIBLE
+        // 이름·대사·메뉴 제목용 글꼴(구글 글꼴 제공자에서 한 번 받는다. 받으면 다시 그린다).
+        LobbyFont.load(this) { refresh() }
+        val width = resources.displayMetrics.widthPixels
+        // 배경 그림: 방식·최애·스위치·사진이 바뀌었을 때만 다시 읽는다. 공식 그림이 아직 없으면 받아 온다.
+        val key = listOf(settings.lobbyBackground, fav.name, Lobby.officialArtAllowed(this), Lobby.photoFile(this).lastModified()).joinToString("|")
+        if (key != lobbyArtKey) {
+            lobbyArtKey = key
+            lobbyArt = Lobby.cachedBackground(this, settings, width)
+            if (lobbyArt == null && settings.lobbyBackground == Lobby.BG_OFFICIAL && Lobby.officialArtAllowed(this) && !loadingLobbyArt) {
+                loadingLobbyArt = true
+                Thread {
+                    val art = Lobby.background(this, settings, width)
+                    runOnUiThread {
+                        loadingLobbyArt = false
+                        // 받는 사이 최애·배경을 바꿨으면 이 그림은 버리고 지금 것으로 다시.
+                        if (key != lobbyArtKey) { lobbyArtKey = null; refresh() } else if (art != null) { lobbyArt = art; refresh() }
+                    }
+                }.start()
+            }
+        }
+        if (lobbyBustUrl != fav.image) {
+            lobbyBustUrl = fav.image
+            Thread { val b = Lobby.bust(this, fav.image); runOnUiThread { lobbyBust = b; if (lobbyHidden) updateLobbyReturn() } }.start()
+        }
+        val owned = Lobby.cachedCharacters(this, store).firstOrNull { it.name == fav.name }
+        // 기다리던 최애를 뽑았으면 전적의 내 캐릭터 정보로 바꾼다(그림·번호).
+        if (owned != null && fav.id == 0) settings.favorite = Favorite(owned.name, owned.element, owned.image, owned.id)
+        val elementKo = Lobby.ELEMENT_KO[fav.element] ?: ""
+        val meta = when {
+            owned != null -> "$elementKo · Lv.${owned.level} · 호감도 ${owned.fetter} · 운명의 자리 ${owned.constellation}"
+            fav.id == 0 -> Lobby.waitingLine(this, fav.name, ServerClock.today())
+            else -> "$elementKo 원소"
+        }
+        val usingOfficial = lobbyArt != null && settings.lobbyBackground == Lobby.BG_OFFICIAL
+        view.bind(lobbyUi(s, fav, meta, usingOfficial), lobbyArt, lobbyActions)
+        // 로비가 앞에 보일 때만(메뉴·다른 화면 위에서는 아니고).
+        greetingToPlay?.let { line ->
+            greetingToPlay = null
+            if (lobbyMenus.isEmpty() && Lobby.officialVoicesAllowed(this)) {
+                playVoice(line.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
+            }
+        }
+    }
+
+    /** 지금 상태로 로비에 보일 것(말풍선·아래 패널)을 정한다. 문제가 있으면 아래 패널이 경고로 바뀐다. */
+    private fun lobbyUi(s: MainUiState, fav: Favorite, meta: String, credit: Boolean): LobbyUi {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val hello = when (hour) { in 5..10 -> "좋은 아침이에요"; in 11..16 -> "좋은 오후예요"; in 17..21 -> "좋은 저녁이에요"; else -> "늦은 밤이에요" }
+        val who = "${s.nickname ?: "여행자"} 님"
+        val notes = s.notes
+        val resinFull = notes != null && notes.resin >= notes.maxResin
+        val redeemedToday = store?.lastRedeemAt?.let { it > 0 && ServerClock.dayOf(it) == ServerClock.today() } == true &&
+            s.redeemShort?.startsWith("새 코드") == true
+        val note = s.note
+        // 앱이 한 일 한 줄. 최애 대사가 있으면 대사 아래에 작게, 없으면 인사와 함께 보인다.
+        val status = when {
+            s.busy != null -> "지금 ${s.busy.trimEnd('.', ' ')} 중이에요."
+            note != null -> "출석을 못 했어요. 아래를 확인해 주세요."
+            s.signedToday && resinFull -> "레진이 가득 찼어요! 출석은 받아 뒀어요."
+            s.signedToday && s.totalDays >= Store.checkInDay().dayOfMonth && s.totalDays >= 7 -> "이번 달 하루도 안 빠졌어요. 오늘도 받아 뒀어요."
+            s.signedToday && redeemedToday -> "오늘 출석이랑 새 코드도 받아 뒀어요."
+            s.signedToday -> "오늘 출석은 받아 뒀어요."
+            else -> "오늘 출석은 곧 받아 둘게요."
+        }
+        val quote = lobbyQuote(fav, hour, note != null, s.signedToday && (redeemedToday || s.historyUnseen > 0))
+        val greeting = if (quote != null) status else if (note != null) status.replace(". ", ".\n") else "$hello, $who.\n$status"
+        val big = notes?.fullTime?.takeIf { it.isNotEmpty() && !resinFull }?.removePrefix("오전 ")?.removePrefix("오후 ")
+        val bigLabel = when {
+            resinFull -> null
+            big != null -> if (notes.fullTime.startsWith("오전")) "오전 레진 가득" else "레진 가득"
+            else -> null
+        }
+        val gameButton = if (s.gameInstalled) "원신 켜기" else null
+        val launchGame = { Game.launchIntent(this)?.let { startActivity(it) }; Unit }
+        val base = LobbyUi(
+            name = fav.name, element = fav.element, meta = meta, greeting = greeting,
+            resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
+            dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
+            account = s.accounts.takeIf { it.size > 1 }?.firstOrNull { it.id == s.currentId }?.label,
+            quote = quote?.text, voice = Lobby.officialVoicesAllowed(this) && quote?.audioFor(settings.voiceLanguage) != null,
+        )
+        return when {
+            s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }
+            note != null && note.startsWith("로그인이 풀려") -> {
+                dockAction = { startActivity(LoginActivity.loginIntent(this)) }
+                base.copy(dockTone = DockTone.WARN, dockTitle = "로그인이 풀렸어요", dockSub = "다시 로그인하면 바로 출석해요", dockButton = "다시 로그인")
+            }
+            note != null && note.contains("캡차") -> {
+                dockAction = { store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) } }
+                base.copy(dockTone = DockTone.WARN, dockTitle = "캡차 확인이 필요해요", dockSub = "출석 페이지에서 직접 눌러 주세요", dockButton = "출석 페이지 열기")
+            }
+            note != null -> {
+                dockAction = { checkInNow() }
+                base.copy(dockTone = DockTone.WARN, dockTitle = "출석하지 못했어요", dockSub = note.lineSequence().first().take(40), dockButton = "다시 시도")
+            }
+            !s.signedToday -> {
+                dockAction = { checkInNow() }
+                base.copy(dockTone = DockTone.WAIT, dockTitle = "아직 출석 전이에요", dockSub = s.nextRun?.let { "자동 출석 · $it" }, dockBig = big, dockBigLabel = bigLabel, dockButton = "지금 출석")
+            }
+            else -> {
+                dockAction = launchGame
+                val sub = listOfNotNull(s.reward, s.makeUpToday ?: s.nextRun?.let { "다음 자동 출석 $it" }).joinToString(" · ").ifEmpty { null }
+                base.copy(dockTone = DockTone.DONE, dockTitle = "오늘 출석 완료", dockSub = sub,
+                    dockBig = big ?: if (resinFull) "가득" else null, dockBigLabel = bigLabel ?: if (resinFull) "레진" else null, dockButton = gameButton)
+            }
+        }
+    }
+
+    private val lobbyActions = object : LobbyView.Actions {
+        override fun onResin() = openLobbyMenu("레진") { resinMenu() }
+        override fun onCheckIn() = openLobbyMenu("출석") { checkInMenu() }
+        override fun onDockButton() = dockAction()
+        override fun onSettings() = showSettings(true)
+        override fun onVoice() {
+            val fav = settings.favorite ?: return
+            playVoice(lobbyLine?.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
+        }
+        override fun onBubble() {
+            val fav = settings.favorite ?: return
+            // 평소 이야기 대사 중 하나(지금 것과 다르게, 게임에서 열린 것만). 음성이 있으면 들려준다.
+            val pool = Lobby.talk(Lobby.unlockedVoices(this@MainActivity, fav.name), fav.name)
+                .filter { it.text != lobbyLine?.text }
+            val line = pool.randomOrNull() ?: return
+            lobbyLine = line
+            lobbyLineKey = "tap"
+            refresh()
+            playVoice(line.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
+        }
+        override fun onAccount() {
+            val accounts = settings.accounts()
+            val names = accounts.map { it.displayName } + "+ 계정 추가"
+            AppDialog(this@MainActivity)
+                .setTitle("계정 바꾸기")
+                .setSingleChoiceItems(names.toTypedArray(), accounts.indexOfFirst { it.accountId == store?.accountId }) { dialog, which ->
+                    dialog.dismiss()
+                    if (which == accounts.size) startActivity(LoginActivity.loginIntent(this@MainActivity))
+                    else { settings.currentId = accounts[which].accountId; lobbyArtKey = null; refresh() }
+                }
+                .show()
+        }
+        override fun onMenu(key: String) {
+            when (key) {
+                LobbyView.MENU_REDEEM, LobbyView.MENU_REWARDS -> openLobbyMenu("보상") { redeemMenu() }
+                LobbyView.MENU_PICKUP -> startActivity(RerunActivity.intent(this@MainActivity))
+                LobbyView.MENU_EVENTS -> startActivity(EventsActivity.intent(this@MainActivity))
+                LobbyView.MENU_CARDS -> { lobbyHidden = true; refresh(); updateBackCallback() }
+                LobbyView.MENU_DECORATE -> startActivity(LobbyStyleActivity.intent(this@MainActivity))
+            }
+        }
+    }
+
+    /** 로비 메뉴 화면을 오른쪽에서 밀어 넣는다. 내용은 연 시점의 상태로 그린다. */
+    private fun openLobbyMenu(title: String, build: LobbyMenu.() -> Unit) {
+        val fav = settings.favorite ?: return
+        val theme = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
+        val menu = LobbyMenu(this, title, theme, lobbyBust, fav.name, fav.element) { closeLobbyMenu() }
+        menu.build()
+        val root = screen.root as android.widget.FrameLayout
+        root.addView(menu, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
+        applySystemBarInsets(menu)
+        menu.requestApplyInsets() // 화면이 뜬 뒤에 붙이므로 바 높이를 다시 받는다.
+        menu.translationX = resources.displayMetrics.widthPixels * 0.3f
+        menu.alpha = 0f
+        menu.animate().translationX(0f).alpha(1f).setDuration(220).start()
+        lobbyMenus += menu
+        updateBackCallback()
+    }
+
+    private fun closeLobbyMenu() {
+        val menu = lobbyMenus.removeLastOrNull() ?: return
+        menu.animate().translationX(menu.width * 0.3f).alpha(0f).setDuration(180)
+            .withEndAction { (menu.parent as? android.view.ViewGroup)?.removeView(menu) }.start()
+        updateBackCallback()
+    }
+
+    private fun closeAllLobbyMenus() {
+        for (menu in lobbyMenus) (menu.parent as? android.view.ViewGroup)?.removeView(menu)
+        lobbyMenus.clear()
+        updateBackCallback()
+    }
+
+    /** 지금 말풍선의 대사와, 그 대사를 고른 상황. 상황이 바뀔 때만 새로 고른다(새로 그릴 때마다 바뀌지 않게). */
+    private var lobbyLine: Lobby.VoiceLine? = null
+    private var lobbyLineKey: String? = null
+    private var loadingVoices: String? = null
+
+    /**
+     * 상황에 맞는 최애 대사: 문제가 있으면 걱정하는 대사, 오늘 새 보상이 있으면 보물상자 대사, 아니면 시간대 인사.
+     * 대사가 아직 없으면 받아 오고, 없으면 null(기본 인사).
+     */
+    private fun lobbyQuote(fav: Favorite, hour: Int, problem: Boolean, newReward: Boolean): Lobby.VoiceLine? {
+        if (Lobby.voices(this, fav.name).isEmpty()) {
+            if (loadingVoices != fav.name && Lobby.officialArtAllowed(this)) {
+                loadingVoices = fav.name
+                Thread { Lobby.loadVoices(this, fav.name); runOnUiThread { if (Lobby.voices(this, fav.name).isNotEmpty()) refresh() } }.start()
+            }
+            return null
+        }
+        val all = Lobby.unlockedVoices(this, fav.name)
+        // 저절로 바뀌는 인사는 접지 않고 보이는 길이만(긴 대사는 사용자가 눌러서 들을 때).
+        val voices = all.filter { it.text.length <= Lobby.BUBBLE_MAX }
+        val key = when {
+            problem -> "problem"
+            newReward -> "reward"
+            else -> Lobby.timeGreeting(hour)
+        }
+        val fullKey = "${fav.name}|$key|${Store.checkInDay()}"
+        // 말풍선이나 캐릭터를 눌러 고른 대사는 길어도 상황이 바뀌기 전까지 그대로 둔다(재생 중인 음성과 글이 어긋나지 않게).
+        if (lobbyLineKey == "tap" && lobbyLine != null && lobbyLine in all) return lobbyLine
+        if (fullKey == lobbyLineKey && lobbyLine != null) return lobbyLine
+        lobbyLineKey = fullKey
+        lobbyLine = when {
+            problem -> Lobby.pick(voices, "HP 부족", "동료 HP 감소").randomOrNull()
+            newReward -> Lobby.pick(voices, "보물상자 오픈").randomOrNull()
+            else -> null
+        } ?: Lobby.greetingLine(voices, fav.name, hour)
+        // 새 인사가 정해지면 음성을 켠 사람에게 한 번 들려준다(같은 인사는 다시 그려도 되풀이하지 않는다).
+        greetingToPlay = lobbyLine
+        return lobbyLine
+    }
+
+    /** 로비를 그린 뒤 들려줄 새 인사(음성). */
+    private var greetingToPlay: Lobby.VoiceLine? = null
+
+    private var voicePlayer: android.media.MediaPlayer? = null
+
+    /** 같은 대사를 연달아 눌렀을 때 앞 것만 재생하지 않게 셈한다. */
+    private var voiceRequest = 0
+
+    /**
+     * 대사 음성(말풍선이나 캐릭터를 눌렀을 때만). 공식 서버에서 한 번 받아 임시 저장 공간에 두고([Lobby.voiceFile]) 그 파일을 재생한다.
+     * [owner]는 지금 최애·음성 언어(바뀌면 이전 음성은 지운다).
+     */
+    private fun playVoice(url: String?, owner: String) {
+        voicePlayer?.release()
+        voicePlayer = null
+        val request = ++voiceRequest
+        if (url == null) return
+        Thread {
+            val file = Lobby.voiceFile(this, url, owner)
+            runOnUiThread { if (file != null && request == voiceRequest && !isDestroyed) startVoice(file.path) }
+        }.start()
+    }
+
+    private fun startVoice(path: String) {
+        voicePlayer?.release()
+        voicePlayer = android.media.MediaPlayer().apply {
+            setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+            setOnPreparedListener { it.start() }
+            setOnCompletionListener { it.release(); if (voicePlayer === it) voicePlayer = null }
+            setOnErrorListener { mp, _, _ -> mp.release(); if (voicePlayer === mp) voicePlayer = null; true }
+            try { setDataSource(path); prepareAsync() } catch (e: Exception) { release(); voicePlayer = null }
+        }
+    }
+
+    private fun LobbyMenu.resinMenu() {
+        val n = store?.note?.let { Notes.ui(it) }
+        if (n == null) {
+            val problem = store?.noteProblem
+            card {
+                head("레진")
+                row(R.drawable.ic_item_resin, problem ?: "레진을 불러오는 중이에요")
+                if (problem == Notes.NOTES_OFF) row(R.drawable.ic_note_commission, "실시간 메모 켜기 ›") { askEnableNotes() }
+            }
+            return
+        }
+        card { head("지금 레진"); meter(n.resin, n.maxResin, listOf(n.fullLabel, n.fullTime).filter { it.isNotEmpty() }.joinToString("\n"), R.drawable.ic_item_resin) }
+        card {
+            head("오늘 할 일")
+            iconStats(
+                Triple(R.drawable.ic_note_expedition, n.expeditions, "탐사 파견"),
+                Triple(R.drawable.ic_note_teapot, n.coin, "주전자 동전"),
+                Triple(R.drawable.ic_note_commission, n.commissions, "일일 의뢰"),
+            )
+            line(n.updated)
+        }
+        if (Game.launchIntent(this@MainActivity) != null) card { row(R.drawable.ic_item_resin, "원신 켜기 ›") { Game.launchIntent(this@MainActivity)?.let { startActivity(it) } } }
+    }
+
+    private fun LobbyMenu.checkInMenu() {
+        val store = store ?: return
+        val today = Store.checkInDay()
+        val signed = store.signedToday
+        val total = if (store.signedDay?.startsWith(today.toString().substring(0, 7)) == true) store.signedTotal else 0
+        val slots = store.takeIf { it.calendarDay?.take(7) == today.toString().take(7) }?.calendarAwards.orEmpty()
+        card {
+            head("${today.monthValue}월 출석 보상 · $total / ${slots.size.takeIf { it > 0 } ?: today.lengthOfMonth()}")
+            if (slots.isEmpty()) line("출석 보상 목록을 불러오는 중이에요")
+            else calendar(slots, total, total + 1, total + today.lengthOfMonth() - today.dayOfMonth + (if (signed) 0 else 1))
+        }
+        card {
+            head("오늘")
+            row(ItemIcons.of(store.lastReward), if (signed) "출석 완료" else "아직 출석 전이에요", if (signed) store.lastReward else null)
+            settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, "다음 자동 출석", describeNextRun(it)) }
+            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, "놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
+            row(R.drawable.ic_check_badge, "출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+        }
+    }
+
+    /**
+     * 로비 테마의 보상 내역(카드형의 보상 내역 화면으로 넘어가면 갑자기 다른 앱처럼 보여서).
+     * 이번 달 출석·보충 보상(호요랩 기록)과 이 앱이 받은 리딤 코드. 더 지난 기록은 원래 보상 내역 화면에서.
+     * 원래 화면처럼 열면 확인한 것으로 친다.
+     */
+    private fun openHistoryMenu() {
+        val store = store ?: return
+        val cookie = store.cookie ?: return
+        openLobbyMenu("보상 내역") { historyBody(store, null, null) }
+        val menu = lobbyMenus.lastOrNull() as? LobbyMenu ?: return
+        store.historySeenRedeemAt = ServerClock.now()
+        Thread {
+            val month = ServerClock.today().toString().take(7)
+            val entries = mutableListOf<RewardEntry>()
+            val error = try {
+                // 이번 달 합계가 맞도록, 받아 온 목록이 아직 이번 달에서 끝나면 더 받는다(최대 3쪽).
+                for (page in 1..3) {
+                    val json = CheckInClient(cookie).awardHistory(page, RewardHistory.PAGE_SIZE)
+                    if (json.optInt("retcode", -1) in CheckInClient.NOT_LOGGED_IN) throw IOException("로그인이 풀렸어요. 다시 로그인해 주세요.")
+                    val got = RewardHistory.parseAwards(json)
+                    if (page == 1) {
+                        RewardHistory.ensureBaseline(store, got)
+                        got.firstOrNull()?.let { store.historySeenAwardKey = it.key }
+                        store.historyUnseen = 0
+                    }
+                    entries += got
+                    if (got.size < RewardHistory.PAGE_SIZE || got.lastOrNull()?.date?.startsWith(month) != true) break
+                }
+                null
+            } catch (e: Exception) { // 네트워크·응답 형식 오류
+                "내역을 불러오지 못했어요. ${e.message ?: ""}".trim()
+            }
+            runOnUiThread {
+                if (menu.parent == null) return@runOnUiThread
+                menu.body.removeAllViews()
+                menu.historyBody(store, entries, error)
+                refresh()
+            }
+        }.start()
+    }
+
+    private fun LobbyMenu.historyBody(store: Store, entries: List<RewardEntry>?, error: String?) {
+        val month = ServerClock.today().toString().take(7)
+        val thisMonth = entries.orEmpty().filter { it.date.startsWith(month) }
+        val totals = RewardHistory.totals(thisMonth.map { it.name to it.count })
+        fun sum(name: String) = totals.firstOrNull { it.first == name }?.second ?: 0
+        card {
+            head("${month.takeLast(2).toInt()}월에 받은 보상")
+            when {
+                entries == null -> line("불러오는 중...")
+                error != null -> line(error)
+                else -> iconStats(
+                    Triple(R.drawable.ic_item_primogem, "%,d".format(sum("원석")), "원석"),
+                    Triple(R.drawable.ic_item_mora, "%,d".format(sum("모라")), "모라"),
+                    Triple(R.drawable.ic_item_gift, "${totals.count { it.first != "원석" && it.first != "모라" }}종", "그 밖의 아이템"),
+                )
+            }
+        }
+        card {
+            head("리딤 코드")
+            val log = store.redeemLog
+            if (log.isEmpty()) row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요")
+            for (r in log.take(10)) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
+        }
+        if (thisMonth.isNotEmpty()) card {
+            head("${RewardHistory.monthLabel(month)} 출석·보충")
+            for (e in thisMonth) row(ItemIcons.of(e.name), "${e.name} ×${"%,d".format(e.count)}", RewardHistory.dayLabel(e.date))
+        }
+        card {
+            row(R.drawable.ic_item_book, "지난달 이전 기록 전체 보기 ›") {
+                startActivity(RewardHistoryActivity.intent(this@MainActivity, store.accountId))
+            }
+        }
+    }
+
+    private fun LobbyMenu.redeemMenu() {
+        val store = store ?: return
+        card {
+            head("보상 내역")
+            row(R.drawable.ic_item_primogem, "이번 달 받은 원석·모라 보기 ›", store.historyUnseen.takeIf { it > 0 }?.let { "새 보상 ${it}개" }) {
+                openHistoryMenu()
+            }
+        }
+        card {
+            head("최근 받은 코드")
+            val log = store.redeemLog.take(5)
+            if (log.isEmpty()) row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요")
+            for (r in log) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
+            store.lastRedeemSummary?.let { line(DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() + " 확인 · " + it.substringBefore(":")) }
+        }
+        card {
+            head("자동 입력")
+            line(if (settings.redeemEnabled) "새 코드가 올라오면 앱이 알아서 넣어요" else "자동 입력이 꺼져 있어요")
+            row(R.drawable.ic_item_gift, "지금 새 코드 확인 ›") {
+                closeAllLobbyMenus()
+                when {
+                    !settings.redeemEnabled -> showSettings(true)
+                    store.redeemRole == null -> chooseRedeemRole()
+                    else -> redeemNow()
+                }
+            }
+            row(R.drawable.ic_edit, "코드 직접 입력 ›") { enterCode() }
+        }
     }
 
     companion object {

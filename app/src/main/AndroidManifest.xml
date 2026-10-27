@@ -116,5 +116,8 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
-    </application>
+            <activity
+            android:name=".LobbyStyleActivity"
+            android:exported="false" />
+</application>
 </manifest>

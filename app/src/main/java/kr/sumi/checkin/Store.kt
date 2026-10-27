@@ -129,7 +129,8 @@ class Store(private val context: Context, val accountId: String) {
     /** 이미 코드를 찾아본 커뮤니티 글 ID. */
     var redeemScannedPosts: Set<String>
         get() = prefs.getStringSet("redeem_scanned_posts", emptySet())!!.toSet()
-        set(value) = prefs.edit { putStringSet("redeem_scanned_posts", value) }
+        // 글 번호는 커지기만 하니 최근 것 300개만 둔다(오래된 글은 다시 찾아보지 않는 나이를 넘는다).
+        set(value) = prefs.edit { putStringSet("redeem_scanned_posts", value.sortedByDescending { it.toLongOrNull() ?: 0 }.take(300).toSet()) }
 
     var lastRedeemAt: Long
         get() = prefs.getLong("last_redeem_at", 0)
@@ -268,12 +269,45 @@ val NOTE_STATS = listOf(NOTE_EXPEDITIONS, NOTE_COIN, NOTE_COMMISSIONS)
 val CARDS = listOf(CARD_NOTES, CARD_TILES, CARD_RERUNS, CARD_CALENDAR)
 
 /** 모든 계정이 함께 쓰는 설정과 계정 목록. */
+/** 로비형 홈의 최애 캐릭터. element는 원소 영문 이름(소문자), image는 전적의 작은 얼굴 그림 주소. */
+data class Favorite(val name: String, val element: String, val image: String, val id: Int)
+
 class AppSettings(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("hoyo", Context.MODE_PRIVATE)
 
     init {
         migrateSingleAccount()
     }
+
+    /** 메인 화면 모양: 카드형(기본) 또는 로비형(최애 캐릭터가 화면의 주인공). */
+    var homeStyle: String
+        get() = prefs.getString("home_style", Lobby.STYLE_CARD) ?: Lobby.STYLE_CARD
+        set(value) = prefs.edit { putString("home_style", value) }
+
+    /** 로비형 홈의 최애 캐릭터. 아직 안 골랐으면 null. */
+    var favorite: Favorite?
+        get() = prefs.getString("fav_name", null)?.let {
+            Favorite(it, prefs.getString("fav_element", "") ?: "", prefs.getString("fav_image", "") ?: "", prefs.getInt("fav_id", 0))
+        }
+        set(value) = prefs.edit {
+            if (value == null) { remove("fav_name"); remove("fav_element"); remove("fav_image"); remove("fav_id") }
+            else { putString("fav_name", value.name); putString("fav_element", value.element); putString("fav_image", value.image); putInt("fav_id", value.id) }
+        }
+
+    /** 로비형 소개 카드를 닫았거나 눌렀는지(다시 안 보인다). */
+    var lobbyIntroDone: Boolean
+        get() = prefs.getBoolean("lobby_intro_done", false)
+        set(value) = prefs.edit { putBoolean("lobby_intro_done", value) }
+
+    /** 처음으로 로그인한 계정을 본 때(ms). 로비 소개를 며칠 뒤에 보이려고 쓴다. 0이면 아직 없음. */
+    var firstAccountAt: Long
+        get() = prefs.getLong("first_account_at", 0)
+        set(value) = prefs.edit { putLong("first_account_at", value) }
+
+    /** 로비 배경: 공식 그림(Lobby.BG_OFFICIAL) · 내 사진 · 원소 무늬. */
+    var lobbyBackground: String
+        get() = prefs.getString("lobby_bg", Lobby.BG_OFFICIAL) ?: Lobby.BG_OFFICIAL
+        set(value) = prefs.edit { putString("lobby_bg", value) }
 
     /** 보충 출석이 가능할 때 알릴지. */
     var makeUpAlerts: Boolean
@@ -374,6 +408,14 @@ class AppSettings(private val context: Context) {
     var rerunAlert: Boolean
         get() = prefs.getBoolean("rerun_alert", true)
         set(value) = prefs.edit { putBoolean("rerun_alert", value) }
+    /** 로비 캐릭터 음성 언어: ko·ja·zh·en, 또는 off(음성 없이 대사만, 기본값). 대사 글은 늘 한국어. */
+    var voiceLanguage: String
+        get() = prefs.getString("voice_language", "off") ?: "off"
+        set(value) = prefs.edit { putString("voice_language", value) }
+    /** 복각표에 4성도 보일지(기본은 5성만). */
+    var rerunFours: Boolean
+        get() = prefs.getBoolean("rerun_fours", false)
+        set(value) = prefs.edit { putBoolean("rerun_fours", value) }
     /** 로그인 전: 새 리딤 코드가 나오면 알림(공개 목록만 본다). 로그인하면 자동 입력으로 바뀐다. */
     var codeAlerts: Boolean
         get() = prefs.getBoolean("code_alerts", true)

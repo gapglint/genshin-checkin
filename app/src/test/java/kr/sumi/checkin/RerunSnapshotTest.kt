@@ -22,7 +22,23 @@ class RerunSnapshotTest {
             val d = context.resources.displayMetrics.density
             setPadding((16 * d).toInt(), 0, (16 * d).toInt(), (24 * d).toInt())
         }
-        RerunList(context, watched = setOf("Hu Tao", "Furina")) {}.fill(list, data, LocalDate.of(2026, 10, 22))
+        RerunList(context, watched = setOf("Hu Tao", "Furina"), onToggle = {}).fill(list, data, LocalDate.of(2026, 10, 22))
+        paparazzi.snapshot(ScrollView(context).apply { setBackgroundResource(R.color.bg); addView(list) })
+    }
+
+    /** '4성도 보기'를 켠 모습: 픽업 판(5성 뒤에 4성), 바로 아래 옵션 줄, 맨 아래 4성 판(한 화면에 담으려고 가운데 판들은 뺀다). */
+    @Test fun rerunListWithFours() {
+        val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns-fours.json")!!.readText()))
+        val context = paparazzi.context
+        val list = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(R.color.bg)
+            val d = context.resources.displayMetrics.density
+            setPadding((16 * d).toInt(), 0, (16 * d).toInt(), (24 * d).toInt())
+        }
+        RerunList(context, watched = setOf("Mika"), onToggle = {}, showFours = true, onFours = {}).fill(list, data, LocalDate.of(2026, 10, 25))
+        // 픽업 판·옵션 줄(앞의 둘)과 끝의 4성 판·출처(마지막 둘)만 남긴다.
+        while (list.childCount > 4) list.removeViewAt(2)
         paparazzi.snapshot(ScrollView(context).apply { setBackgroundResource(R.color.bg); addView(list) })
     }
 }

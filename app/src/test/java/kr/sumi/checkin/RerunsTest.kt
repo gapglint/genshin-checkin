@@ -51,4 +51,28 @@ class RerunsTest {
         // 끝난 픽업은 알리지 않는다
         assertTrue(Reruns.dueAlerts(data, setOf("Vesna"), emptySet(), day).isEmpty())
     }
+
+    @Test fun parsesFourStarsSeparately() {
+        val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns-fours.json")!!.readText()))
+        assertTrue(data.fours.isNotEmpty() && data.fours.all { it.rarity == 4 })
+        assertTrue(data.characters.none { it.rarity == 4 })
+        assertEquals("Mika", data.byKo("미카")?.name)
+        // 기다리는 4성도 픽업 알림 대상이다. 같은 날 5성 픽업 둘에 함께 나와도 한 번만.
+        val banner = data.banners.last { "Mika" in it.four }
+        val due = Reruns.dueAlerts(data, setOf("Mika"), emptySet(), banner.start)
+        assertEquals(listOf("Mika"), due.map { it.first.name })
+    }
+
+    @Test fun phasesWithinAVersion() {
+        val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns-fours.json")!!.readText()))
+        fun phase(name: String, day: LocalDate) = data.phase(data.character(name)!!, day)
+        val today = LocalDate.of(2026, 10, 25) // 7.1 후반 진행 중
+        assertEquals(RerunPhase.NOW, phase("Skirk", today))
+        assertEquals(RerunPhase.FIRST_HALF, phase("Vesna", today)) // 7.1 전반에 나왔다 끝남
+        assertEquals(RerunPhase.LATER, phase("Furina", today)) // 7.2로 발표(위키에 종료일 없음)
+        assertEquals(RerunPhase.PAST, phase("Odette", today))
+        // 7.1 전반 중에는 후반 캐릭터가 '후반'
+        assertEquals(RerunPhase.SECOND_HALF, phase("Skirk", LocalDate.of(2026, 9, 30)))
+        assertEquals(RerunPhase.NOW, phase("Vesna", LocalDate.of(2026, 9, 30)))
+    }
 }

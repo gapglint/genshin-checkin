@@ -40,6 +40,9 @@ data class TodayWidgetUi(
     val days: Int,
     val resin: String,
     val redeem: String,
+    /** 로비형을 쓰면 최애 원소 색(바탕)과 얼굴. 아니면 null(남색 바탕). */
+    val tint: Int? = null,
+    val face: android.graphics.Bitmap? = null,
 )
 
 /**
@@ -57,6 +60,7 @@ class TodayWidget : AppWidgetProvider() {
             val store = settings.current()
                 ?: return TodayWidgetUi("매일 출석", "로그인", false, 0, "앱에서 로그인해 주세요", "리딤 코드")
             val today = Store.checkInDay().toString()
+            val look = Lobby.favoriteLook(context)
             val sameMonth = store.signedDay?.startsWith(today.take(7)) == true
             val problem = store.lastProblem != null && store.lastProblemDay == today && !store.signedToday
             return TodayWidgetUi(
@@ -73,6 +77,8 @@ class TodayWidget : AppWidgetProvider() {
                     !settings.redeemEnabled -> "리딤 자동 입력 꺼짐"
                     else -> store.lastRedeemSummary?.substringBefore(":")?.trim() ?: "리딤 코드 기다리는 중"
                 },
+                tint = look?.first,
+                face = look?.second,
             )
         }
 
@@ -84,6 +90,20 @@ class TodayWidget : AppWidgetProvider() {
             setTextViewText(R.id.todayDays, s.days.toString())
             setTextViewText(R.id.todayResin, s.resin)
             setTextViewText(R.id.todayRedeem, s.redeem)
+            // 로비형: 바탕을 최애 원소의 짙은 색으로, 일수를 원소 파스텔로, 옆에 최애 얼굴.
+            if (s.tint != null) {
+                val t = LobbyTheme(s.tint)
+                setImageViewResource(R.id.todayBg, R.drawable.bg_widget)
+                setInt(R.id.todayBg, "setColorFilter", t.dark)
+                setTextColor(R.id.todayDays, t.light)
+            } else {
+                // 카드형으로 돌아오면 원래 모양으로(런처가 이전 색을 그대로 둘 수 있다).
+                setImageViewResource(R.id.todayBg, R.drawable.bg_rerun_card)
+                setInt(R.id.todayBg, "setColorFilter", 0)
+                setTextColor(R.id.todayDays, context.getColor(R.color.gold))
+            }
+            setViewVisibility(R.id.todayFace, if (s.face != null) View.VISIBLE else View.GONE)
+            s.face?.let { setImageViewBitmap(R.id.todayFace, it) }
             with(AppWidgets) { openOnClick(context, Intent(context, MainActivity::class.java), 1) }
         }
     }

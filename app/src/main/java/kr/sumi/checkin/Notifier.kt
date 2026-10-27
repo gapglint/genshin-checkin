@@ -74,9 +74,7 @@ object Notifier {
         }
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(title)
-            .setContentText(CheckIn.describe(outcome))
-            .setStyle(Notification.BigTextStyle().bigText(CheckIn.describe(outcome)))
+            .favorite(context, title, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY, CheckIn.brief(outcome))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -96,8 +94,7 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_MAKE_UP))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(who(context, store) + "보충 출석을 할 수 있어요")
-            .setContentText("이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.")
+            .favorite(context, who(context, store) + "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER, "놓친 날 ${missed}일 · 누르면 보충")
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -116,6 +113,9 @@ object Notifier {
             report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
             else -> return
         }
+        val brief = if (report.redeemed.isNotEmpty())
+            report.redeemed.first() + (if (report.redeemed.size > 1) " 외 ${report.redeemed.size - 1}개" else "") + " · 우편함"
+        else text
         // 하루에 여러 번 돌 수 있어(새 코드가 올라올 때마다) 받은 코드까지 넣어 같은 알림만 거른다.
         val key = "$title:${Store.checkInDay()}:${report.redeemed.joinToString(",")}"
         if (key == store.lastRedeemNotified || !canNotify(context)) return
@@ -126,9 +126,7 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(who(context, store) + title)
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+            .favorite(context, who(context, store) + title, text, if (report.redeemed.isNotEmpty()) Mood.REWARD else Mood.WORRY, brief)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -149,9 +147,7 @@ object Notifier {
         val text = "${day}에 로그인한 지 1년이 돼서 출석과 리딤 코드 입력이 멈춰요. 누르면 지금 다시 로그인할 수 있어요."
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(who(context, store) + "호요랩 로그인이 곧 만료돼요")
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+            .favorite(context, who(context, store) + "호요랩 로그인이 곧 만료돼요", text, Mood.WORRY, "$day 만료 · 누르면 다시 로그인")
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -163,7 +159,7 @@ object Notifier {
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
     fun notifyNote(context: Context, store: Store, note: DailyNote, alerts: NoteAlerts) {
         if (!canNotify(context)) return
-        fun post(kind: Int, title: String, text: String) {
+        fun post(kind: Int, title: String, text: String, brief: String) {
             val id = idFor(kind, store)
             val pending = PendingIntent.getActivity(
                 context, id, MainActivity.accountIntent(context, store.accountId),
@@ -178,9 +174,7 @@ object Notifier {
             }
             val notification = Notification.Builder(context, channel(context, CHANNEL_NOTES))
                 .setSmallIcon(R.drawable.ic_notify)
-                .setContentTitle(who(context, store) + title)
-                .setContentText(text)
-                .setStyle(Notification.BigTextStyle().bigText(text))
+                .favorite(context, who(context, store) + title, text, Mood.CHEER, brief)
                 .setContentIntent(pending)
                 .apply { if (play != null) addAction(Notification.Action.Builder(null, "원신 켜기", play).build()) }
                 .setAutoCancel(true)
@@ -190,18 +184,20 @@ object Notifier {
         // 제목은 기준이 아니라 지금 실제 개수로 쓴다(처음 받았을 때 이미 기준을 넘어 있을 수 있다).
         if (alerts.resin) {
             if (note.resin >= note.maxResin) {
-                post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.")
+                post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.", "레진 ${note.resin}/${note.maxResin} · 가득 참")
             } else {
                 val left = note.resinFullAt - note.at
                 post(ID_RESIN, "레진이 ${note.resin}개 찼어요",
-                    "${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})")
+                    "${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})",
+                    "${note.resin}/${note.maxResin} · ${Notes.clock(note.resinFullAt)} 가득")
             }
         }
         if (alerts.expeditions) {
-            post(ID_EXPEDITIONS, "탐사 파견이 모두 끝났어요", "${note.expeditionsTotal}명 모두 돌아왔어요. 보상을 받고 다시 보내 주세요.")
+            post(ID_EXPEDITIONS, "탐사 파견이 모두 끝났어요", "${note.expeditionsTotal}명 모두 돌아왔어요. 보상을 받고 다시 보내 주세요.", "${note.expeditionsTotal}명 귀환 · 보상 받기")
         }
         if (alerts.coin) {
-            post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.")
+            post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.",
+                "동전 ${"%,d".format(note.homeCoin)} · 가득 참")
         }
     }
 
@@ -250,6 +246,53 @@ object Notifier {
             .build()
         context.getSystemService(NotificationManager::class.java).notify(ID_NEW_CODES, notification)
     }
+
+    /** 알림에 붙일 최애 대사의 분위기. 제목 앞부분으로 위키 대사를 고른다. */
+    enum class Mood { GREET, REWARD, WORRY, CHEER }
+
+    /**
+     * 제목과 본문을 넣는다. 접힌 알림은 한 줄에 들어가는 짧은 문구([brief]), 펼치면 자세한 본문([text]).
+     * 로비형을 쓰고 최애가 있으면 최애 그림과 상황에 맞는 대사 한 줄을 붙인다.
+     * 사이트가 얼굴 위치를 찾아 둔 캐릭터는 오른쪽에 큰 그림(접힌 알림에도 보인다), 아니면 작은 얼굴 동그라미.
+     */
+    private fun Notification.Builder.favorite(context: Context, title: String, text: String, mood: Mood, brief: String = text): Notification.Builder {
+        setContentTitle(title)
+        setContentText(brief)
+        val look = Lobby.favoriteLook(context)
+        val fav = AppSettings(context).favorite
+        val line = if (look == null || fav == null) null else {
+            val voices = Lobby.unlockedVoices(context, fav.name)
+            when (mood) {
+                Mood.GREET -> Lobby.greetingLine(voices.filter { it.text.length <= 70 }, fav.name, java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY))
+                Mood.REWARD -> Lobby.pick(voices, "보물상자 오픈").filter { it.text.length <= 70 }.randomOrNull()
+                Mood.WORRY -> Lobby.pick(voices, "동료 HP 감소", "HP 부족").filter { it.text.length <= 70 }.randomOrNull()
+                Mood.CHEER -> Lobby.pick(voices, "파티 가입").filter { it.text.length <= 70 }.randomOrNull()
+            }
+        }
+        val quote = if (line != null) "${fav!!.name} 「${line.text}」" else null
+        val art = if (look != null && fav != null) Lobby.cachedNotifArt(context, fav.name) else null
+        if (art != null) {
+            setStyle(Notification.DecoratedCustomViewStyle())
+            setCustomContentView(artViews(context, R.layout.notification_art, title, brief, null, art.small))
+            setCustomBigContentView(artViews(context, R.layout.notification_art_big, title, text, quote, art.big))
+            return this
+        }
+        look?.second?.let { setLargeIcon(it) }
+        setStyle(Notification.BigTextStyle().bigText(if (quote != null) "$quote\n$text" else text))
+        return this
+    }
+
+    /** 최애 그림 알림의 본문(왼쪽 글, 오른쪽 그림). 글자 색은 시스템 알림 글꼴을 따라 밝은·어두운 화면 모두 맞는다. */
+    internal fun artViews(context: Context, layout: Int, title: String, text: String, quote: String?, art: android.graphics.Bitmap) =
+        android.widget.RemoteViews(context.packageName, layout).apply {
+            setTextViewText(R.id.notifTitle, title)
+            setTextViewText(R.id.notifText, text)
+            if (quote != null) {
+                setTextViewText(R.id.notifQuote, quote)
+                setViewVisibility(R.id.notifQuote, android.view.View.VISIBLE)
+            }
+            setImageViewBitmap(R.id.notifArt, art)
+        }
 
     /** 계정이 여럿이면 어느 계정 알림인지 제목 앞에 붙인다. */
     private fun who(context: Context, store: Store) =

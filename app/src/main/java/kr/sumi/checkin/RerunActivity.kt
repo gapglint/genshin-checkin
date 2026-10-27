@@ -43,13 +43,16 @@ class RerunActivity : Activity() {
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(ScrollView(this@RerunActivity).apply { addView(list) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
+        LobbyMenu.dress(this, header as LinearLayout, root, "복각표") { finish() }
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
         render()
         // 하루 한 번만 새로 받는다. 저장된 자료가 없으면 바로 받는다.
-        if (Reruns.cached(this) == null || !Reruns.isFresh(this)) Thread {
+        // 4성을 켜 뒀는데 저장된 자료에 4성이 없으면(4성이 생기기 전에 받은 것) 바로 새로 받는다.
+        val needFours = AppSettings(this).rerunFours && Reruns.cached(this)?.fours.isNullOrEmpty()
+        if (Reruns.cached(this) == null || !Reruns.isFresh(this) || needFours) Thread {
             val error = try {
-                Reruns.refresh(this, force = Reruns.cached(this) == null); null
+                Reruns.refresh(this, force = Reruns.cached(this) == null || needFours); null
             } catch (e: IOException) {
                 e.message ?: "네트워크 오류"
             }
@@ -68,7 +71,53 @@ class RerunActivity : Activity() {
         // 설명과 지금 버전은 판 위에 있어서 머리말 아래 안내는 짧게.
         status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
 
-        RerunList(this, Reruns.watched(this)) { c -> toggleWatch(c) }.fill(list, data, today)
+        val settings = AppSettings(this)
+        prepareFaces(data)
+        RerunList(this, Reruns.watched(this), faces, { c -> toggleWatch(c) }, settings.rerunFours, pendingFaces = pendingFaces) {
+            settings.rerunFours = !settings.rerunFours
+            render()
+            // 켰는데 저장된 자료에 4성이 없으면(4성이 생기기 전에 받은 것) 바로 새로 받는다.
+            if (settings.rerunFours && Reruns.cached(this)?.fours.isNullOrEmpty()) Thread {
+                val error = try { Reruns.refresh(this, force = true); null } catch (e: IOException) { e.message ?: "네트워크 오류" }
+                runOnUiThread { if (!isFinishing) render(error) }
+            }.start()
+        }.fill(list, data, today)
+        loadFaces()
+    }
+
+    /** 얼굴 그림(공식 그림, 받아서 폰에만 저장). 저장된 것은 바로, 없는 것은 받아서 다 모이면 다시 그린다. */
+    private val faces = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
+    private var loadingFaces = false
+
+    /** 받아 오는 중인 얼굴(그동안은 빈 동그라미). 끝내 못 받은 얼굴은 원소 아이콘으로 둔다. */
+    private val pendingFaces = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val failedFaces = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** 보여 줄 캐릭터들의 얼굴: 폰에 저장된 것은 바로 넣고, 없는 것은 받아 오는 중으로 둔다. */
+    private fun prepareFaces(data: RerunData) {
+        if (!Lobby.officialArtAllowed(this)) return
+        for (ko in (data.characters + if (AppSettings(this).rerunFours) data.fours else emptyList()).map { it.ko }) {
+            if (faces.containsKey(ko) || ko in failedFaces) continue
+            val cached = Lobby.cachedFace(this, ko)
+            if (cached != null) faces[ko] = cached else pendingFaces += ko
+        }
+    }
+
+    /** 받아 오는 중인 얼굴을 받는다. 몇 명씩 받을 때마다 바로 다시 그린다. */
+    private fun loadFaces() {
+        if (loadingFaces || pendingFaces.isEmpty()) return
+        loadingFaces = true
+        Thread {
+            var sinceDraw = 0
+            for (ko in pendingFaces.toList()) {
+                if (isDestroyed) break
+                val face = Lobby.face(this, ko)
+                if (face != null) faces[ko] = face else failedFaces += ko
+                pendingFaces -= ko
+                if (++sinceDraw >= 6) { sinceDraw = 0; runOnUiThread { if (!isDestroyed) render() } }
+            }
+            runOnUiThread { loadingFaces = false; if (!isDestroyed) render() }
+        }.start()
     }
 
     /** 캐릭터를 누르면 픽업 알림을 켜고 끈다. 이미 올라온 픽업이 있으면 바로 한 번 알린다. */
@@ -149,8 +198,16 @@ class RerunList(
     private val context: Context,
     /** 픽업 알림을 받기로 한 캐릭터(종 표시). */
     private val watched: Set<String> = emptySet(),
+    /** 공식 얼굴 그림(한국어 이름 → 그림). 없는 캐릭터는 원소 아이콘으로 그린다. */
+    private val faces: Map<String, android.graphics.Bitmap> = emptyMap(),
     /** 캐릭터를 누르면 알림 받기를 켜고 끈다. null이면 누를 수 없다(스냅숏 등). */
     private val onToggle: ((RerunCharacter) -> Unit)? = null,
+    /** 4성도 보일지(픽업 판과 '4성 캐릭터' 판). */
+    private val showFours: Boolean = false,
+    /** 받아 오는 중인 얼굴(한국어 이름). 그동안은 원소 아이콘 대신 빈 동그라미. */
+    private val pendingFaces: Set<String> = emptySet(),
+    /** '4성도 보기'를 누르면. null이면 그 줄을 그리지 않는다. */
+    private val onFours: (() -> Unit)? = null,
 ) {
     private val density = context.resources.displayMetrics.density
     private fun dp(v: Int) = (v * density).toInt()
@@ -158,33 +215,76 @@ class RerunList(
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
 
     private var current: String? = null
-    private var liveNames: Set<String> = emptySet()
+    private var data: RerunData? = null
+    private var today: java.time.LocalDate = java.time.LocalDate.now()
+    private fun phase(c: RerunCharacter) = data?.phase(c, today) ?: RerunPhase.PAST
 
     fun fill(list: LinearLayout, data: RerunData, today: java.time.LocalDate) {
         current = data.current(today)?.v
         val live = data.live(today)
-        liveNames = live.flatMap { it.chars }.toSet()
+        this.data = data
+        this.today = today
         pickups(data, live, today, "지금 픽업 중")?.let { list.addView(it) }
         pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         }
+        // '4성도 보기'는 찾기 쉽게 픽업 판 바로 아래(판들 위)에.
+        // 자료에 4성이 아직 없어도(예전에 받은 자료) 줄은 보인다. 켜면 그때 새로 받는다.
+        val toggle = onFours != null
+        if (toggle) list.addView(foursToggle(), LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            gravity = Gravity.END
+            topMargin = if (list.childCount == 0) 0 else dp(12)
+        })
         list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }),
-            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty()) 0 else dp(16) })
+            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty() && !toggle) 0 else dp(16) })
         val standard = data.ranked(today, standard = true)
         if (standard.isNotEmpty()) {
             list.addView(board(data, standard, "상시 캐릭터", legend = false, note = "상시 기원에서도 나와요").apply {
                 (layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(16)
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
+        val fours = data.rankedFours(today)
+        if (showFours && fours.isNotEmpty()) {
+            list.addView(board(data, fours, "4성 캐릭터", legend = false, note = "5성 픽업에 함께 나와요 · 누르면 4성도 픽업 알림"),
+                LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
+        }
+
         list.addView(text(
-            "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.",
+            "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요." +
+                if (faces.isNotEmpty()) "\n캐릭터 그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구" else "",
             12f, R.color.ink_muted,
         ).apply { setPadding(dp(4), dp(20), dp(4), 0) })
     }
 
     /** 진행 중(또는 다음) 픽업: 금색 테두리 판에 캐릭터와 기간. 픽업이 없으면 null. */
+    /** '4성도 보기' 토글 칩: 남색 바탕에 4성 보라색, 켜면 스위치가 오른쪽으로. 판들 위 오른쪽에 작게. */
+    private fun foursToggle(): View = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(14), dp(8), dp(10), dp(8))
+        background = GradientDrawable().apply {
+            cornerRadius = dp(99).toFloat()
+            setColor(color(R.color.hero))
+            setStroke(dp(2), if (showFours) color(R.color.rarity4) else 0x40FFFFFF)
+        }
+        isClickable = true
+        foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
+        setOnClickListener { onFours?.invoke() }
+        contentDescription = "4성 캐릭터도 보기, " + if (showFours) "켜짐" else "꺼짐"
+        addView(text("★4", 12f, R.color.rarity4, bold = true).apply { setPadding(0, 0, dp(6), 0) })
+        addView(text("4성 캐릭터도 보기", 13f, R.color.hero_ink, bold = true).apply { setPadding(0, 0, dp(10), 0) })
+        // 작은 스위치: 켜지면 보라색 길에 흰 손잡이가 오른쪽
+        addView(android.widget.FrameLayout(context).apply {
+            background = GradientDrawable().apply { cornerRadius = dp(99).toFloat(); setColor(if (showFours) color(R.color.rarity4) else 0x44FFFFFF) }
+            addView(View(context).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(android.graphics.Color.WHITE) }
+            }, android.widget.FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER_VERTICAL or if (showFours) Gravity.END else Gravity.START).apply { setMargins(dp(3), 0, dp(3), 0) })
+        }, LinearLayout.LayoutParams(dp(34), dp(20)))
+    }
+
     private fun pickups(data: RerunData, banners: List<Banner>, today: java.time.LocalDate, title: String): View? {
-        val chars = banners.flatMap { it.chars }.distinct().mapNotNull { data.character(it) }
+        // 5성 먼저, 4성은 뒤에 '4성' 표시로.
+        val chars = (banners.flatMap { it.chars } + if (showFours) banners.flatMap { it.four } else emptyList()).distinct().mapNotNull { data.character(it) }
         if (chars.isEmpty()) return null
         val start = banners.minOf { it.start }
         val end = banners.minOf { it.end }
@@ -208,7 +308,7 @@ class RerunList(
             })
             for (row in chars.chunked(COLUMNS)) addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                for (c in row) addView(tile(data, c, data.since(c, today) ?: 0), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                for (c in row) addView(tile(data, c, data.since(c, today) ?: 0, markFour = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
                 repeat(COLUMNS - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(12) })
         }
@@ -274,49 +374,74 @@ class RerunList(
     }
 
     /** 지난 버전 수 표시: 오래될수록 진한 색, 9 이상은 더 크게. */
-    private fun badge(since: Int, small: Boolean = false, live: Boolean = since == 0) = TextView(context).apply {
-        text = if (live) "NOW" else "$since"
+    /**
+     * 지난 버전 수 표시. 이번 버전 캐릭터는 숫자 대신 지금 픽업 중이면 NOW, 전반에 나왔다 끝났으면 전반,
+     * 후반에 나올 예정이면 후반, 다음 버전 이후로 발표됐으면 이후(숫자 0은 글꼴 때문에 O처럼 보여 헷갈린다).
+     */
+    private fun badge(since: Int, small: Boolean = false, phase: RerunPhase = if (since == 0) RerunPhase.NOW else RerunPhase.PAST) = TextView(context).apply {
+        val word = phase != RerunPhase.PAST
+        val upcoming = phase == RerunPhase.SECOND_HALF || phase == RerunPhase.LATER
+        text = when (phase) {
+            RerunPhase.NOW -> "NOW"
+            RerunPhase.FIRST_HALF -> "전반"
+            RerunPhase.SECOND_HALF -> "후반"
+            RerunPhase.LATER -> "이후"
+            RerunPhase.PAST -> "$since"
+        }
         textSize = when {
-            since == 0 -> 10f
+            word -> 10f
             small -> 13f
             since >= 9 -> 17f
             else -> 14f
         }
-        typeface = if (live) Typeface.DEFAULT_BOLD else numerals
+        typeface = if (word) Typeface.DEFAULT_BOLD else numerals
         includeFontPadding = false
         gravity = Gravity.CENTER
         minWidth = dp(24)
-        setTextColor(0xFFFFFFFF.toInt())
+        setTextColor(if (upcoming) color(R.color.on_gold) else 0xFFFFFFFF.toInt())
         setPadding(dp(6), dp(2), dp(6), dp(2))
         background = GradientDrawable().apply {
             cornerRadius = dp(12).toFloat()
-            setColor(color(RerunActivity.tone(since)))
+            setColor(color(if (upcoming) R.color.gold else RerunActivity.tone(since)))
             setStroke(dp(2), color(R.color.hero))
         }
     }
 
     /** 캐릭터 한 칸: 원소 동그라미 + 오른쪽 아래 지난 버전 수 + 원소 색 이름. 최근에 나온 캐릭터는 흐리게. */
-    private fun tile(data: RerunData, c: RerunCharacter, since: Int) = LinearLayout(context).apply {
+    private fun tile(data: RerunData, c: RerunCharacter, since: Int, markFour: Boolean = false) = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         val base = color(RerunActivity.elementColor(c.element))
         val strong = since >= 9
         alpha = when {
-            c.name in liveNames -> 1f // 지금 픽업 중이면 흐리게 하지 않는다
+            phase(c).let { it == RerunPhase.NOW || it == RerunPhase.SECOND_HALF || it == RerunPhase.LATER } -> 1f // 지금·곧 픽업이면 흐리게 하지 않는다
             since <= 2 -> 0.55f
             since <= 5 -> 0.85f
             else -> 1f
         }
         addView(android.widget.FrameLayout(context).apply {
             addView(android.widget.ImageView(context).apply {
-                RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
-                setPadding(dp(8), dp(8), dp(8), dp(8))
+                val face = faces[c.ko]
+                if (face != null) {
+                    // 얼굴 그림: 원소 색 테두리 안에 동그랗게
+                    setImageBitmap(face)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                    setPadding(dp(2), dp(2), dp(2), dp(2))
+                    clipToOutline = true
+                    outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                } else if (c.ko !in pendingFaces) {
+                    // 공식 그림이 꺼져 있거나 얼굴을 못 받았으면 원소 아이콘(받는 중이면 빈 동그라미)
+                    RerunActivity.elementIcon(c.element)?.let { setImageResource(it) }
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                }
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                // 테두리 색으로 등급(5성 금색, 4성 보라색).
                 background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(lighten(base, 0.35f), base)).apply {
                     shape = GradientDrawable.OVAL
+                    setStroke(dp(3), color(if (c.rarity == 4) R.color.rarity4 else R.color.rarity5))
                 }
             }, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
-            addView(badge(since, live = c.name in liveNames), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
+            addView(badge(since, phase = phase(c)), android.widget.FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END))
             // 픽업 알림을 받기로 한 캐릭터: 왼쪽 위에 종.
             if (c.name in watched) addView(TextView(context).apply {
                 text = "🔔"
@@ -334,6 +459,7 @@ class RerunList(
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         // 신규 > 집록 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
         val tag = when {
+            markFour && c.rarity == 4 -> pill("4성", R.color.rarity4, R.color.on_gold, 10f)
             c.first != null && c.first == current -> pill("신규", R.color.rerun_recent, R.color.on_action, 10f)
             c.chronicled -> pill("집록", R.color.gold, R.color.on_gold, 10f)
             !c.standard && c.runs <= 1 -> pill("복각 없음", R.color.element_hydro, R.color.on_action, 10f)

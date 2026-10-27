@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 홈 화면 '오늘' 위젯(2×2): 오늘 출석과 누적 일수, 레진, 마지막 리딤 결과. 출석 카드와 같은 남색.
      적힌 글자는 위젯 고르는 화면의 미리보기용이고, 놓으면 바로 실제 값으로 바뀐다. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 로비형을 쓰면 바탕이 최애 원소 색이 되고, 일수 옆에 최애 얼굴이 나온다(HomeWidgets.kt). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/todayBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/bg_rerun_card" />
+
+<LinearLayout
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_rerun_card"
     android:orientation="vertical"
     android:padding="14dp">
 
@@ -43,10 +55,10 @@
     </LinearLayout>
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:baselineAligned="true"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
@@ -67,6 +79,18 @@
             android:text="일째"
             android:textColor="@color/hero_ink"
             android:textSize="14sp" />
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/todayFace"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
     </LinearLayout>
 
     <FrameLayout
@@ -128,3 +152,4 @@
             android:textSize="12sp" />
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>
