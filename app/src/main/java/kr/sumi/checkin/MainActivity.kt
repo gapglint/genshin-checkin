@@ -166,8 +166,10 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // 한동안 나가 있다 돌아오면 새로 인사한다(음성을 켰으면 들려준다). 잠깐 다른 화면을 보고 온 것이면 그대로 둔다.
-        if (pausedAt > 0 && System.currentTimeMillis() - pausedAt > GREET_AGAIN_MS && lobbyLineKey != null) lobbyLineKey = null
+        // 앱을 켤 때마다(홈·최근 앱에서 돌아올 때도) 새로 인사한다(음성을 켰으면 들려준다).
+        // 앱 안의 다른 화면(복각표·꾸미기 등)을 보고 돌아온 것이면 지금 대사를 그대로 둔다.
+        if (!openedOwnScreen) lobbyLineKey = null
+        openedOwnScreen = false
         // 설정 화면에서 정확한 알람을 허용하고 돌아왔을 수 있으니 알람을 다시 건다.
         if (settings.hasAccounts) DailyAlarm.schedule(this)
         refresh()
@@ -278,12 +280,16 @@ class MainActivity : Activity() {
         if (busy == null && !store.signedToday && store.lastRunAt < store.loginAt) checkInNow()
     }
 
-    /** 마지막으로 화면을 떠난 때. 돌아왔을 때 새로 인사할지 정한다. */
-    private var pausedAt = 0L
+    /** 이 화면에서 다른 화면을 열었는지. 돌아왔을 때 새로 인사할지 정한다. */
+    private var openedOwnScreen = false
+
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        openedOwnScreen = true
+        super.startActivityForResult(intent, requestCode, options)
+    }
 
     override fun onPause() {
         super.onPause()
-        pausedAt = System.currentTimeMillis()
         voiceRequest++ // 받는 중이던 음성은 앱을 떠난 뒤에 재생하지 않는다
         voicePlayer?.release()
         voicePlayer = null
@@ -1565,8 +1571,6 @@ class MainActivity : Activity() {
     }
 
     companion object {
-        /** 이만큼 넘게 나가 있다 돌아오면 새 인사(5분). */
-        private const val GREET_AGAIN_MS = 5 * 60_000L
         private const val EXTRA_MAKE_UP = "make_up"
         private const val EXTRA_ACCOUNT = "account"
         private const val PRIVACY_URL = "https://apps.sumi.kr/checkin/privacy/"
