@@ -71,7 +71,7 @@ data class MainUiState(
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
     val makeUpMissed: Int? = null,
     /** 알림 설정 요약, 예: "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이". */
-    val notificationsSummary: String = "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이",
+    val notificationsSummary: String = Text.get(R.string.main_notify_summary_default),
     val redeemEnabled: Boolean = true,
     /** 리딤 보상을 받을 캐릭터 설명. 아직 안 골랐으면 null. */
     val redeemRole: String? = null,
@@ -272,7 +272,7 @@ class MainScreen(val root: View) {
         rerunCard.clipToOutline = true
         setupBanner.clipToOutline = true
         makeUpCard.clipToOutline = true
-        settingsPanel.findViewById<TextView>(R.id.headerTitle).text = "설정"
+        settingsPanel.findViewById<TextView>(R.id.headerTitle).text = context.getString(R.string.main_settings)
         settingsPanel.findViewById<View>(R.id.headerStatus).visibility = View.GONE
         // Material 3 버튼 모양: 큰 버튼은 모서리 16dp로 채우고, 보충하기는 글자 버튼.
         primaryButton.background = buttonBackground(context, context.getColor(R.color.action), 16f)
@@ -290,13 +290,13 @@ class MainScreen(val root: View) {
         heroDayRow.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         heroStats.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         heroDay.text = s.totalDays.toString()
-        heroMonth.text = if (s.loggedIn) "${s.month}월 누적 출석" else "로그인하면 매일\n대신 출석해요"
+        heroMonth.text = if (s.loggedIn) context.getString(R.string.main_hero_month, s.month, monthName(s.month)) else context.getString(R.string.main_hero_logged_out)
         heroMonth.textSize = if (s.loggedIn) 14f else 24f
         heroMonth.setTextColor(context.getColor(if (s.loggedIn) R.color.hero_muted else R.color.hero_ink))
         heroReward.text = when {
             s.reward != null -> s.reward
-            s.signedToday -> "출석 완료"
-            else -> "출석하면 표시돼요"
+            s.signedToday -> context.getString(R.string.main_signed_done)
+            else -> context.getString(R.string.main_reward_pending)
         }
         heroRewardIcon.setImageResource(itemIcon(s.reward))
         // 보충한 날에는 같은 줄에 보충 결과를 띄운다(카드 높이는 그대로). '보충 N일'만 금색으로.
@@ -306,7 +306,7 @@ class MainScreen(val root: View) {
                 val head = text.substringBefore(" · ").length
                 setSpan(android.text.style.ForegroundColorSpan(context.getColor(R.color.gold)), 0, head, 0)
             }
-        } ?: "다음 자동 출석 · ${s.nextRun}"
+        } ?: context.getString(R.string.main_next_run, s.nextRun)
 
         rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
         rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE
@@ -315,7 +315,7 @@ class MainScreen(val root: View) {
         timingSection.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
         // 메인에는 한 줄 안내만 두고, 자세한 항목은 설정 안에서 보여 준다.
         setupBanner.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
-        setupText.text = "제때 출석하려면 설정 ${setupNeeded}개가 필요해요"
+        setupText.text = context.resources.getQuantityString(R.plurals.main_setup_needed, setupNeeded, setupNeeded)
         // 안내는 한 번에 하나만: 설정·보충·출석 문제 안내가 있으면 로비 소개는 미룬다.
         lobbyIntro.visibility = if (s.lobbyIntro && setupNeeded == 0 && s.note == null && s.makeUpMissed == null && !s.editing) View.VISIBLE else View.GONE
         heroNote.text = s.note
@@ -332,21 +332,22 @@ class MainScreen(val root: View) {
         }
         primaryButton.text = when {
             s.busy != null -> s.busy
-            !s.loggedIn -> "호요랩 로그인"
-            else -> "지금 출석하기"
+            !s.loggedIn -> context.getString(R.string.main_login)
+            else -> context.getString(R.string.main_check_in_now)
         }
 
         makeUpCard.visibility = if (s.loggedIn && s.makeUpMissed != null) View.VISIBLE else View.GONE
-        makeUpText.text = "놓친 날 ${s.makeUpMissed ?: 0}일 · 보충권은 앱이 대신 받아 와요 ⓘ"
+        makeUpText.text = (s.makeUpMissed ?: 0).let { context.resources.getQuantityString(R.plurals.main_make_up_missed, it, it) }
         makeUpButton.isEnabled = s.busy == null
 
         notificationsSub.text = s.notificationsSummary
 
-        heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
+        heroEyebrow.text = if (s.loggedIn && s.nickname != null) context.getString(R.string.main_hero_eyebrow_named, s.nickname) else context.getString(R.string.main_hero_eyebrow)
         // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
-        accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else "로그인 상태 확인"
-        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 마지막 확인 ${s.lastChecked ?: "아직 없음"}" +
-            (s.loginExpiry?.let { "\n로그인 만료 예정 $it" } ?: "")
+        accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else context.getString(R.string.main_account_check)
+        accountSub.text = context.getString(R.string.main_account_sub, s.uid ?: context.getString(R.string.main_uid_unknown),
+            s.lastChecked ?: context.getString(R.string.main_not_yet)) +
+            (s.loginExpiry?.let { "\n" + context.getString(R.string.main_login_expiry, it) } ?: "")
         // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
         rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
@@ -413,16 +414,16 @@ class MainScreen(val root: View) {
             notesFooter.visibility = View.GONE
             notesResin.textSize = 16f
             notesResin.text = when {
-                s.notesLoading -> "불러오는 중..."
-                s.notesProblem == null -> "레진"
-                s.notesProblem == Notes.NOTES_OFF -> "실시간 메모가 꺼져 있어요"
-                else -> "불러오지 못했어요"
+                s.notesLoading -> context.getString(R.string.main_loading)
+                s.notesProblem == null -> context.getString(R.string.main_card_notes)
+                s.notesProblem == Notes.NOTES_OFF -> context.getString(R.string.main_notes_off)
+                else -> context.getString(R.string.main_notes_failed)
             }
             notesFullLabel.text = ""
             notesFullTime.text = when {
                 s.notesLoading -> ""
-                s.notesProblem == Notes.NOTES_OFF -> "켜기"
-                else -> "다시 시도"
+                s.notesProblem == Notes.NOTES_OFF -> context.getString(R.string.main_turn_on)
+                else -> context.getString(R.string.main_retry)
             }
             notesFullTime.setTextColor(context.getColor(R.color.accent))
             notesCard.contentDescription = s.notesProblem
@@ -454,20 +455,20 @@ class MainScreen(val root: View) {
             }
         }, LinearLayout.LayoutParams(0, MATCH, filled.toFloat()))
         if (n.maxResin - filled > 0) notesBar.addView(View(context), LinearLayout.LayoutParams(0, MATCH, (n.maxResin - filled).toFloat()))
-        notesBar.contentDescription = "레진 ${n.resin}개, 최대 ${n.maxResin}개"
+        notesBar.contentDescription = context.getString(R.string.main_resin_desc, n.resin, n.maxResin)
         // 원신 켜기는 접혀 있어도 보인다. 기준 시각은 펼쳤거나 문제가 있을 때만(접힌 카드는 짧게).
         val expanded = s.notesExpanded && expandable
         notesPlay.visibility = if (s.gameInstalled) View.VISIBLE else View.GONE
-        notesUpdated.text = s.notesProblem?.let { if (it == Notes.NOTES_OFF) "$it · 눌러서 켜기" else "$it · 눌러서 다시 시도" }
+        notesUpdated.text = s.notesProblem?.let { context.getString(if (it == Notes.NOTES_OFF) R.string.main_notes_problem_on else R.string.main_notes_problem_retry, it) }
             ?: n.updated.takeIf { expanded }
         notesFooter.visibility = if (s.gameInstalled || !notesUpdated.text.isNullOrEmpty()) View.VISIBLE else View.GONE
         if (!expanded) return
 
         notesStats.removeAllViews()
         mapOf(
-            NOTE_EXPEDITIONS to Triple(R.drawable.ic_note_expedition, "탐사 파견", n.expeditions to n.expeditionsSub),
-            NOTE_COIN to Triple(R.drawable.ic_note_teapot, "주전자 동전", n.coin to n.coinSub),
-            NOTE_COMMISSIONS to Triple(R.drawable.ic_note_commission, "일일 의뢰", n.commissions to n.commissionsSub),
+            NOTE_EXPEDITIONS to Triple(R.drawable.ic_note_expedition, context.getString(R.string.main_expeditions), n.expeditions to n.expeditionsSub),
+            NOTE_COIN to Triple(R.drawable.ic_note_teapot, context.getString(R.string.main_coin), n.coin to n.coinSub),
+            NOTE_COMMISSIONS to Triple(R.drawable.ic_note_commission, context.getString(R.string.main_commissions), n.commissions to n.commissionsSub),
         ).filterKeys { it in s.noteStats }.values.forEach { (icon, label, values) ->
             notesStats.addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -514,10 +515,10 @@ class MainScreen(val root: View) {
         renderCodes(s)
         eventsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
         eventsDot.visibility = if (s.eventsUnseen > 0) View.VISIBLE else View.GONE
-        eventsButton.contentDescription = if (s.eventsUnseen > 0) "이벤트, 새 이벤트 ${s.eventsUnseen}개" else "이벤트"
+        eventsButton.contentDescription = if (s.eventsUnseen > 0) context.getString(R.string.main_events_new, s.eventsUnseen) else context.getString(R.string.main_events)
         if (s.calendar.isEmpty()) {
             // 편집 중에 아직 못 받았으면 제목만.
-            calendarTitle.text = "${s.month}월 출석 보상"
+            calendarTitle.text = context.getString(R.string.main_calendar_title, s.month, monthName(s.month))
             calendarCount.text = ""
             calendarGrid.removeAllViews()
             calendarNote.visibility = View.GONE
@@ -525,7 +526,7 @@ class MainScreen(val root: View) {
         }
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
-        calendarTitle.text = "${s.month}월 출석 보상"
+        calendarTitle.text = context.getString(R.string.main_calendar_title, s.month, monthName(s.month))
         calendarCount.text = "${s.totalDays} / ${s.calendar.size}"
         calendarGrid.removeAllViews()
         val next = s.totalDays + 1
@@ -548,7 +549,7 @@ class MainScreen(val root: View) {
                         number > s.calendarReachable -> 0.35f
                         else -> 1f
                     }
-                    cell.contentDescription = "${number}번째 출석, ${slot.name} ${slot.count}개" + if (done) ", 받음" else ""
+                    cell.contentDescription = context.getString(if (done) R.string.main_calendar_cell_done else R.string.main_calendar_cell, number, slot.name, slot.count)
                     cell.addView(LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = android.view.Gravity.CENTER
@@ -581,10 +582,10 @@ class MainScreen(val root: View) {
         val nextPrimo = (next..s.calendar.size).firstOrNull { s.calendar[it - 1].name.contains("원석") && it <= s.calendarReachable }
         val primoText = nextPrimo?.let {
             val days = it - next + (if (s.signedToday) 1 else 0)
-            val whenText = if (days == 0) "오늘" else "${days}일 뒤"
-            "다음 원석: $whenText ×${s.calendar[it - 1].count}"
+            val whenText = if (days == 0) context.getString(R.string.main_when_today) else context.resources.getQuantityString(R.plurals.main_days_later, days, days)
+            context.getString(R.string.main_next_primo, whenText, s.calendar[it - 1].count)
         }
-        val missedText = if (s.calendarMissed > 0) "놓친 날 ${s.calendarMissed}일 · '보충하기'를 누르면 흐린 칸도 받을 수 있어요" else null
+        val missedText = if (s.calendarMissed > 0) context.resources.getQuantityString(R.plurals.main_calendar_missed, s.calendarMissed, s.calendarMissed) else null
         val note = listOfNotNull(primoText, missedText).joinToString("\n")
         calendarNote.text = note
         calendarNote.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
@@ -597,21 +598,24 @@ class MainScreen(val root: View) {
     private fun renderTiles(s: MainUiState) {
         tiles.visibility = if (s.loggedIn && s.showTiles) View.VISIBLE else View.GONE
         tileRedeemValue.text = when {
-            !s.redeemEnabled -> "자동 입력 꺼짐"
-            s.redeemRole == null -> "캐릭터를 골라 주세요"
-            else -> s.redeemShort ?: "자동 입력 켜짐"
+            !s.redeemEnabled -> context.getString(R.string.main_redeem_off)
+            s.redeemRole == null -> context.getString(R.string.main_redeem_pick_role)
+            else -> s.redeemShort ?: context.getString(R.string.main_redeem_on)
         }
         tileRedeemValue.setTextColor(context.getColor(if (s.redeemEnabled && s.redeemRole == null) R.color.accent else R.color.ink))
         tileRedeemSub.text = when {
-            !s.redeemEnabled || s.redeemRole == null -> "눌러서 설정"
+            !s.redeemEnabled || s.redeemRole == null -> context.getString(R.string.main_tap_to_set)
             s.redeemWhen != null -> s.redeemWhen
-            else -> "눌러서 지금 확인"
+            else -> context.getString(R.string.main_tap_to_check)
         }
         tileRedeem.isEnabled = s.busy == null
-        val unseen = if (s.historyUnseen >= RewardHistory.PAGE_SIZE) "${RewardHistory.PAGE_SIZE}개 이상" else "${s.historyUnseen}개"
-        tileHistoryValue.text = if (s.historyUnseen > 0) "새 보상 $unseen" else "받은 보상 보기"
+        tileHistoryValue.text = when {
+            s.historyUnseen >= RewardHistory.PAGE_SIZE -> context.getString(R.string.main_new_rewards_many, RewardHistory.PAGE_SIZE)
+            s.historyUnseen > 0 -> context.resources.getQuantityString(R.plurals.main_new_rewards, s.historyUnseen, s.historyUnseen)
+            else -> context.getString(R.string.main_view_rewards)
+        }
         tileHistoryValue.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink))
-        tileHistorySub.text = "이번 달 원석·모라 합계"
+        tileHistorySub.text = context.getString(R.string.main_history_sub)
         tileHistoryDot.visibility = if (s.historyUnseen > 0) View.VISIBLE else View.GONE
     }
 
@@ -625,19 +629,19 @@ class MainScreen(val root: View) {
                 setOnClickListener { onAccountChip(account.id) }
             })
         }
-        accountChips.addView(makeChip(context, "+ 계정 추가", checked = false, checkable = false).apply {
+        accountChips.addView(makeChip(context, context.getString(R.string.main_add_account), checked = false, checkable = false).apply {
             setOnClickListener { onAccountChip(null) }
         })
     }
 
     private fun renderChip(s: MainUiState) {
         val (text, background, textColor) = when {
-            s.busy != null -> Triple("확인 중", R.drawable.bg_chip_wait, R.color.hero_ink)
-            !s.loggedIn -> Triple("로그인 필요", R.drawable.bg_chip_warn, R.color.on_gold)
-            s.signedToday -> Triple("오늘 출석 완료", R.drawable.bg_chip_done, R.color.on_gold)
-            else -> Triple("출석 전", R.drawable.bg_chip_wait, R.color.hero_ink)
+            s.busy != null -> Triple(R.string.main_chip_checking, R.drawable.bg_chip_wait, R.color.hero_ink)
+            !s.loggedIn -> Triple(R.string.main_chip_login, R.drawable.bg_chip_warn, R.color.on_gold)
+            s.signedToday -> Triple(R.string.main_chip_done, R.drawable.bg_chip_done, R.color.on_gold)
+            else -> Triple(R.string.main_chip_pending, R.drawable.bg_chip_wait, R.color.hero_ink)
         }
-        statusChip.text = text
+        statusChip.text = context.getString(text)
         statusChip.setBackgroundResource(background)
         // 배경을 바꾸면 안쪽 여백이 사라지므로 레이아웃의 값(가로 12dp, 세로 5dp)을 다시 준다.
         val density = context.resources.displayMetrics.density
@@ -668,7 +672,7 @@ class MainScreen(val root: View) {
                 setPadding(dp(18), dp(8), dp(18), dp(8))
                 foreground = ripple.getDrawable(0)
                 alpha = if (opened) 0.55f else 1f
-                contentDescription = "$code${reward?.let { ", $it" } ?: ""}. 누르면 입력 페이지"
+                contentDescription = context.getString(R.string.main_code_desc, code, reward?.let { ", $it" } ?: "")
                 setOnClickListener { onCodeOpen(code) }
                 setOnLongClickListener { onCodeCopy(code); true }
                 addView(LinearLayout(context).apply {
@@ -693,7 +697,7 @@ class MainScreen(val root: View) {
                             setPadding(dp(6), dp(3), dp(6), dp(3))
                             background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(context.getColor(bg)) }
                         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
-                        if (row.live) pill("방송", R.color.rerun_recent, R.color.on_action)
+                        if (row.live) pill(context.getString(R.string.main_code_live), R.color.rerun_recent, R.color.on_action)
                         else if (row.isNew) pill("NEW", R.color.gold, R.color.on_gold)
                         if (row.server == "전 서버") pill(row.server, R.color.item_tile, R.color.ink_muted)
                         else pill(row.server, R.color.element_hydro, R.color.on_action)
@@ -713,7 +717,7 @@ class MainScreen(val root: View) {
                     })
                 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
                 addView(TextView(context).apply {
-                    text = if (opened) "열어 봄" else "입력 ›"
+                    text = context.getString(if (opened) R.string.main_code_opened else R.string.main_code_enter)
                     textSize = 13f
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                     setTextColor(context.getColor(if (opened) R.color.ink_muted else R.color.accent))
@@ -722,7 +726,7 @@ class MainScreen(val root: View) {
         }
         val hidden = s.publicCodes.size - shown.size
         if (hidden > 0) codesList.addView(TextView(context).apply {
-            text = "코드 ${hidden}개 더 보기"
+            text = context.resources.getQuantityString(R.plurals.main_codes_more, hidden, hidden)
             textSize = 13f
             gravity = android.view.Gravity.CENTER
             minHeight = dp(44)
@@ -743,9 +747,9 @@ class MainScreen(val root: View) {
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         rerunChars.removeAllViews()
-        rerunTitle.text = r?.title ?: "복각표"
+        rerunTitle.text = r?.title ?: context.getString(R.string.main_card_reruns)
         rerunPeriod.text = r?.period ?: ""
-        rerunOldest.text = r?.oldest ?: "캐릭터마다 마지막 픽업 뒤 몇 버전 지났는지 봐요"
+        rerunOldest.text = r?.oldest ?: context.getString(R.string.main_rerun_empty)
         rerunChars.visibility = if (r?.chars.isNullOrEmpty()) View.GONE else View.VISIBLE
         // 4성까지 보이면 한 줄에 다섯까지(조금 작게) 나눠 놓는다.
         val shown = r?.chars.orEmpty().take(if (r?.fours.isNullOrEmpty()) 4 else 5)
@@ -787,6 +791,10 @@ class MainScreen(val root: View) {
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }, if (many) LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) else LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
         }
-        rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, "눌러서 복각표").joinToString(", ")
+        rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, context.getString(R.string.main_rerun_open_desc)).joinToString(", ")
     }
+
+    /** 영어 문구용 달 이름(Oct 등). 한국어 문구는 숫자를 쓴다. */
+    private fun monthName(month: Int) =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
 }

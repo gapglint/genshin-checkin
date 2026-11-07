@@ -19,7 +19,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="뒤로"
+            android:contentDescription="@string/main_back"
             android:src="@drawable/ic_back" />
 
         <TextView

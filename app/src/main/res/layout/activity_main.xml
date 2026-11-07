@@ -53,7 +53,7 @@
                 android:gravity="center"
                 android:paddingStart="18dp"
                 android:paddingEnd="18dp"
-                android:text="완료"
+                android:text="@string/main_done"
                 android:textColor="@color/on_action"
                 android:textSize="15sp"
                 android:textStyle="bold"
@@ -65,7 +65,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="이벤트">
+                android:contentDescription="@string/main_events">
 
                 <ImageView
                     android:layout_width="24dp"
@@ -91,7 +91,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="홈 꾸미기"
+                android:contentDescription="@string/main_decorate"
                 android:src="@drawable/ic_decorate"
                 android:visibility="gone" />
 
@@ -100,7 +100,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="메인 화면 편집"
+                android:contentDescription="@string/main_edit_main"
                 android:src="@drawable/ic_edit" />
 
             <ImageButton
@@ -109,7 +109,7 @@
                 android:layout_height="48dp"
                 android:layout_marginEnd="-8dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="설정"
+                android:contentDescription="@string/main_settings"
                 android:src="@drawable/ic_settings" />
         </LinearLayout>
 
@@ -167,7 +167,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="HoYoLAB 매일 출석체크" />
+                        android:text="@string/main_hero_eyebrow" />
 
                     <TextView
                         android:id="@+id/statusChip"
@@ -202,7 +202,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:text="일째"
+                        android:text="@string/main_hero_days"
                         android:textColor="@color/hero_ink"
                         android:textSize="20sp" />
                 </LinearLayout>
@@ -247,7 +247,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="10dp"
-                            android:text="오늘 보상" />
+                            android:text="@string/main_today_reward" />
 
                         <TextView
                             android:id="@+id/heroReward"
@@ -333,7 +333,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="보충 출석을 할 수 있어요"
+                    android:text="@string/main_make_up_available"
                     android:textColor="@color/ink"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -353,7 +353,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:minWidth="0dp"
                 android:stateListAnimator="@null"
-                android:text="보충하기"
+                android:text="@string/main_make_up_button"
                 android:textAllCaps="false"
                 android:textColor="@color/accent"
                 android:textSize="15sp" />
@@ -428,7 +428,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="최애 캐릭터로 홈을 꾸며 보세요"
+                    android:text="@string/main_lobby_intro_title"
                     android:textColor="@color/ink"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -437,7 +437,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="최애가 인사하는 로비형 홈 · 언제든 되돌릴 수 있어요"
+                    android:text="@string/main_lobby_intro_sub"
                     android:textColor="@color/ink_muted"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -447,7 +447,7 @@
                 android:layout_width="44dp"
                 android:layout_height="44dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="안내 닫기"
+                android:contentDescription="@string/main_dismiss"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_lobby_close" />
@@ -469,7 +469,7 @@
                 android:paddingStart="18dp"
                 android:paddingTop="16dp"
                 android:paddingEnd="18dp"
-                android:text="지금 쓸 수 있는 리딤 코드"
+                android:text="@string/main_codes_title"
                 android:textColor="@color/ink"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -481,7 +481,7 @@
                 android:paddingTop="2dp"
                 android:paddingEnd="18dp"
                 android:paddingBottom="6dp"
-                android:text="누르면 공식 입력 페이지가 열려요 · 길게 누르면 복사"
+                android:text="@string/main_codes_sub"
                 android:textColor="@color/ink_muted"
                 android:textSize="12sp" />
 
@@ -513,14 +513,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="새 코드 나오면 알림"
+                        android:text="@string/main_codes_alert"
                         android:textColor="@color/ink"
                         android:textSize="15sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="로그인 없이도 받아요 · 금요일 방송 코드도"
+                        android:text="@string/main_codes_alert_sub"
                         android:textColor="@color/ink_muted"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -529,7 +529,7 @@
                     android:id="@+id/codesAlert"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:contentDescription="새 코드 나오면 알림" />
+                    android:contentDescription="@string/main_codes_alert" />
             </LinearLayout>
 
             <TextView
@@ -542,7 +542,7 @@
                 android:paddingTop="14dp"
                 android:paddingEnd="18dp"
                 android:paddingBottom="14dp"
-                android:text="로그인하면 새 코드를 앱이 알아서 넣어 줘요 ›"
+                android:text="@string/main_codes_login"
                 android:textColor="@color/accent"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -592,7 +592,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="레진"
+                        android:text="@string/main_card_notes"
                         android:textColor="@color/ink_muted"
                         android:textSize="12sp" />
 
@@ -693,7 +693,7 @@
                     android:gravity="center"
                     android:paddingStart="12dp"
                     android:paddingEnd="4dp"
-                    android:text="원신 켜기 ›"
+                    android:text="@string/main_launch_game_link"
                     android:textColor="@color/accent"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -745,7 +745,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="리딤 코드"
+                    android:text="@string/main_card_tiles"
                     android:textColor="@color/ink_muted"
                     android:textSize="13sp" />
 
@@ -811,7 +811,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="보상 내역"
+                    android:text="@string/main_history"
                     android:textColor="@color/ink_muted"
                     android:textSize="13sp" />
 
@@ -909,7 +909,7 @@
                 android:id="@+id/rerunTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="지금 픽업"
+                android:text="@string/main_pickup_now"
                 android:textColor="@color/gold"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -957,7 +957,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="복각표 ›"
+                    android:text="@string/main_reruns_link"
                     android:textColor="@color/gold"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -994,7 +994,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="서랍"
+            android:text="@string/main_drawer"
             android:textColor="@color/ink"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -1004,7 +1004,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="카드의 − 를 누르면 여기로 들어가요"
+            android:text="@string/main_drawer_sub"
             android:textColor="@color/ink_muted"
             android:textSize="13sp" />
 
@@ -1052,7 +1052,7 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="12dp"
             android:layout_marginBottom="8dp"
-            android:text="계정"
+            android:text="@string/main_account"
             android:textColor="@color/ink_muted"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -1106,7 +1106,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="이 계정 로그아웃"
+                    android:text="@string/main_logout_this"
                     android:textColor="@color/warn"
                     android:textSize="16sp" />
             </LinearLayout>
@@ -1126,7 +1126,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginTop="28dp"
                 android:layout_marginBottom="8dp"
-                android:text="제때 출석하려면"
+                android:text="@string/main_timing_title"
                 android:textColor="@color/ink_muted"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -1154,21 +1154,21 @@
                             style="@style/Text.RowTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="알람 및 리마인더 허용" />
+                            android:text="@string/main_exact_alarm" />
 
                         <TextView
                             style="@style/Text.RowSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="하루가 바뀐 직후 정확한 시각에 출석해요. 허용하지 않으면 몇 분 늦을 수 있어요." />
+                            android:text="@string/main_exact_alarm_sub" />
                     </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="허용"
+                        android:text="@string/main_allow"
                         android:textColor="@color/accent"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -1188,21 +1188,21 @@
                             style="@style/Text.RowTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="배터리 최적화 제외" />
+                            android:text="@string/main_battery" />
 
                         <TextView
                             style="@style/Text.RowSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="절전 때문에 출석이 밀리거나 빠지지 않게 해요. 폰을 바꾼 뒤에도 다시 확인해 주세요." />
+                            android:text="@string/main_battery_sub" />
                     </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="허용"
+                        android:text="@string/main_allow"
                         android:textColor="@color/accent"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -1222,21 +1222,21 @@
                             style="@style/Text.RowTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="사용하지 않는 앱 정리 끄기" />
+                            android:text="@string/main_hibernation" />
 
                         <TextView
                             style="@style/Text.RowSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="앱을 몇 달 열지 않으면 안드로이드가 앱을 멈춰 출석이 끊겨요. 폰에 따라 '사용하지 않는 앱 일시중지' 또는 '사용하지 않는 앱 권한 삭제'로 보여요. 어느 쪽이든 꺼 주세요." />
+                            android:text="@string/main_hibernation_sub" />
                     </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:text="끄기"
+                        android:text="@string/main_turn_off"
                         android:textColor="@color/accent"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -1250,7 +1250,7 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="28dp"
             android:layout_marginBottom="8dp"
-            android:text="알림·화면"
+            android:text="@string/main_section_display"
             android:textColor="@color/ink_muted"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -1278,7 +1278,7 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="알림" />
+                        android:text="@string/main_notifications" />
 
                     <TextView
                         android:id="@+id/notificationsSub"
@@ -1309,14 +1309,14 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="홈 꾸미기" />
+                        android:text="@string/main_decorate" />
 
                     <TextView
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="카드형 · 로비형(최애 캐릭터가 홈의 주인공)" />
+                        android:text="@string/main_home_style_sub" />
                 </LinearLayout>
 
                 <ImageView
@@ -1340,14 +1340,14 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="메인 화면 편집" />
+                        android:text="@string/main_edit_main" />
 
                     <TextView
                         style="@style/Text.RowSub"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="카드 순서·숨기기·카드별 알림·리딤 설정" />
+                        android:text="@string/main_edit_main_sub" />
                 </LinearLayout>
 
                 <ImageView
@@ -1372,7 +1372,7 @@
                         style="@style/Text.RowTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="원신 켜기에 쓸 앱" />
+                        android:text="@string/main_game_app_title" />
 
                     <TextView
                         android:id="@+id/gameAppSub"
@@ -1398,7 +1398,7 @@
             android:layout_marginHorizontal="4dp"
             android:layout_marginTop="16dp"
             android:lineSpacingExtra="3dp"
-            android:text="호요랩 서버의 날짜가 바뀌는 순간(한국 시간 새벽 1시) 직후에 출석해요. 폰 시계가 틀려도 서버 시각에 맞춰요. 놓치면 6시간마다 다시 확인해요."
+            android:text="@string/main_about_timing"
             android:textColor="@color/ink_muted"
             android:textSize="12sp" />
 
@@ -1415,7 +1415,7 @@
                 android:background="?android:attr/selectableItemBackground"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="4dp"
-                android:text="개인정보처리방침"
+                android:text="@string/main_privacy"
                 android:textColor="@color/ink_muted"
                 android:textSize="12sp" />
 
@@ -1427,7 +1427,7 @@
                 android:background="?android:attr/selectableItemBackground"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="4dp"
-                android:text="소스 코드 (GitHub)"
+                android:text="@string/main_source"
                 android:textColor="@color/ink_muted"
                 android:textSize="12sp" />
         </LinearLayout>

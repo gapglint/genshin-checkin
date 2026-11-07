@@ -104,7 +104,7 @@ class MainActivity : Activity() {
             if (on && Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
             }
-            Toast.makeText(this, if (on) "새 코드가 나오면 알려 드릴게요" else "새 코드 알림을 껐어요", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(if (on) R.string.main_code_alerts_on else R.string.main_code_alerts_off), Toast.LENGTH_SHORT).show()
         }
         screen.onCodeOpen = { code ->
             PublicCodes.markOpened(this, code)
@@ -118,8 +118,8 @@ class MainActivity : Activity() {
         screen.onCodesMore = { codesExpanded = true; refresh() }
         screen.onCodeCopy = { code ->
             getSystemService(android.content.ClipboardManager::class.java)
-                .setPrimaryClip(android.content.ClipData.newPlainText("리딤 코드", code))
-            Toast.makeText(this, "$code 복사했어요", Toast.LENGTH_SHORT).show()
+                .setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.main_redeem_code), code))
+            Toast.makeText(this, getString(R.string.main_copied, code), Toast.LENGTH_SHORT).show()
         }
         screen.makeUpButton.setOnClickListener { makeUpNow() }
         screen.makeUpCard.setOnClickListener { explainMakeUp() }
@@ -259,9 +259,12 @@ class MainActivity : Activity() {
             reward = PublicCodes.rewardText(c.reward),
             server = c.server,
             isNew = c.discovered?.let { !it.isBefore(today.minusDays(3)) } == true,
-            until = c.expiry?.let { if (it == today) "오늘까지" else "${it.monthValue}월 ${it.dayOfMonth}일까지" }
-                ?: "확인 안 된 코드 · 안 될 수도 있어요".takeIf { c.unverified }
-                ?: "만료됐을 수 있어요".takeIf { c.old },
+            until = c.expiry?.let {
+                if (it == today) getString(R.string.main_until_today)
+                else getString(R.string.main_until_date, it.monthValue, it.dayOfMonth, monthName(it.monthValue))
+            }
+                ?: getString(R.string.main_code_unverified).takeIf { c.unverified }
+                ?: getString(R.string.main_code_old).takeIf { c.old },
             soon = c.expiry?.let { !it.isAfter(today.plusDays(2)) } == true,
             live = c.official,
             opened = c.code in opened,
@@ -388,7 +391,7 @@ class MainActivity : Activity() {
             try {
                 Notes.refresh(this, store)
             } catch (e: Exception) {
-                store.noteProblem = "네트워크 오류로 불러오지 못했어요"
+                store.noteProblem = getString(R.string.main_notes_network)
             }
             Notes.schedule(this)
             runOnUiThread {
@@ -402,18 +405,17 @@ class MainActivity : Activity() {
     private fun askEnableNotes() {
         val store = store ?: return
         AppDialog(this)
-            .setTitle("레진을 보려면 실시간 메모가 필요해요")
-            .setMessage("호요랩 전적의 '실시간 메모'를 켜면, 레진이 언제 가득 차는지와 탐사 파견·주전자 동전을 여기서 보고 알림도 받을 수 있어요.\n\n" +
-                "켜는 건 이번 한 번뿐이고, 호요랩 앱의 전적 설정에서 언제든 다시 끌 수 있어요.")
-            .setNegativeButton("나중에")
-            .setPositiveButton("켜고 레진 보기") {
+            .setTitle(getString(R.string.main_notes_enable_title))
+            .setMessage(getString(R.string.main_notes_enable_msg))
+            .setNegativeButton(getString(R.string.main_later))
+            .setPositiveButton(getString(R.string.main_notes_enable_ok)) {
                 Thread {
                     val ok = try { Notes.enableNotes(store) } catch (e: IOException) { null }
                     runOnUiThread {
                         when (ok) {
                             true -> loadNotes(force = true)
-                            false -> Toast.makeText(this, "켜지 못했어요. 호요랩 앱의 전적 설정에서 켜 주세요.", Toast.LENGTH_LONG).show()
-                            null -> Toast.makeText(this, "네트워크 오류로 켜지 못했어요.", Toast.LENGTH_LONG).show()
+                            false -> Toast.makeText(this, getString(R.string.main_notes_enable_failed), Toast.LENGTH_LONG).show()
+                            null -> Toast.makeText(this, getString(R.string.main_notes_enable_network), Toast.LENGTH_LONG).show()
                         }
                     }
                 }.start()
@@ -432,13 +434,13 @@ class MainActivity : Activity() {
     private fun chooseGameApp() {
         val apps = Game.installed(this)
         AppDialog(this)
-            .setTitle("원신 켜기에 쓸 앱")
+            .setTitle(getString(R.string.main_game_app_title))
             .setSingleChoiceItems(apps.map { it.label }.toTypedArray(), apps.indexOf(Game.chosen(this))) { dialog, which ->
                 settings.gamePackage = apps[which].packageName
                 dialog.dismiss()
                 refresh()
             }
-            .setNegativeButton("취소")
+            .setNegativeButton(getString(R.string.main_cancel))
             .show()
     }
 
@@ -483,7 +485,7 @@ class MainActivity : Activity() {
 
         /** 레진 알림 기준: 끄기 · 120 · 160 · 180 · 가득을 같은 폭의 버튼으로. 고른 것만 진하게. */
         fun resinChoice() {
-            val options = listOf(-1 to "끄기", 120 to "120", 160 to "160", 180 to "180", 0 to "가득")
+            val options = listOf(-1 to getString(R.string.main_off), 120 to "120", 160 to "160", 180 to "180", 0 to getString(R.string.main_full))
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             fun paint() {
                 val current = if (!settings.resinAlert) -1 else settings.resinThreshold
@@ -505,7 +507,7 @@ class MainActivity : Activity() {
                     textSize = 14f
                     gravity = android.view.Gravity.CENTER
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
-                    contentDescription = if (value == -1) "레진 알림 끄기" else if (value == 0) "가득 차면 알림" else "${value}개에 알림"
+                    contentDescription = if (value == -1) getString(R.string.main_resin_alert_off) else if (value == 0) getString(R.string.main_resin_alert_full) else getString(R.string.main_resin_alert_at, value)
                     setOnClickListener {
                         if (value == -1) settings.resinAlert = false else {
                             settings.resinAlert = true
@@ -522,29 +524,33 @@ class MainActivity : Activity() {
 
         val title = when (card) {
             MainEditor.CARD_CHECK_IN -> {
-                toggle("출석하면 알림", settings.notifyCheckIn) { settings.notifyCheckIn = it }
-                toggle("보충할 수 있을 때 알림", settings.makeUpAlerts) { settings.makeUpAlerts = it }
+                toggle(getString(R.string.main_opt_notify_check_in), settings.notifyCheckIn) { settings.notifyCheckIn = it }
+                toggle(getString(R.string.main_opt_make_up), settings.makeUpAlerts) { settings.makeUpAlerts = it }
                 // 모든 알림에 걸리는 설정이라, 항상 보이는 출석 카드에 둔다.
-                toggle("밤(오후 10시~오전 8시)엔 모든 알림 소리 없이", settings.quietNight) { settings.quietNight = it }
-                "출석"
+                toggle(getString(R.string.main_opt_quiet), settings.quietNight) { settings.quietNight = it }
+                getString(R.string.main_card_check_in)
             }
             CARD_NOTES -> {
-                label("레진이 이만큼 차면 알림")
+                label(getString(R.string.main_opt_resin_label))
                 resinChoice()
                 label("", top = 8)
-                toggle("탐사 파견이 모두 끝나면 알림", settings.expeditionAlert) { settings.expeditionAlert = it }
-                toggle("주전자 동전이 가득 차면 알림", settings.coinAlert) { settings.coinAlert = it }
-                label("카드를 펼치면 보일 것", top = 12)
-                for ((key, text) in listOf(NOTE_EXPEDITIONS to "탐사 파견", NOTE_COIN to "주전자 동전", NOTE_COMMISSIONS to "일일 의뢰")) {
+                toggle(getString(R.string.main_opt_expedition), settings.expeditionAlert) { settings.expeditionAlert = it }
+                toggle(getString(R.string.main_opt_coin), settings.coinAlert) { settings.coinAlert = it }
+                label(getString(R.string.main_opt_expand_label), top = 12)
+                for ((key, text) in listOf(
+                    NOTE_EXPEDITIONS to getString(R.string.main_expeditions),
+                    NOTE_COIN to getString(R.string.main_coin),
+                    NOTE_COMMISSIONS to getString(R.string.main_commissions),
+                )) {
                     toggle(text, key in settings.noteStats) { on ->
                         settings.noteStats = if (on) settings.noteStats + key else settings.noteStats - key
                     }
                 }
-                "레진"
+                getString(R.string.main_card_notes)
             }
             CARD_TILES -> {
                 body.addView(TextView(this).apply {
-                    text = "코드 직접 입력 ›"
+                    text = getString(R.string.main_enter_code_link)
                     textSize = 15f
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                     setTextColor(getColor(R.color.accent))
@@ -552,8 +558,8 @@ class MainActivity : Activity() {
                     gravity = android.view.Gravity.CENTER_VERTICAL
                     setOnClickListener { popup?.dismiss(); enterCode() }
                 })
-                toggle("리딤 코드 자동 입력", settings.redeemEnabled) { settings.redeemEnabled = it }
-                toggle("리딤 코드를 받으면 알림", settings.notifyRedeem) { settings.notifyRedeem = it }
+                toggle(getString(R.string.main_opt_auto_redeem), settings.redeemEnabled) { settings.redeemEnabled = it }
+                toggle(getString(R.string.main_opt_notify_redeem), settings.notifyRedeem) { settings.notifyRedeem = it }
                 body.addView(LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = android.view.Gravity.CENTER_VERTICAL
@@ -562,12 +568,12 @@ class MainActivity : Activity() {
                     addView(LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.VERTICAL
                         addView(TextView(this@MainActivity).apply {
-                            text = "보상 받을 캐릭터"
+                            text = getString(R.string.main_redeem_role)
                             textSize = 15f
                             setTextColor(getColor(R.color.ink))
                         })
                         addView(TextView(this@MainActivity).apply {
-                            text = store?.redeemRole?.shortLabel() ?: "눌러서 골라 주세요"
+                            text = store?.redeemRole?.shortLabel() ?: getString(R.string.main_tap_to_pick)
                             textSize = 12f
                             setTextColor(getColor(if (store?.redeemRole == null) R.color.accent else R.color.ink_muted))
                         })
@@ -575,19 +581,19 @@ class MainActivity : Activity() {
                     addView(android.widget.ImageView(this@MainActivity).apply { setImageResource(R.drawable.ic_chevron) },
                         LinearLayout.LayoutParams(dp(20), dp(20)))
                 })
-                "리딤 코드·보상 내역"
+                getString(R.string.main_opt_tiles_title)
             }
             CARD_RERUNS -> {
-                label("캐릭터마다 마지막 픽업 뒤 몇 버전이 지났는지 보여 줘요. 따로 바꿀 옵션은 없어요.")
-                "복각표"
+                label(getString(R.string.main_opt_reruns_info))
+                getString(R.string.main_card_reruns)
             }
             else -> {
-                label("이번 달 출석 보상을 칸으로 보여 줘요. 따로 바꿀 옵션은 없어요.")
-                "출석 보상 달력"
+                label(getString(R.string.main_opt_calendar_info))
+                getString(R.string.main_opt_calendar_title)
             }
         }
         if (card != MainEditor.CARD_CHECK_IN) body.addView(TextView(this).apply {
-            text = "서랍에 넣기"
+            text = getString(R.string.main_put_in_drawer)
             textSize = 14f
             setTextColor(getColor(R.color.warn))
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -651,8 +657,8 @@ class MainActivity : Activity() {
                 reward = if (signedToday) store?.lastReward else null,
                 makeUpToday = store?.takeIf { it.makeUpDoneDay == Store.checkInDay().toString() }?.let { MakeUp.todaySummary(it.makeUpRewards) },
                 lastChecked = store?.lastRunAt?.takeIf { it > 0 }
-                    ?.let { DateFormat.format("M월 d일 HH:mm", Date(it)).toString() },
-                loginExpiry = store?.loginExpiresAt?.let { DateFormat.format("yyyy년 M월 d일", Date(it)).toString() },
+                    ?.let { DateFormat.format(getString(R.string.main_fmt_date_time), Date(it)).toString() },
+                loginExpiry = store?.loginExpiresAt?.let { DateFormat.format(getString(R.string.main_fmt_date_long), Date(it)).toString() },
                 nextRun = settings.nextRunAt.takeIf { store != null && it > 0 }?.let { describeNextRun(it) },
                 needsExactAlarm = !DailyAlarm.canRunExactly(this),
                 needsBatteryExemption = !getSystemService(PowerManager::class.java)
@@ -664,11 +670,11 @@ class MainActivity : Activity() {
                 redeemEnabled = settings.redeemEnabled,
                 redeemRole = store?.redeemRole?.label(),
                 redeemSummary = store?.lastRedeemSummary?.let { summary ->
-                    val at = DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt))
+                    val at = DateFormat.format(getString(R.string.main_fmt_date_time), Date(store.lastRedeemAt))
                     "$at · $summary"
                 },
                 redeemShort = store?.lastRedeemSummary?.substringBefore(":")?.trim(),
-                redeemWhen = store?.lastRedeemSummary?.let { DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() },
+                redeemWhen = store?.lastRedeemSummary?.let { DateFormat.format(getString(R.string.main_fmt_date_time), Date(store.lastRedeemAt)).toString() },
                 busy = busy,
                 busyProgress = busyProgress,
                 historyUnseen = store?.historyUnseen ?: 0,
@@ -725,21 +731,18 @@ class MainActivity : Activity() {
     private fun checkLogin() {
         val store = store ?: return
         val cookie = store.cookie ?: return
-        loadWithDialog("로그인 확인 중...", { CheckInClient(cookie).isLoggedIn() }) { valid ->
+        loadWithDialog(getString(R.string.main_checking_login), { CheckInClient(cookie).isLoggedIn() }) { valid ->
             val who = store.accountRole?.let { "${it.nickname} (${it.serverName})\n" } ?: ""
             AppDialog(this)
-                .setTitle(if (valid) "로그인돼 있어요" else "로그인이 풀렸어요")
-                .setMessage(
-                    if (valid) "${who}HoYoLAB UID ${store.accountId} 계정으로 자동 출석 중이에요.\n\n캡차 때문에 자동 출석이 막히면 '출석 페이지'에서 직접 누를 수 있어요."
-                    else "${who}HoYoLAB UID ${store.accountId} 계정을 다시 로그인해 주세요."
-                )
-                .setPositiveButton(if (valid) "확인" else "다시 로그인") {
+                .setTitle(getString(if (valid) R.string.main_login_valid_title else R.string.main_login_expired_title))
+                .setMessage(getString(if (valid) R.string.main_login_valid_msg else R.string.main_login_expired_msg, who, store.accountId))
+                .setPositiveButton(getString(if (valid) R.string.main_ok else R.string.main_login_again)) {
                     if (!valid) startActivity(LoginActivity.loginIntent(this))
                 }
                 .apply {
                     if (valid) {
-                        setNeutralButton("다시 로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
-                        setNegativeButton("출석 페이지") {
+                        setNeutralButton(getString(R.string.main_login_again)) { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
+                        setNegativeButton(getString(R.string.main_check_in_page)) {
                             startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId))
                         }
                     }
@@ -754,7 +757,7 @@ class MainActivity : Activity() {
      */
     private fun <T> loadWithDialog(label: String, work: () -> T, then: (T) -> Unit) {
         var cancelled = false
-        val waiting = AppDialog(this).setMessage(label).setOnCancelListener { cancelled = true }.setNegativeButton("취소") { cancelled = true }.show()
+        val waiting = AppDialog(this).setMessage(label).setOnCancelListener { cancelled = true }.setNegativeButton(getString(R.string.main_cancel)) { cancelled = true }.show()
         Thread {
             val result = try {
                 Result.success(work())
@@ -764,7 +767,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 if (cancelled || isFinishing || isDestroyed) return@runOnUiThread
                 waiting.dismiss()
-                result.fold(then) { Toast.makeText(this, "네트워크 오류: ${it.message}", Toast.LENGTH_LONG).show() }
+                result.fold(then) { Toast.makeText(this, getString(R.string.main_network_error, it.message), Toast.LENGTH_LONG).show() }
             }
         }.start()
     }
@@ -778,9 +781,9 @@ class MainActivity : Activity() {
         val at = Instant.ofEpochMilli(serverMs).atZone(zone)
         val today = Instant.ofEpochMilli(ServerClock.now()).atZone(zone).toLocalDate()
         val day = when (at.toLocalDate()) {
-            today -> "오늘"
-            today.plusDays(1) -> "내일"
-            else -> "${at.monthValue}월 ${at.dayOfMonth}일"
+            today -> getString(R.string.main_today_cap)
+            today.plusDays(1) -> getString(R.string.main_tomorrow)
+            else -> getString(R.string.main_month_day, at.monthValue, at.dayOfMonth, monthName(at.monthValue))
         }
         return "%s %02d:%02d".format(day, at.hour, at.minute)
     }
@@ -825,28 +828,28 @@ class MainActivity : Activity() {
     private fun chooseRedeemRole() {
         val store = store ?: return
         val cookie = store.cookie ?: return
-        loadWithDialog("캐릭터 불러오는 중...", { Redeem.roles(CheckInClient(cookie)) }) { showRoleChoice(store, it) }
+        loadWithDialog(getString(R.string.main_loading_roles), { Redeem.roles(CheckInClient(cookie)) }) { showRoleChoice(store, it) }
     }
 
     private fun showRoleChoice(store: Store, roles: List<GameRole>) {
         if (roles.isEmpty()) {
             AppDialog(this)
-                .setTitle("캐릭터가 없어요")
-                .setMessage("이 계정에 연결된 원신 캐릭터를 찾지 못했어요. 로그인이 풀렸다면 다시 로그인해 주세요.")
-                .setPositiveButton("확인")
+                .setTitle(getString(R.string.main_no_roles_title))
+                .setMessage(getString(R.string.main_no_roles_msg))
+                .setPositiveButton(getString(R.string.main_ok))
                 .show()
             return
         }
         val current = roles.indexOfFirst { it.uid == store.redeemRole?.uid }
         AppDialog(this)
-            .setTitle("보상 받을 캐릭터")
+            .setTitle(getString(R.string.main_redeem_role))
             .setSingleChoiceItems(roles.map { it.label() }.toTypedArray(), current) { dialog, which ->
                 store.redeemRoles = listOf(roles[which])
                 store.accountRole = roles[which]
                 dialog.dismiss()
                 refresh()
             }
-            .setNegativeButton("취소")
+            .setNegativeButton(getString(R.string.main_cancel))
             .show()
     }
 
@@ -854,7 +857,7 @@ class MainActivity : Activity() {
         val store = store ?: return
         // 로그인 직후 등에 예약 실행이 이미 돌고 있으면, 끝날 때까지 막혀 멈춘 것처럼 보이지 않게 그 진행을 보여 준다.
         if (Redeem.running != null) return watchRedeem(store)
-        runInBackground("리딤 코드 찾는 중...") { redeemFor(store) }
+        runInBackground(getString(R.string.main_finding_codes)) { redeemFor(store) }
     }
 
     /** 백그라운드에서 도는 리딤의 진행을 0.5초마다 옮겨 보여 주고, 끝나면 결과 요약을 띄운다. */
@@ -879,9 +882,9 @@ class MainActivity : Activity() {
                 busyProgress = null
                 refresh()
                 AppDialog(this@MainActivity)
-                    .setTitle("리딤 코드")
-                    .setMessage(store.lastRedeemSummary ?: "확인을 마쳤어요.")
-                    .setPositiveButton("확인")
+                    .setTitle(getString(R.string.main_card_tiles))
+                    .setMessage(store.lastRedeemSummary ?: getString(R.string.main_check_done))
+                    .setPositiveButton(getString(R.string.main_ok))
                     .show()
             }
         }
@@ -897,10 +900,13 @@ class MainActivity : Activity() {
         }
         runOnUiThread {
             AppDialog(this)
-                .setTitle(if (report.redeemed.isNotEmpty()) "리딤 코드 ${report.redeemed.size}개를 받았어요" else "리딤 코드")
+                .setTitle(
+                    if (report.redeemed.isNotEmpty()) resources.getQuantityString(R.plurals.main_redeemed_title, report.redeemed.size, report.redeemed.size)
+                    else getString(R.string.main_card_tiles)
+                )
                 .setMessage(Redeem.details(report))
-                .setPositiveButton("확인")
-                .setNeutralButton("코드 직접 입력") { enterCode() }
+                .setPositiveButton(getString(R.string.main_ok))
+                .setNeutralButton(getString(R.string.main_enter_code)) { enterCode() }
                 .show()
         }
         return null
@@ -911,25 +917,25 @@ class MainActivity : Activity() {
         val store = store ?: return
         if (store.redeemRole == null) return chooseRedeemRole()
         val input = android.widget.EditText(this).apply {
-            hint = "리딤 코드"
+            hint = getString(R.string.main_redeem_code)
             isSingleLine = true
             typeface = android.graphics.Typeface.MONOSPACE
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or
                 android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         }
         AppDialog(this)
-            .setTitle("코드 직접 입력")
-            .setMessage("${store.redeemRole?.shortLabel()}(으)로 입력해요.")
+            .setTitle(getString(R.string.main_enter_code))
+            .setMessage(getString(R.string.main_enter_code_msg, store.redeemRole?.shortLabel()))
             .setView(input)
-            .setNegativeButton("취소")
-            .setPositiveButton("입력") {
+            .setNegativeButton(getString(R.string.main_cancel))
+            .setPositiveButton(getString(R.string.main_enter)) {
                 val code = input.text.toString()
                 if (code.isBlank()) return@setPositiveButton
-                runInBackground("코드 입력 중...") {
+                runInBackground(getString(R.string.main_entering_code)) {
                     val attempt = Redeem.redeemOne(store, code)
                     runOnUiThread {
-                        AppDialog(this).setTitle("코드 직접 입력").setMessage(Redeem.describeOne(attempt))
-                            .setPositiveButton("확인").setNeutralButton("하나 더") { enterCode() }.show()
+                        AppDialog(this).setTitle(getString(R.string.main_enter_code)).setMessage(Redeem.describeOne(attempt))
+                            .setPositiveButton(getString(R.string.main_ok)).setNeutralButton(getString(R.string.main_one_more)) { enterCode() }.show()
                     }
                     null
                 }
@@ -939,7 +945,7 @@ class MainActivity : Activity() {
 
     private fun checkInNow() {
         val store = store ?: return
-        runInBackground("출석하는 중...") {
+        runInBackground(getString(R.string.main_checking_in)) {
             calendarDirty = true
             CheckIn.run(this, store)?.let { CheckIn.describe(it) }
         }
@@ -952,19 +958,19 @@ class MainActivity : Activity() {
             settings.resinAlert, settings.expeditionAlert, settings.coinAlert, settings.quietNight,
         )
         AppDialog(this)
-            .setTitle("알림")
+            .setTitle(getString(R.string.main_notifications))
             .setMultiChoiceItems(arrayOf(
-                "매일 출석했을 때",
-                "보충 출석을 할 수 있을 때",
-                "리딤 코드를 받았을 때",
-                "레진이 기준만큼 찼을 때",
-                "탐사 파견이 모두 끝났을 때",
-                "주전자 동전이 가득 찼을 때",
-                "밤(오후 10시~오전 8시)에는 소리·진동 없이",
+                getString(R.string.main_notify_item_check_in),
+                getString(R.string.main_notify_item_make_up),
+                getString(R.string.main_notify_item_redeem),
+                getString(R.string.main_notify_item_resin),
+                getString(R.string.main_notify_item_expedition),
+                getString(R.string.main_notify_item_coin),
+                getString(R.string.main_notify_item_quiet),
             ), checked)
-            .setFooter("로그인이 풀리거나 캡차가 필요할 때는 항상 알려요.\n레진·파견은 호요랩 '실시간 메모'를 써요. 꺼져 있으면 켤지 먼저 물어봐요.")
-            .setNegativeButton("취소")
-            .setPositiveButton("저장") {
+            .setFooter(getString(R.string.main_notify_footer))
+            .setNegativeButton(getString(R.string.main_cancel))
+            .setPositiveButton(getString(R.string.main_save)) {
                 settings.notifyCheckIn = checked[0]
                 settings.makeUpAlerts = checked[1]
                 settings.notifyRedeem = checked[2]
@@ -979,35 +985,31 @@ class MainActivity : Activity() {
 
     private fun notificationsSummary(): String {
         val kinds = listOfNotNull(
-            "출석 완료".takeIf { settings.notifyCheckIn },
-            "보충 출석".takeIf { settings.makeUpAlerts },
-            "리딤 코드".takeIf { settings.notifyRedeem },
-            (if (settings.resinThreshold <= 0) "레진 가득" else "레진 ${settings.resinThreshold}개").takeIf { settings.resinAlert },
-            "탐사 파견".takeIf { settings.expeditionAlert },
-            "주전자".takeIf { settings.coinAlert },
+            getString(R.string.main_sum_check_in).takeIf { settings.notifyCheckIn },
+            getString(R.string.main_sum_make_up).takeIf { settings.makeUpAlerts },
+            getString(R.string.main_sum_redeem).takeIf { settings.notifyRedeem },
+            (if (settings.resinThreshold <= 0) getString(R.string.main_sum_resin_full) else getString(R.string.main_sum_resin_at, settings.resinThreshold))
+                .takeIf { settings.resinAlert },
+            getString(R.string.main_expeditions).takeIf { settings.expeditionAlert },
+            getString(R.string.main_sum_coin).takeIf { settings.coinAlert },
         )
-        val what = if (kinds.isEmpty()) "문제가 있을 때만" else kinds.joinToString(" · ")
-        return if (settings.quietNight) "$what · 밤에는 소리 없이" else what
+        val what = if (kinds.isEmpty()) getString(R.string.main_sum_problems) else kinds.joinToString(" · ")
+        return if (settings.quietNight) getString(R.string.main_sum_quiet, what) else what
     }
 
     /** 보충권이 무엇이고 어떻게 받는지. 보충 카드를 누르면 보여 준다. */
     private fun explainMakeUp() {
         AppDialog(this)
-            .setTitle("보충 출석")
-            .setMessage(
-                "보충권 하나로 놓친 출석 하루를 채우고, 그 칸의 보상(원석 등)도 받아요.\n\n" +
-                    "보충권은 호요랩 출석 이벤트의 간단한 임무(링크 방문 등)로 받아요. " +
-                    "'보충하기'를 누르면 앱이 받을 수 있는 임무를 대신 끝내고, 보충권을 받아 바로 채워요.\n\n" +
-                    "하루·한 달에 보충할 수 있는 횟수는 호요랩이 정해요. 다 쓰면 다음에 다시 할 수 있어요."
-            )
-            .setNegativeButton("닫기")
-            .setPositiveButton("보충하기") { makeUpNow() }
+            .setTitle(getString(R.string.main_make_up))
+            .setMessage(getString(R.string.main_make_up_explain))
+            .setNegativeButton(getString(R.string.main_close))
+            .setPositiveButton(getString(R.string.main_make_up_button)) { makeUpNow() }
             .show()
     }
 
     private fun makeUpNow() {
         val store = store ?: return
-        runInBackground("보충 출석 준비 중...") {
+        runInBackground(getString(R.string.main_make_up_preparing)) {
             val result = MakeUp.perform(store) { step -> runOnUiThread { busy = step; refresh() } }
             calendarDirty = true
             runOnUiThread { showMakeUpResult(result) }
@@ -1018,7 +1020,7 @@ class MainActivity : Activity() {
     /** 네트워크 작업을 백그라운드에서 돌리는 동안 버튼을 막고 진행 안내를 보여 준다. 반환한 문장은 토스트로. */
     private fun runInBackground(label: String, work: () -> String?) {
         busy?.let {
-            Toast.makeText(this, "$it 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.main_wait, it), Toast.LENGTH_SHORT).show()
             return
         }
         busy = label
@@ -1027,7 +1029,7 @@ class MainActivity : Activity() {
             val message = try {
                 work()
             } catch (e: IOException) {
-                "네트워크 오류: ${e.message}"
+                getString(R.string.main_network_error, e.message)
             }
             runOnUiThread {
                 busy = null
@@ -1043,14 +1045,14 @@ class MainActivity : Activity() {
     }
 
     private fun showMakeUpResult(result: MakeUpResult) {
-        val title = if (result is MakeUpResult.Done) "보충 출석 완료" else "보충 출석"
+        val title = getString(if (result is MakeUpResult.Done) R.string.main_make_up_done else R.string.main_make_up)
         AppDialog(this)
             .setTitle(title)
             .setMessage(MakeUp.describe(result))
-            .setPositiveButton("확인")
+            .setPositiveButton(getString(R.string.main_ok))
             .apply {
                 if (result == MakeUpResult.LoginExpired) {
-                    setNeutralButton("로그인") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
+                    setNeutralButton(getString(R.string.main_log_in)) { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
                 }
             }
             .show()
@@ -1059,9 +1061,9 @@ class MainActivity : Activity() {
     private fun confirmLogout() {
         val store = store ?: return
         AppDialog(this)
-            .setTitle("${store.displayName} 계정을 로그아웃할까요?")
-            .setMessage("이 계정의 로그인과 기록을 지우고 이 계정은 자동 출석을 멈춰요. 다른 계정은 그대로예요.")
-            .setPositiveButton("로그아웃") {
+            .setTitle(getString(R.string.main_logout_title, store.displayName))
+            .setMessage(getString(R.string.main_logout_msg))
+            .setPositiveButton(getString(R.string.main_logout)) {
                 settings.remove(store.accountId)
                 if (!settings.hasAccounts) {
                     CheckIn.cancel(this)
@@ -1069,7 +1071,7 @@ class MainActivity : Activity() {
                 }
                 refresh()
             }
-            .setNegativeButton("취소")
+            .setNegativeButton(getString(R.string.main_cancel))
             .show()
     }
 
@@ -1137,7 +1139,7 @@ class MainActivity : Activity() {
         if (lobbyCardHeader != null && key == lobbyCardHeaderKey) return
         lobbyCardHeader?.let { content.removeView(it) }
         val d = resources.displayMetrics.density
-        val header = LobbyMenu.header(this, "카드", t, lobbyBust, fav.name, fav.element) { lobbyHidden = false; refresh(); updateBackCallback() }
+        val header = LobbyMenu.header(this, getString(R.string.main_lobby_cards), t, lobbyBust, fav.name, fav.element) { lobbyHidden = false; refresh(); updateBackCallback() }
         // 목록의 좌우·위 여백을 넘어 화면 폭에 맞게(위 상태 바 여백은 그대로 둔다).
         content.addView(header, 0, android.widget.LinearLayout.LayoutParams(-1, (LobbyMenu.HEADER_DP * d).toInt()).apply {
             setMargins(-content.paddingStart, -(12 * d).toInt(), -content.paddingEnd, (12 * d).toInt())
@@ -1193,10 +1195,11 @@ class MainActivity : Activity() {
         // 기다리던 최애를 뽑았으면 전적의 내 캐릭터 정보로 바꾼다(그림·번호).
         if (owned != null && fav.id == 0) settings.favorite = Favorite(owned.name, owned.element, owned.image, owned.id)
         val elementKo = Lobby.ELEMENT_KO[fav.element] ?: ""
+        val elementEn = fav.element.replaceFirstChar { it.uppercase() }
         val meta = when {
-            owned != null -> "$elementKo · Lv.${owned.level} · 호감도 ${owned.fetter} · 운명의 자리 ${owned.constellation}"
+            owned != null -> getString(R.string.main_lobby_meta_owned, elementKo, elementEn, owned.level, owned.fetter, owned.constellation)
             fav.id == 0 -> Lobby.waitingLine(this, fav.name, ServerClock.today())
-            else -> "$elementKo 원소"
+            else -> getString(R.string.main_lobby_meta_element, elementKo, elementEn)
         }
         val usingOfficial = lobbyArt != null && settings.lobbyBackground == Lobby.BG_OFFICIAL
         view.bind(lobbyUi(s, fav, meta, usingOfficial), lobbyArt, lobbyActions)
@@ -1212,8 +1215,13 @@ class MainActivity : Activity() {
     /** 지금 상태로 로비에 보일 것(말풍선·아래 패널)을 정한다. 문제가 있으면 아래 패널이 경고로 바뀐다. */
     private fun lobbyUi(s: MainUiState, fav: Favorite, meta: String, credit: Boolean): LobbyUi {
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val hello = when (hour) { in 5..10 -> "좋은 아침이에요"; in 11..16 -> "좋은 오후예요"; in 17..21 -> "좋은 저녁이에요"; else -> "늦은 밤이에요" }
-        val who = "${s.nickname ?: "여행자"} 님"
+        val hello = getString(when (hour) {
+            in 5..10 -> R.string.main_hello_morning
+            in 11..16 -> R.string.main_hello_afternoon
+            in 17..21 -> R.string.main_hello_evening
+            else -> R.string.main_hello_night
+        })
+        val who = s.nickname ?: getString(R.string.main_traveler)
         val notes = s.notes
         val resinFull = notes != null && notes.resin >= notes.maxResin
         val redeemedToday = store?.lastRedeemAt?.let { it > 0 && ServerClock.dayOf(it) == ServerClock.today() } == true &&
@@ -1221,23 +1229,23 @@ class MainActivity : Activity() {
         val note = s.note
         // 앱이 한 일 한 줄. 최애 대사가 있으면 대사 아래에 작게, 없으면 인사와 함께 보인다.
         val status = when {
-            s.busy != null -> "지금 ${s.busy.trimEnd('.', ' ')} 중이에요."
-            note != null -> "출석을 못 했어요. 아래를 확인해 주세요."
-            s.signedToday && resinFull -> "레진이 가득 찼어요! 출석은 받아 뒀어요."
-            s.signedToday && s.totalDays >= Store.checkInDay().dayOfMonth && s.totalDays >= 7 -> "이번 달 하루도 안 빠졌어요. 오늘도 받아 뒀어요."
-            s.signedToday && redeemedToday -> "오늘 출석이랑 새 코드도 받아 뒀어요."
-            s.signedToday -> "오늘 출석은 받아 뒀어요."
-            else -> "오늘 출석은 곧 받아 둘게요."
+            s.busy != null -> getString(R.string.main_status_busy, s.busy.trimEnd('.', ' '))
+            note != null -> getString(R.string.main_status_problem)
+            s.signedToday && resinFull -> getString(R.string.main_status_resin_full)
+            s.signedToday && s.totalDays >= Store.checkInDay().dayOfMonth && s.totalDays >= 7 -> getString(R.string.main_status_perfect)
+            s.signedToday && redeemedToday -> getString(R.string.main_status_redeemed)
+            s.signedToday -> getString(R.string.main_status_signed)
+            else -> getString(R.string.main_status_soon)
         }
         val quote = lobbyQuote(fav, hour, note != null, s.signedToday && (redeemedToday || s.historyUnseen > 0))
-        val greeting = if (quote != null) status else if (note != null) status.replace(". ", ".\n") else "$hello, $who.\n$status"
+        val greeting = if (quote != null) status else if (note != null) status.replace(". ", ".\n") else getString(R.string.main_lobby_greeting, hello, who, status)
         val big = notes?.fullTime?.takeIf { it.isNotEmpty() && !resinFull }?.removePrefix("오전 ")?.removePrefix("오후 ")
         val bigLabel = when {
             resinFull -> null
-            big != null -> if (notes.fullTime.startsWith("오전")) "오전 레진 가득" else "레진 가득"
+            big != null -> getString(if (notes.fullTime.startsWith("오전")) R.string.main_lobby_full_am else R.string.main_sum_resin_full)
             else -> null
         }
-        val gameButton = if (s.gameInstalled) "원신 켜기" else null
+        val gameButton = if (s.gameInstalled) getString(R.string.main_launch_game) else null
         val launchGame = { Game.launchIntent(this)?.let { startActivity(it) }; Unit }
         val base = LobbyUi(
             name = fav.name, element = fav.element, meta = meta, greeting = greeting,
@@ -1250,32 +1258,38 @@ class MainActivity : Activity() {
             s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }
             note != null && note.startsWith("로그인이 풀려") -> {
                 dockAction = { startActivity(LoginActivity.loginIntent(this)) }
-                base.copy(dockTone = DockTone.WARN, dockTitle = "로그인이 풀렸어요", dockSub = "다시 로그인하면 바로 출석해요", dockButton = "다시 로그인")
+                base.copy(dockTone = DockTone.WARN, dockTitle = getString(R.string.main_login_expired_title),
+                    dockSub = getString(R.string.main_dock_relogin_sub), dockButton = getString(R.string.main_login_again))
             }
             note != null && note.contains("캡차") -> {
                 dockAction = { store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) } }
-                base.copy(dockTone = DockTone.WARN, dockTitle = "캡차 확인이 필요해요", dockSub = "출석 페이지에서 직접 눌러 주세요", dockButton = "출석 페이지 열기")
+                base.copy(dockTone = DockTone.WARN, dockTitle = getString(R.string.main_dock_captcha_title),
+                    dockSub = getString(R.string.main_dock_captcha_sub), dockButton = getString(R.string.main_open_check_in_page))
             }
             note != null -> {
                 dockAction = { checkInNow() }
-                base.copy(dockTone = DockTone.WARN, dockTitle = "출석하지 못했어요", dockSub = note.lineSequence().first().take(40), dockButton = "다시 시도")
+                base.copy(dockTone = DockTone.WARN, dockTitle = getString(R.string.main_dock_failed),
+                    dockSub = note.lineSequence().first().take(40), dockButton = getString(R.string.main_retry))
             }
             !s.signedToday -> {
                 dockAction = { checkInNow() }
-                base.copy(dockTone = DockTone.WAIT, dockTitle = "아직 출석 전이에요", dockSub = s.nextRun?.let { "자동 출석 · $it" }, dockBig = big, dockBigLabel = bigLabel, dockButton = "지금 출석")
+                base.copy(dockTone = DockTone.WAIT, dockTitle = getString(R.string.main_dock_waiting),
+                    dockSub = s.nextRun?.let { getString(R.string.main_dock_auto, it) }, dockBig = big, dockBigLabel = bigLabel,
+                    dockButton = getString(R.string.main_dock_check_in))
             }
             else -> {
                 dockAction = launchGame
-                val sub = listOfNotNull(s.reward, s.makeUpToday ?: s.nextRun?.let { "다음 자동 출석 $it" }).joinToString(" · ").ifEmpty { null }
-                base.copy(dockTone = DockTone.DONE, dockTitle = "오늘 출석 완료", dockSub = sub,
-                    dockBig = big ?: if (resinFull) "가득" else null, dockBigLabel = bigLabel ?: if (resinFull) "레진" else null, dockButton = gameButton)
+                val sub = listOfNotNull(s.reward, s.makeUpToday ?: s.nextRun?.let { getString(R.string.main_dock_next, it) }).joinToString(" · ").ifEmpty { null }
+                base.copy(dockTone = DockTone.DONE, dockTitle = getString(R.string.main_chip_done), dockSub = sub,
+                    dockBig = big ?: if (resinFull) getString(R.string.main_full) else null,
+                    dockBigLabel = bigLabel ?: if (resinFull) getString(R.string.main_card_notes) else null, dockButton = gameButton)
             }
         }
     }
 
     private val lobbyActions = object : LobbyView.Actions {
-        override fun onResin() = openLobbyMenu("레진") { resinMenu() }
-        override fun onCheckIn() = openLobbyMenu("출석") { checkInMenu() }
+        override fun onResin() = openLobbyMenu(getString(R.string.main_card_notes)) { resinMenu() }
+        override fun onCheckIn() = openLobbyMenu(getString(R.string.main_card_check_in)) { checkInMenu() }
         override fun onDockButton() = dockAction()
         override fun onSettings() = showSettings(true)
         override fun onVoice() {
@@ -1295,9 +1309,9 @@ class MainActivity : Activity() {
         }
         override fun onAccount() {
             val accounts = settings.accounts()
-            val names = accounts.map { it.displayName } + "+ 계정 추가"
+            val names = accounts.map { it.displayName } + getString(R.string.main_add_account)
             AppDialog(this@MainActivity)
-                .setTitle("계정 바꾸기")
+                .setTitle(getString(R.string.main_switch_account))
                 .setSingleChoiceItems(names.toTypedArray(), accounts.indexOfFirst { it.accountId == store?.accountId }) { dialog, which ->
                     dialog.dismiss()
                     if (which == accounts.size) startActivity(LoginActivity.loginIntent(this@MainActivity))
@@ -1307,7 +1321,7 @@ class MainActivity : Activity() {
         }
         override fun onMenu(key: String) {
             when (key) {
-                LobbyView.MENU_REDEEM, LobbyView.MENU_REWARDS -> openLobbyMenu("보상") { redeemMenu() }
+                LobbyView.MENU_REDEEM, LobbyView.MENU_REWARDS -> openLobbyMenu(getString(R.string.main_lobby_rewards)) { redeemMenu() }
                 LobbyView.MENU_PICKUP -> startActivity(RerunActivity.intent(this@MainActivity))
                 LobbyView.MENU_EVENTS -> startActivity(EventsActivity.intent(this@MainActivity))
                 LobbyView.MENU_CARDS -> { lobbyHidden = true; refresh(); updateBackCallback() }
@@ -1426,23 +1440,23 @@ class MainActivity : Activity() {
         if (n == null) {
             val problem = store?.noteProblem
             card {
-                head("레진")
-                row(R.drawable.ic_item_resin, problem ?: "레진을 불러오는 중이에요")
-                if (problem == Notes.NOTES_OFF) row(R.drawable.ic_note_commission, "실시간 메모 켜기 ›") { askEnableNotes() }
+                head(getString(R.string.main_card_notes))
+                row(R.drawable.ic_item_resin, problem ?: getString(R.string.main_resin_loading))
+                if (problem == Notes.NOTES_OFF) row(R.drawable.ic_note_commission, getString(R.string.main_notes_enable_link)) { askEnableNotes() }
             }
             return
         }
-        card { head("지금 레진"); meter(n.resin, n.maxResin, listOf(n.fullLabel, n.fullTime).filter { it.isNotEmpty() }.joinToString("\n"), R.drawable.ic_item_resin) }
+        card { head(getString(R.string.main_resin_now)); meter(n.resin, n.maxResin, listOf(n.fullLabel, n.fullTime).filter { it.isNotEmpty() }.joinToString("\n"), R.drawable.ic_item_resin) }
         card {
-            head("오늘 할 일")
+            head(getString(R.string.main_today_tasks))
             iconStats(
-                Triple(R.drawable.ic_note_expedition, n.expeditions, "탐사 파견"),
-                Triple(R.drawable.ic_note_teapot, n.coin, "주전자 동전"),
-                Triple(R.drawable.ic_note_commission, n.commissions, "일일 의뢰"),
+                Triple(R.drawable.ic_note_expedition, n.expeditions, getString(R.string.main_expeditions)),
+                Triple(R.drawable.ic_note_teapot, n.coin, getString(R.string.main_coin)),
+                Triple(R.drawable.ic_note_commission, n.commissions, getString(R.string.main_commissions)),
             )
             line(n.updated)
         }
-        if (Game.launchIntent(this@MainActivity) != null) card { row(R.drawable.ic_item_resin, "원신 켜기 ›") { Game.launchIntent(this@MainActivity)?.let { startActivity(it) } } }
+        if (Game.launchIntent(this@MainActivity) != null) card { row(R.drawable.ic_item_resin, getString(R.string.main_launch_game_link)) { Game.launchIntent(this@MainActivity)?.let { startActivity(it) } } }
     }
 
     private fun LobbyMenu.checkInMenu() {
@@ -1452,16 +1466,17 @@ class MainActivity : Activity() {
         val total = if (store.signedDay?.startsWith(today.toString().substring(0, 7)) == true) store.signedTotal else 0
         val slots = store.takeIf { it.calendarDay?.take(7) == today.toString().take(7) }?.calendarAwards.orEmpty()
         card {
-            head("${today.monthValue}월 출석 보상 · $total / ${slots.size.takeIf { it > 0 } ?: today.lengthOfMonth()}")
-            if (slots.isEmpty()) line("출석 보상 목록을 불러오는 중이에요")
+            head(getString(R.string.main_menu_calendar_head, today.monthValue, monthName(today.monthValue), total,
+                slots.size.takeIf { it > 0 } ?: today.lengthOfMonth()))
+            if (slots.isEmpty()) line(getString(R.string.main_calendar_loading))
             else calendar(slots, total, total + 1, total + today.lengthOfMonth() - today.dayOfMonth + (if (signed) 0 else 1))
         }
         card {
-            head("오늘")
-            row(ItemIcons.of(store.lastReward), if (signed) "출석 완료" else "아직 출석 전이에요", if (signed) store.lastReward else null)
-            settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, "다음 자동 출석", describeNextRun(it)) }
-            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, "놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
-            row(R.drawable.ic_check_badge, "출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+            head(getString(R.string.main_today_cap))
+            row(ItemIcons.of(store.lastReward), getString(if (signed) R.string.main_signed_done else R.string.main_dock_waiting), if (signed) store.lastReward else null)
+            settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, getString(R.string.main_next_auto), describeNextRun(it)) }
+            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, resources.getQuantityString(R.plurals.main_make_up_link, it, it)) { closeLobbyMenu(); makeUpNow() } }
+            row(R.drawable.ic_check_badge, getString(R.string.main_open_check_in_page_link)) { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
         }
     }
 
@@ -1473,7 +1488,7 @@ class MainActivity : Activity() {
     private fun openHistoryMenu() {
         val store = store ?: return
         val cookie = store.cookie ?: return
-        openLobbyMenu("보상 내역") { historyBody(store, null, null) }
+        openLobbyMenu(getString(R.string.main_history)) { historyBody(store, null, null) }
         val menu = lobbyMenus.lastOrNull() as? LobbyMenu ?: return
         store.historySeenRedeemAt = ServerClock.now()
         Thread {
@@ -1483,7 +1498,7 @@ class MainActivity : Activity() {
                 // 이번 달 합계가 맞도록, 받아 온 목록이 아직 이번 달에서 끝나면 더 받는다(최대 3쪽).
                 for (page in 1..3) {
                     val json = CheckInClient(cookie).awardHistory(page, RewardHistory.PAGE_SIZE)
-                    if (json.optInt("retcode", -1) in CheckInClient.NOT_LOGGED_IN) throw IOException("로그인이 풀렸어요. 다시 로그인해 주세요.")
+                    if (json.optInt("retcode", -1) in CheckInClient.NOT_LOGGED_IN) throw IOException(getString(R.string.main_relogin_needed))
                     val got = RewardHistory.parseAwards(json)
                     if (page == 1) {
                         RewardHistory.ensureBaseline(store, got)
@@ -1495,7 +1510,7 @@ class MainActivity : Activity() {
                 }
                 null
             } catch (e: Exception) { // 네트워크·응답 형식 오류
-                "내역을 불러오지 못했어요. ${e.message ?: ""}".trim()
+                getString(R.string.main_history_failed, e.message ?: "").trim()
             }
             runOnUiThread {
                 if (menu.parent == null) return@runOnUiThread
@@ -1512,29 +1527,31 @@ class MainActivity : Activity() {
         val totals = RewardHistory.totals(thisMonth.map { it.name to it.count })
         fun sum(name: String) = totals.firstOrNull { it.first == name }?.second ?: 0
         card {
-            head("${month.takeLast(2).toInt()}월에 받은 보상")
+            head(month.takeLast(2).toInt().let { getString(R.string.main_month_rewards, it, monthName(it)) })
             when {
-                entries == null -> line("불러오는 중...")
+                entries == null -> line(getString(R.string.main_loading))
                 error != null -> line(error)
                 else -> iconStats(
-                    Triple(R.drawable.ic_item_primogem, "%,d".format(sum("원석")), "원석"),
-                    Triple(R.drawable.ic_item_mora, "%,d".format(sum("모라")), "모라"),
-                    Triple(R.drawable.ic_item_gift, "${totals.count { it.first != "원석" && it.first != "모라" }}종", "그 밖의 아이템"),
+                    Triple(R.drawable.ic_item_primogem, "%,d".format(sum("원석")), getString(R.string.main_primogems)),
+                    Triple(R.drawable.ic_item_mora, "%,d".format(sum("모라")), getString(R.string.main_mora)),
+                    totals.count { it.first != "원석" && it.first != "모라" }.let { kinds ->
+                        Triple(R.drawable.ic_item_gift, resources.getQuantityString(R.plurals.main_item_kinds, kinds, kinds), getString(R.string.main_other_items))
+                    },
                 )
             }
         }
         card {
-            head("리딤 코드")
+            head(getString(R.string.main_card_tiles))
             val log = store.redeemLog
-            if (log.isEmpty()) row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요")
+            if (log.isEmpty()) row(R.drawable.ic_item_gift, getString(R.string.main_no_codes))
             for (r in log.take(10)) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
         }
         if (thisMonth.isNotEmpty()) card {
-            head("${RewardHistory.monthLabel(month)} 출석·보충")
+            head(getString(R.string.main_month_history, RewardHistory.monthLabel(month)))
             for (e in thisMonth) row(ItemIcons.of(e.name), "${e.name} ×${"%,d".format(e.count)}", RewardHistory.dayLabel(e.date))
         }
         card {
-            row(R.drawable.ic_item_book, "지난달 이전 기록 전체 보기 ›") {
+            row(R.drawable.ic_item_book, getString(R.string.main_older_history)) {
                 startActivity(RewardHistoryActivity.intent(this@MainActivity, store.accountId))
             }
         }
@@ -1543,22 +1560,25 @@ class MainActivity : Activity() {
     private fun LobbyMenu.redeemMenu() {
         val store = store ?: return
         card {
-            head("보상 내역")
-            row(R.drawable.ic_item_primogem, "이번 달 받은 원석·모라 보기 ›", store.historyUnseen.takeIf { it > 0 }?.let { "새 보상 ${it}개" }) {
+            head(getString(R.string.main_history))
+            row(R.drawable.ic_item_primogem, getString(R.string.main_view_month_rewards),
+                store.historyUnseen.takeIf { it > 0 }?.let { resources.getQuantityString(R.plurals.main_new_rewards, it, it) }) {
                 openHistoryMenu()
             }
         }
         card {
-            head("최근 받은 코드")
+            head(getString(R.string.main_recent_codes))
             val log = store.redeemLog.take(5)
-            if (log.isEmpty()) row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요")
+            if (log.isEmpty()) row(R.drawable.ic_item_gift, getString(R.string.main_no_codes))
             for (r in log) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
-            store.lastRedeemSummary?.let { line(DateFormat.format("M월 d일 HH:mm", Date(store.lastRedeemAt)).toString() + " 확인 · " + it.substringBefore(":")) }
+            store.lastRedeemSummary?.let {
+                line(getString(R.string.main_redeem_checked, DateFormat.format(getString(R.string.main_fmt_date_time), Date(store.lastRedeemAt)).toString(), it.substringBefore(":")))
+            }
         }
         card {
-            head("자동 입력")
-            line(if (settings.redeemEnabled) "새 코드가 올라오면 앱이 알아서 넣어요" else "자동 입력이 꺼져 있어요")
-            row(R.drawable.ic_item_gift, "지금 새 코드 확인 ›") {
+            head(getString(R.string.main_auto_redeem))
+            line(getString(if (settings.redeemEnabled) R.string.main_auto_redeem_on else R.string.main_auto_redeem_off))
+            row(R.drawable.ic_item_gift, getString(R.string.main_check_new_codes)) {
                 closeAllLobbyMenus()
                 when {
                     !settings.redeemEnabled -> showSettings(true)
@@ -1566,9 +1586,13 @@ class MainActivity : Activity() {
                     else -> redeemNow()
                 }
             }
-            row(R.drawable.ic_edit, "코드 직접 입력 ›") { enterCode() }
+            row(R.drawable.ic_edit, getString(R.string.main_enter_code_link)) { enterCode() }
         }
     }
+
+    /** 영어 문구용 달 이름(Oct 등). 한국어 문구는 숫자를 쓴다. */
+    private fun monthName(month: Int) =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
 
     companion object {
         private const val EXTRA_MAKE_UP = "make_up"
