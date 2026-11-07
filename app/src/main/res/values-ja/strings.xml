@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">原神チェックイン</string>
+    <string name="widget_label">樹脂</string>
+    <string name="widget_description">樹脂と全回復の時刻。横に広げると探索派遣・洞天宝銭・デイリー任務も表示します。</string>
+    <string name="widget_today_label">今日</string>
+    <string name="widget_today_description">今日のチェックインと今月の累計日数、樹脂、最後の交換コードの結果。</string>
+    <string name="widget_pickup_label">ピックアップ中</string>
+    <string name="widget_pickup_description">ピックアップ中のキャラと残り日数、一番長く待っているキャラ。</string>
+</resources>
