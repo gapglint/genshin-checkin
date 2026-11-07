@@ -289,4 +289,9 @@
     <string name="main_lobby_account_current">지금 계정</string>
     <string name="main_lobby_account_not_signed">출석 전</string>
     <string name="main_lobby_account_add">+ 계정 추가 ›</string>
+    <!-- 첫 출석 뒤 한 번 묻는 로비형 안내 -->
+    <string name="main_lobby_offer_title">최애 캐릭터와 함께 쓸까요?</string>
+    <string name="main_lobby_offer_body">홈을 최애 캐릭터의 로비로 바꿀 수 있어요. 시간에 맞춰 인사하고, 누르면 대사를 들려줘요.\n\n캐릭터 그림과 대사는 고를 때 HoYoLAB 위키에서 받아요(캐릭터 한 명에 약 1~3MB). 음성은 따로 켤 때만 받아요.\n\n지금처럼 카드형으로 써도 되고, 나중에 꾸미기에서 언제든 바꿀 수 있어요.</string>
+    <string name="main_lobby_offer_yes">캐릭터 고르기</string>
+    <string name="main_lobby_offer_no">지금은 괜찮아요</string>
 </resources>

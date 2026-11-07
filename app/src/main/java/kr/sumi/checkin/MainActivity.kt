@@ -709,6 +709,29 @@ class MainActivity : Activity() {
         renderLobby(state)
         editor.show(editing, settings.cardOrder.filter { !settings.isShown(it) })
         store?.let { countUnseenRewards(it) }
+        offerLobbyOnce()
+    }
+
+    private var lobbyOfferShown = false
+
+    /**
+     * 처음 로그인하고 첫 출석이 끝나면 한 번: 로비형 홈을 써 볼지 묻는다(모르고 지나치지 않게).
+     * 그림·대사를 받는 기능이라 고른 사람만 받는다. 어느 쪽을 눌러도 다시 묻지 않고, 나중에는 꾸미기에서 바꾼다.
+     * 출석 중이거나 다른 창(알림 권한 요청 등)이 떠 있으면 다음 기회에.
+     */
+    private fun offerLobbyOnce() {
+        val store = store ?: return
+        if (lobbyOfferShown || settings.lobbyIntroDone || settings.homeStyle == Lobby.STYLE_LOBBY) return
+        if (!store.signedToday || busy != null || editing || !hasWindowFocus() || isFinishing) return
+        if (!Lobby.officialArtAllowed(this)) return
+        lobbyOfferShown = true
+        settings.lobbyIntroDone = true
+        AppDialog(this)
+            .setTitle(getString(R.string.main_lobby_offer_title))
+            .setMessage(getString(R.string.main_lobby_offer_body))
+            .setPositiveButton(getString(R.string.main_lobby_offer_yes)) { startActivity(LobbyStyleActivity.intent(this)) }
+            .setNegativeButton(getString(R.string.main_lobby_offer_no)) { refresh() }
+            .show()
     }
 
     /** 새 보상 수를 조용히 센다. 첫 페이지 한 번만 받고, 같은 계정은 10분에 한 번까지. */
