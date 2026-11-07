@@ -1312,6 +1312,7 @@ class MainActivity : Activity() {
                 LobbyView.MENU_PICKUP -> startActivity(RerunActivity.intent(this@MainActivity))
                 LobbyView.MENU_EVENTS -> startActivity(EventsActivity.intent(this@MainActivity))
                 LobbyView.MENU_CARDS -> { lobbyHidden = true; refresh(); updateBackCallback() }
+                LobbyView.MENU_CHECKIN -> openLobbyMenu("출석") { checkInMenu() }
                 LobbyView.MENU_DECORATE -> startActivity(LobbyStyleActivity.intent(this@MainActivity))
             }
         }
@@ -1463,6 +1464,17 @@ class MainActivity : Activity() {
             settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, "다음 자동 출석", describeNextRun(it)) }
             store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, "놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
             row(R.drawable.ic_check_badge, "출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+        }
+        // 계정: 카드형 화면의 계정 칩 대신. 누르면 그 계정으로 바꾸고, 계정이 하나여도 여기서 더할 수 있다.
+        card {
+            head("계정")
+            for (a in settings.accounts()) {
+                val current = a.accountId == store.accountId
+                row(R.drawable.ic_account, a.displayName, if (current) "지금 계정" else if (a.signedToday) "출석 완료" else "출석 전") {
+                    if (!current) { settings.currentId = a.accountId; lobbyArtKey = null; closeLobbyMenu(); refresh() }
+                }
+            }
+            row(R.drawable.ic_account, "+ 계정 추가 ›") { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
         }
     }
 

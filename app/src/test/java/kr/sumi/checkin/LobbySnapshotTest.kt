@@ -82,6 +82,23 @@ class LobbySnapshotTest {
         resin = 200, account = "부계정", dockBig = "가득", dockBigLabel = "레진",
     ), fakeArt())
 
+    /** 오른쪽 '출석' 메뉴: 이번 달 출석 달력, 오늘, 계정(바꾸기·더하기). */
+    @Test fun checkInMenu() {
+        val t = LobbyTheme(paparazzi.context.getColor(R.color.element_dendro))
+        val menu = LobbyMenu(paparazzi.context, "출석", t, null, "나히다", "dendro") {}
+        val slots = List(31) { i -> when { i % 7 == 6 -> CalendarSlot("원석", 20); i % 7 == 2 -> CalendarSlot("모라", 5000); else -> CalendarSlot("영웅의 경험", 3) } }
+        menu.card { with(menu) { head("10월 출석 보상 · 17 / 31"); calendar(slots, 17, 18, 31) } }
+        menu.card { with(menu) {
+            head("오늘"); row(R.drawable.ic_item_primogem, "출석 완료", "원석 ×20"); row(R.drawable.ic_calendar, "다음 자동 출석", "내일 01:03")
+            row(R.drawable.ic_check_badge, "출석 페이지 열기 ›")
+        } }
+        menu.card { with(menu) {
+            head("계정"); row(R.drawable.ic_account, "여행자", "지금 계정") {}; row(R.drawable.ic_account, "부계정", "출석 완료") {}
+            row(R.drawable.ic_account, "+ 계정 추가 ›") {}
+        } }
+        paparazzi.snapshot(FrameLayout(paparazzi.context).apply { addView(menu) })
+    }
+
     @Test fun resinMenu() {
         val t = LobbyTheme(paparazzi.context.getColor(R.color.element_dendro))
         val menu = LobbyMenu(paparazzi.context, "레진", t, null, "나히다", "dendro") {}

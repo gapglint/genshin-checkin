@@ -95,6 +95,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
         const val MENU_PICKUP = "pickup"
         const val MENU_EVENTS = "events"
         const val MENU_CARDS = "cards"
+        const val MENU_CHECKIN = "checkin"
         const val MENU_DECORATE = "decorate"
     }
 
@@ -336,7 +337,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             Menu(R.drawable.ic_item_gift, "보상", MENU_REWARDS, ui.rewardsDot || ui.redeemDot),
             Menu(R.drawable.ic_rerun, "픽업", MENU_PICKUP, false),
             Menu(R.drawable.ic_events, "이벤트", MENU_EVENTS, ui.eventsDot),
-            Menu(R.drawable.ic_lobby_cards, "카드", MENU_CARDS, false),
+            Menu(R.drawable.ic_calendar, "출석", MENU_CHECKIN, false),
             Menu(R.drawable.ic_edit, "꾸미기", MENU_DECORATE, false),
         )) {
             val size = iconSize
