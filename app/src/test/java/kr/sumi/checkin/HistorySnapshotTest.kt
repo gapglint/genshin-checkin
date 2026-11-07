@@ -13,7 +13,7 @@ class HistorySnapshotTest {
     init { TestText.install() }
 
     @get:Rule
-    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin")
+    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"), theme = "Theme.HoyoCheckin")
 
     private fun at(day: Int, hour: Int) =
         LocalDateTime.of(2026, 10, day, hour, 5).atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
@@ -43,7 +43,7 @@ class HistorySnapshotTest {
     )
 
     private fun snap(night: Boolean) {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
         val screen = RewardHistoryScreen(paparazzi.context)
         screen.render(state)
         paparazzi.snapshot(screen.root)

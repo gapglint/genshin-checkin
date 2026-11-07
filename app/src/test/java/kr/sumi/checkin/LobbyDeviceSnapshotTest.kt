@@ -11,7 +11,7 @@ import org.junit.Test
 class LobbyDeviceSnapshotTest {
     init { TestText.install() }
 
-    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.NEXUS_5.copy(nightMode = NightMode.NIGHT), theme = "Theme.HoyoCheckin")
+    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.NEXUS_5.copy(locale = "ko").copy(nightMode = NightMode.NIGHT), theme = "Theme.HoyoCheckin")
 
     private val actions = object : LobbyView.Actions {
         override fun onResin() {}

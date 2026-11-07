@@ -12,7 +12,7 @@ class MainScreenSnapshotTest {
 
     @get:Rule
     val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6,
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"),
         theme = "Theme.HoyoCheckin",
     )
 
@@ -47,7 +47,7 @@ class MainScreenSnapshotTest {
 
     private fun snap(state: MainUiState, night: Boolean) {
         paparazzi.unsafeUpdateConfig(
-            DeviceConfig.PIXEL_6.copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT, screenHeight = 4200)
+            DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT, screenHeight = 4200)
         )
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         MainScreen(view).render(state)
@@ -63,7 +63,7 @@ class MainScreenSnapshotTest {
     @Test fun notesCompactWithGame() = snap(signed.copy(gameInstalled = true), night = false)
     /** 맨 아래 복각표 카드(지금 픽업). */
     @Test fun rerunCard() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6)
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko"))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         MainScreen(view).render(signed.copy(makeUpMissed = null, showCalendar = false, showTiles = false, eventsUnseen = 2))
         paparazzi.snapshot(view)
@@ -86,7 +86,7 @@ class MainScreenSnapshotTest {
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 
     @Test fun settingsLight() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 4200))
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 4200))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         MainScreen(view).apply { render(waiting.copy(redeemRole = signed.redeemRole, redeemSummary = signed.redeemSummary, loginExpiry = "2027년 10월 18일")) }
             .settingsPanel.visibility = android.view.View.VISIBLE
@@ -95,7 +95,7 @@ class MainScreenSnapshotTest {
 
     /** 그 자리에서 편집: 카드에 점선·−·≡, 달력은 서랍에. */
     @Test fun editing() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 3000))
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 3000))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         val screen = MainScreen(view)
         screen.render(signed.copy(editing = true, showCalendar = false))
@@ -111,15 +111,15 @@ class MainScreenSnapshotTest {
         paparazzi.snapshot(view)
     }
 
-    @Test fun deviceSmallPhone() = device(DeviceConfig.NEXUS_5)
-    @Test fun deviceBigPhone() = device(DeviceConfig.PIXEL_6_PRO)
-    @Test fun deviceFontLarge() = device(DeviceConfig.PIXEL_6.copy(fontScale = 1.3f))
-    @Test fun deviceFontHuge() = device(DeviceConfig.PIXEL_6.copy(fontScale = 2.0f))
-    @Test fun deviceSplitScreen() = device(DeviceConfig.PIXEL_6.copy(screenHeight = 1100))
-    @Test fun deviceFoldableOpen() = device(DeviceConfig.PIXEL_6.copy(screenWidth = 2208, screenHeight = 1840,
+    @Test fun deviceSmallPhone() = device(DeviceConfig.NEXUS_5.copy(locale = "ko"))
+    @Test fun deviceBigPhone() = device(DeviceConfig.PIXEL_6_PRO.copy(locale = "ko"))
+    @Test fun deviceFontLarge() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(fontScale = 1.3f))
+    @Test fun deviceFontHuge() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(fontScale = 2.0f))
+    @Test fun deviceSplitScreen() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 1100))
+    @Test fun deviceFoldableOpen() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenWidth = 2208, screenHeight = 1840,
         orientation = com.android.resources.ScreenOrientation.LANDSCAPE))
-    @Test fun deviceTabletLandscape() = device(DeviceConfig.PIXEL_C)
-    @Test fun deviceSetupNeeded() = device(DeviceConfig.PIXEL_6, waiting)
+    @Test fun deviceTabletLandscape() = device(DeviceConfig.PIXEL_C.copy(locale = "ko"))
+    @Test fun deviceSetupNeeded() = device(DeviceConfig.PIXEL_6.copy(locale = "ko"), waiting)
 
     /** 런처 아이콘(적응형 아이콘 원본 108dp)을 크게 그려 본다. */
     @Test fun launcherIcon() {

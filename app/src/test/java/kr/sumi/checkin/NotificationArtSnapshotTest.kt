@@ -16,7 +16,7 @@ class NotificationArtSnapshotTest {
     init { TestText.install() }
 
     @get:Rule val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6.copy(nightMode = com.android.resources.NightMode.NIGHT), theme = "Theme.HoyoCheckin",
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = com.android.resources.NightMode.NIGHT), theme = "Theme.HoyoCheckin",
         renderingMode = SessionParams.RenderingMode.SHRINK, useDeviceResolution = true,
     )
 

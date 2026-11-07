@@ -13,7 +13,7 @@ class ElementIconSheetTest {
     init { TestText.install() }
 
     @get:Rule
-    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(screenHeight = 700))
+    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 700))
 
     @Test fun elementIcons() {
         val c = paparazzi.context

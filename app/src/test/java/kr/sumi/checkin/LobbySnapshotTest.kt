@@ -15,7 +15,7 @@ import org.junit.Test
 class LobbySnapshotTest {
     init { TestText.install() }
 
-    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin")
+    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"), theme = "Theme.HoyoCheckin")
 
     private val actions = object : LobbyView.Actions {
         override fun onResin() {}

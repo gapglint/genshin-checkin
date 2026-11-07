@@ -28,7 +28,7 @@ class StoreAssetsTest {
     @get:Rule
     val paparazzi = Paparazzi(theme = "Theme.HoyoCheckin", useDeviceResolution = true)
 
-    private fun device(width: Int, height: Int, night: Boolean = false) = DeviceConfig.PIXEL_6.copy(
+    private fun device(width: Int, height: Int, night: Boolean = false) = DeviceConfig.PIXEL_6.copy(locale = "ko").copy(
         screenWidth = width, screenHeight = height, density = Density.MEDIUM, xdpi = 160, ydpi = 160,
         nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
         orientation = if (width > height) ScreenOrientation.LANDSCAPE else ScreenOrientation.PORTRAIT,
@@ -135,10 +135,10 @@ class StoreAssetsTest {
         // 태블릿은 보이는 높이만큼만 잡아야 내용이 넘쳐서 장면마다 다른 곳으로 스크롤할 수 있다.
         val appH = if (tablet) ((h - 540f * (w / 1080f)) / 0.84f).toInt() else w * 2
         val k = w / 1080f
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(
             screenWidth = w, screenHeight = h, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
-            density = if (tablet) Density.create(400) else DeviceConfig.PIXEL_6.density,
-            xdpi = if (tablet) 400 else DeviceConfig.PIXEL_6.xdpi, ydpi = if (tablet) 400 else DeviceConfig.PIXEL_6.ydpi,
+            density = if (tablet) Density.create(400) else DeviceConfig.PIXEL_6.copy(locale = "ko").density,
+            xdpi = if (tablet) 400 else DeviceConfig.PIXEL_6.copy(locale = "ko").xdpi, ydpi = if (tablet) 400 else DeviceConfig.PIXEL_6.copy(locale = "ko").ydpi,
         ))
         // 문구 크기를 틀 폭에 맞춘다(휴대폰 420dpi 기준).
         val textScale = k * 2.625f / (if (tablet) 2.5f else 2.625f)

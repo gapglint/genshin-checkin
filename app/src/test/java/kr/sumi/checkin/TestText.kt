@@ -7,12 +7,12 @@ import org.w3c.dom.Element
 
 /**
  * 단위 테스트용 Text: 앱 리소스 파일(values 폴더들의 strings로 시작하는 xml)을 직접 읽어 문구를 만든다.
- * 테스트 클래스에서 init { TestText.install() } (영어는 install("en")).
+ * 테스트 클래스에서 init { TestText.install() }(한국어). 영어는 install("en"), 일본어는 install("ja").
  */
 object TestText {
     private val cache = mutableMapOf<String, Pair<Map<String, String>, Map<String, Map<String, String>>>>()
 
-    fun install(lang: String = "") {
+    fun install(lang: String = "ko") {
         val (strings, plurals) = load(lang)
         Text.resolver = object : Text.Resolver {
             override fun string(id: Int, args: Array<out Any>): String {
@@ -37,8 +37,8 @@ object TestText {
     private fun load(lang: String) = cache.getOrPut(lang) {
         val strings = mutableMapOf<String, String>()
         val plurals = mutableMapOf<String, Map<String, String>>()
-        // 영어는 values를 먼저 읽고 values-en으로 덮는다(안드로이드와 같다).
-        val dirs = listOf("values") + if (lang.isEmpty()) emptyList() else listOf("values-$lang")
+        // 기본(values)은 영어. 다른 언어는 values를 먼저 읽고 values-언어로 덮는다(안드로이드와 같다).
+        val dirs = listOf("values") + if (lang.isEmpty() || lang == "en") emptyList() else listOf("values-$lang")
         for (dir in dirs) {
             val files = File("src/main/res/$dir").listFiles { f -> f.name.startsWith("strings") && f.name.endsWith(".xml") }.orEmpty()
             for (file in files.sortedBy { it.name }) {

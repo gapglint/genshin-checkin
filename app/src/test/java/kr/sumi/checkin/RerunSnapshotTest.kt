@@ -13,7 +13,7 @@ class RerunSnapshotTest {
     init { TestText.install() }
 
     @get:Rule
-    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6)
+    val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"))
 
     @Test fun rerunList() {
         val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns.json")!!.readText()))

@@ -16,12 +16,12 @@ class WidgetSnapshotTest {
     init { TestText.install() }
 
     @get:Rule val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin",
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"), theme = "Theme.HoyoCheckin",
         renderingMode = SessionParams.RenderingMode.SHRINK, useDeviceResolution = true,
     )
 
     private fun snap(widthDp: Int, wide: Boolean, night: Boolean) {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
         val widget = paparazzi.inflate<View>(R.layout.widget_resin)
         widget.findViewById<TextView>(R.id.widgetResin).text = "142 / 200"
         widget.findViewById<TextView>(R.id.widgetFull).text = "오후 3:20 가득"
