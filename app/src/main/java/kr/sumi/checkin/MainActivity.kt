@@ -144,6 +144,17 @@ class MainActivity : Activity() {
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
         screen.rowMainDisplay.setOnClickListener { showSettings(false); setEditing(true) }
         screen.root.findViewById<View>(R.id.rowHomeStyle).setOnClickListener { startActivity(LobbyStyleActivity.intent(this)) }
+        // 앱 언어: Android 13부터는 휴대전화 언어와 따로 고를 수 있다(시스템의 앱 언어 화면). 그 전에는 휴대전화 언어를 따른다.
+        if (Build.VERSION.SDK_INT >= 33) screen.root.findViewById<View>(R.id.rowLanguage).apply {
+            visibility = View.VISIBLE
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", packageName, null)))
+                } catch (e: ActivityNotFoundException) {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+                }
+            }
+        }
         screen.decorateButton.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
         screen.lobbyIntro.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
         screen.lobbyIntroClose.setOnClickListener { settings.lobbyIntroDone = true; refresh() }

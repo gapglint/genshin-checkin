@@ -20,6 +20,7 @@
     <!-- 쿠키가 백업으로 다른 기기에 넘어가지 않게 백업을 끈다. -->
     <application
         android:name=".App"
+        android:localeConfig="@xml/locales_config"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"

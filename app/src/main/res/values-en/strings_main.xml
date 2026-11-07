@@ -303,4 +303,6 @@
     <string name="main_lobby_offer_body">Your home can become your favourite character\'s lobby. They greet you by time of day and say a line when tapped.\n\nCharacter art and lines are downloaded from the HoYoLAB Wiki when you pick one (about 1–3 MB per character). Voices are downloaded only if you turn them on.\n\nYou can keep the card home and switch any time in Style.</string>
     <string name="main_lobby_offer_yes">Pick a character</string>
     <string name="main_lobby_offer_no">Not now</string>
+    <string name="main_language">Language</string>
+    <string name="main_language_sub">English · can differ from your phone\'s language</string>
 </resources>

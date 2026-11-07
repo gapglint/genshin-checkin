@@ -294,4 +294,6 @@
     <string name="main_lobby_offer_body">ホームをお気に入りキャラのロビーにできます。時間に合わせてあいさつし、タップするとセリフを話します。\n\nキャラクターの絵とセリフは、選んだときにHoYoLAB Wikiからダウンロードします（1人あたり約1〜3MB）。ボイスはオンにしたときだけダウンロードします。\n\n今のカード型のままでも使えます。あとから着せ替えでいつでも変えられます。</string>
     <string name="main_lobby_offer_yes">キャラを選ぶ</string>
     <string name="main_lobby_offer_no">今はいい</string>
+    <string name="main_language">言語</string>
+    <string name="main_language_sub">日本語 · スマホの言語とは別に選べます</string>
 </resources>
