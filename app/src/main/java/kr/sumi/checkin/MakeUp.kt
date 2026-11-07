@@ -63,7 +63,7 @@ object MakeUp {
     fun perform(store: Store, progress: (String) -> Unit = {}): MakeUpResult = synchronized(CheckIn) {
         val cookie = store.cookie ?: return MakeUpResult.LoginExpired
         if (!store.signedToday) {
-            return MakeUpResult.Unavailable("오늘 출석을 먼저 해야 보충할 수 있어요.")
+            return MakeUpResult.Unavailable(Text.get(R.string.core_makeup_sign_first))
         }
         val client = CheckInClient(cookie)
         val result = performWith(client, progress)
@@ -79,29 +79,29 @@ object MakeUp {
     }
 
     private fun performWith(client: CheckInClient, progress: (String) -> Unit): MakeUpResult {
-        var info = fetchInfo(client) ?: return MakeUpResult.Failed("보충 출석 정보를 받지 못했어요.")
+        var info = fetchInfo(client) ?: return MakeUpResult.Failed(Text.get(R.string.core_makeup_no_info))
         infoProblem(info)?.let { return it }
 
         val rewards = mutableListOf<String>()
         while (info.canResign) {
             if (!info.hasCards) {
-                progress("보충권 받는 중...")
+                progress(Text.get(R.string.core_makeup_earning))
                 earnCards(client)?.let { return finish(rewards, it) }
                 info = fetchInfo(client) ?: break
-                if (!info.hasCards) return finish(rewards, MakeUpResult.Unavailable("보충권이 부족해요. 오늘 받을 수 있는 임무를 다 했어요."))
+                if (!info.hasCards) return finish(rewards, MakeUpResult.Unavailable(Text.get(R.string.core_makeup_no_cards)))
             }
-            progress("보충 출석 중... (${rewards.size + 1}번째)")
+            progress(Text.get(R.string.core_makeup_progress, rewards.size + 1))
             pause()
             val json = client.resign()
             when (val code = json.optInt("retcode", Int.MIN_VALUE)) {
-                0 -> rewards += rewardOf(json) ?: "보상"
+                0 -> rewards += rewardOf(json) ?: Text.get(R.string.core_makeup_reward_placeholder)
                 in CheckInClient.NOT_LOGGED_IN -> return finish(rewards, MakeUpResult.LoginExpired)
                 CheckInClient.TOO_FREQUENT -> return finish(rewards, MakeUpResult.RateLimited)
                 else -> return finish(rewards, MakeUpResult.Failed("${json.optString("message")} (retcode $code)"))
             }
             info = fetchInfo(client) ?: break
         }
-        return finish(rewards, infoProblem(info) ?: MakeUpResult.Unavailable("보충할 날이 더 없어요."))
+        return finish(rewards, infoProblem(info) ?: MakeUpResult.Unavailable(Text.get(R.string.core_makeup_no_more)))
     }
 
     /** 이미 몇 번 보충했으면 그 결과를, 아니면 멈춘 이유를 돌려준다. */
@@ -109,9 +109,9 @@ object MakeUp {
         if (rewards.isEmpty()) stop else MakeUpResult.Done(rewards.size, rewards)
 
     private fun infoProblem(info: ResignInfo): MakeUpResult? = when {
-        info.missed == 0 -> MakeUpResult.Unavailable("이번 달에 놓친 날이 없어요.")
-        info.monthlyLeft == 0 -> MakeUpResult.Unavailable("이번 달 보충 횟수(${info.monthlyLimit}번)를 다 썼어요.")
-        info.dailyLeft == 0 -> MakeUpResult.Unavailable("오늘 보충 횟수(${info.dailyLimit}번)를 다 썼어요. 내일 다시 할 수 있어요.")
+        info.missed == 0 -> MakeUpResult.Unavailable(Text.get(R.string.core_makeup_none_missed))
+        info.monthlyLeft == 0 -> MakeUpResult.Unavailable(Text.get(R.string.core_makeup_monthly_used, info.monthlyLimit))
+        info.dailyLeft == 0 -> MakeUpResult.Unavailable(Text.get(R.string.core_makeup_daily_used, info.dailyLimit))
         else -> null
     }
 
@@ -146,11 +146,11 @@ object MakeUp {
     private fun pause() = Thread.sleep(CheckInClient.REQUEST_GAP_MS)
 
     fun describe(result: MakeUpResult): String = when (result) {
-        is MakeUpResult.Done -> "${result.days}일 보충했어요.\n보상: ${result.rewards.joinToString(", ")}"
+        is MakeUpResult.Done -> Text.plural(R.plurals.core_makeup_done, result.days, result.days, result.rewards.joinToString(", "))
         is MakeUpResult.Unavailable -> result.reason
-        MakeUpResult.LoginExpired -> "로그인이 풀렸어요. 다시 로그인해 주세요."
-        MakeUpResult.RateLimited -> "요청이 너무 잦다고 해요. 잠시 뒤 다시 시도해 주세요."
-        is MakeUpResult.Failed -> "보충 출석 실패: ${result.message}"
+        MakeUpResult.LoginExpired -> Text.get(R.string.core_signed_out)
+        MakeUpResult.RateLimited -> Text.get(R.string.core_makeup_rate_limited)
+        is MakeUpResult.Failed -> Text.get(R.string.core_makeup_failed, result.message)
     }
 
     internal fun parseInfo(json: JSONObject): ResignInfo? {
@@ -191,12 +191,14 @@ object MakeUp {
         if (rewards.isEmpty()) return null
         val totals = linkedMapOf<String, Int>()
         val plain = linkedSetOf<String>()
+        val placeholder = Text.get(R.string.core_makeup_reward_placeholder)
         for (r in rewards) {
             val m = Regex("""^(.+) x(\d+)$""").find(r)
             if (m != null) totals.merge(m.groupValues[1], m.groupValues[2].toInt(), Int::plus)
-            else if (r != "보상") plain += r
+            else if (r != placeholder) plain += r
         }
         val names = totals.map { (name, n) -> "$name x$n" } + plain
-        return "보충 ${rewards.size}일" + if (names.isEmpty()) " 받음" else " · " + names.joinToString(", ")
+        return if (names.isEmpty()) Text.plural(R.plurals.core_makeup_summary_plain, rewards.size, rewards.size)
+        else Text.plural(R.plurals.core_makeup_summary, rewards.size, rewards.size, names.joinToString(", "))
     }
 }

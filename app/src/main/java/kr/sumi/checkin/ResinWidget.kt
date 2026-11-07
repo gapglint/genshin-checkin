@@ -37,13 +37,13 @@ class ResinWidget : AppWidgetProvider() {
             val store = AppSettings(context).current()
             val note = store?.note
             if (note == null) {
-                views.setTextViewText(R.id.widgetResin, "레진")
-                views.setTextViewText(R.id.widgetFull, if (store == null) "앱에서 로그인해 주세요" else "앱을 열면 불러와요")
+                views.setTextViewText(R.id.widgetResin, context.getString(R.string.home_widget_resin))
+                views.setTextViewText(R.id.widgetFull, context.getString(if (store == null) R.string.home_widget_login_hint else R.string.home_widget_open_to_load))
             } else {
                 val ui = Notes.ui(note)
                 views.setTextViewText(R.id.widgetResin, "${ui.resin} / ${ui.maxResin}")
-                views.setTextViewText(R.id.widgetFull, if (ui.fullLabel.isEmpty()) ui.fullTime else "${ui.fullTime} 가득")
-                views.setTextViewText(R.id.widgetExpeditions, ui.expeditions.removeSuffix(" 완료"))
+                views.setTextViewText(R.id.widgetFull, if (ui.fullLabel.isEmpty()) ui.fullTime else context.getString(R.string.home_widget_full_at, ui.fullTime))
+                views.setTextViewText(R.id.widgetExpeditions, ui.expeditions.substringBefore(" ")) // '3/4 완료'에서 숫자만
                 views.setTextViewText(R.id.widgetCoin, ui.coin)
                 views.setTextViewText(R.id.widgetCommissions, ui.commissions)
             }

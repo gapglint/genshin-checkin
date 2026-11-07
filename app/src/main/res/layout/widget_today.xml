@@ -34,7 +34,7 @@
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="매일 출석"
+            android:text="@string/home_widget_daily"
             android:textColor="@color/hero_muted"
             android:textSize="12sp" />
 
@@ -48,7 +48,7 @@
             android:paddingTop="2dp"
             android:paddingEnd="8dp"
             android:paddingBottom="2dp"
-            android:text="완료"
+            android:text="@string/home_widget_done"
             android:textColor="@color/on_gold"
             android:textSize="11sp"
             android:textStyle="bold" />
@@ -76,7 +76,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
-            android:text="일째"
+            android:text="@string/home_widget_days_suffix"
             android:textColor="@color/hero_ink"
             android:textSize="14sp" />
 
@@ -147,7 +147,7 @@
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="새 코드 3개 입력"
+            android:text="@string/home_widget_preview_redeem"
             android:textColor="@color/hero_ink"
             android:textSize="12sp" />
     </LinearLayout>

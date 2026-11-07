@@ -47,7 +47,7 @@ object RewardHistory {
     fun formatTotals(totals: List<Pair<String, Int>>, max: Int = 3): String? {
         if (totals.isEmpty()) return null
         val shown = totals.take(max).joinToString(" · ") { (name, count) -> "$name ×${"%,d".format(count)}" }
-        return if (totals.size > max) "$shown 외 ${totals.size - max}종" else shown
+        return if (totals.size > max) Text.get(R.string.home_history_more_kinds, shown, totals.size - max) else shown
     }
 
     /**
@@ -85,11 +85,15 @@ object RewardHistory {
 
     fun monthLabel(yearMonth: String): String {
         val parts = yearMonth.split("-")
-        return if (parts.size == 2) "${parts[0]}년 ${parts[1].toInt()}월" else yearMonth
+        return if (parts.size == 2) Text.get(R.string.home_history_month, parts[0], parts[1].toInt(), fullMonth(parts[1].toInt())) else yearMonth
     }
 
     fun dayLabel(date: String): String {
         val parts = date.split("-")
-        return if (parts.size == 3) "${parts[1].toInt()}월 ${parts[2].toInt()}일" else date
+        return if (parts.size == 3) Text.get(R.string.core_date_month_day, parts[1].toInt(), parts[2].toInt(), Notes.shortMonth(parts[1].toInt())) else date
     }
+
+    /** 영어 문구에 쓰는 달 이름(October). 한국어 문구는 쓰지 않는다. */
+    internal fun fullMonth(month: Int): String =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
 }

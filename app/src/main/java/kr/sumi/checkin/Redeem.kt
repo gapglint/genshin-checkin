@@ -11,7 +11,7 @@ import java.time.LocalDate
 /** 리딤 코드를 받을 게임 캐릭터. 출석과 달리 리딤 보상은 서버·UID 하나로만 간다. */
 data class GameRole(val uid: String, val region: String, val regionName: String, val nickname: String, val level: Int) {
     /** 서버 이름(한국어). 모르는 서버면 호요랩이 준 이름. */
-    val serverName get() = SERVER_NAMES[region] ?: regionName
+    val serverName get() = SERVER_NAMES[region]?.let { Text.get(it) } ?: regionName
 
     fun label() = "$serverName · $nickname (Lv.$level) · UID $uid"
 
@@ -20,7 +20,8 @@ data class GameRole(val uid: String, val region: String, val regionName: String,
 
     companion object {
         private val SERVER_NAMES = mapOf(
-            "os_asia" to "아시아 서버", "os_usa" to "미국 서버", "os_euro" to "유럽 서버", "os_cht" to "TW·HK·MO 서버",
+            "os_asia" to R.string.core_server_asia, "os_usa" to R.string.core_server_usa,
+            "os_euro" to R.string.core_server_euro, "os_cht" to R.string.core_server_cht,
         )
 
         /** 화면에 보일 대표 캐릭터: 리딤용으로 고른 캐릭터, 없으면 레벨이 가장 높은 캐릭터. */
@@ -113,11 +114,11 @@ object Redeem {
         private set
 
     private fun runLocked(store: Store, progress: (String, Float) -> Unit): RedeemReport {
-        progress("리딤 코드 찾는 중...", 0f)
-        val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), "로그인이 필요해요."))
+        progress(Text.get(R.string.core_redeem_finding), 0f)
+        val client = CheckInClient(store.cookie ?: return RedeemReport(0, emptyList(), Text.get(R.string.core_redeem_login_needed)))
         // 리딤 코드는 HoYoverse 계정 전체에 한 번이라, 고른 캐릭터 하나로만 입력한다.
         val roles = listOfNotNull(store.redeemRole ?: chooseOnlyRole(client, store))
-        if (roles.isEmpty()) return RedeemReport(0, emptyList(), "리딤 보상을 받을 캐릭터를 골라 주세요.")
+        if (roles.isEmpty()) return RedeemReport(0, emptyList(), Text.get(R.string.core_redeem_choose_role))
 
         // 코드 찾기는 한 번만 하고, 위키 코드는 캐릭터의 서버에 맞는 것만 고른다.
         val (wiki, extra) = findSources(client, store) { step, done -> progress(step, done * 0.4f) }
@@ -136,7 +137,7 @@ object Redeem {
             for (group in groups) {
                 for (code in group) {
                     counted++
-                    progress("코드 넣어 보는 중 ($counted/$total)", 0.4f + 0.6f * (counted - 1) / total)
+                    progress(Text.get(R.string.core_redeem_trying, counted, total), 0.4f + 0.6f * (counted - 1) / total)
                     if (attempts.isNotEmpty()) Thread.sleep(CODE_GAP_MS)
                     var attempt = redeem(client, role, code)
                     if (attempt.status == RedeemStatus.TOO_FAST) {
@@ -145,7 +146,7 @@ object Redeem {
                     }
                     attempts += attempt
                     if (attempt.status == RedeemStatus.NOT_LOGGED_IN) {
-                        stop = "로그인이 풀려서 리딤 코드를 입력하지 못했어요. 출석도 같이 멈춰요. '로그인 상태 확인'에서 이 계정으로 다시 로그인해 주세요."
+                        stop = Text.get(R.string.core_redeem_stop_login)
                         break@roles
                     }
                     if (attempt.status == RedeemStatus.TOO_FAST) continue
@@ -161,7 +162,7 @@ object Redeem {
                 }
             }
         }
-        progress("마무리 중...", 1f)
+        progress(Text.get(R.string.core_redeem_finishing), 1f)
         val report = RedeemReport(found, attempts, stop)
         store.lastRedeemAt = ServerClock.now()
         store.lastRedeemSummary = summary(report)
@@ -205,7 +206,7 @@ object Redeem {
             }
         }.apply { start() }
         val codes = linkedSetOf<String>()
-        progress("공식 코드 목록 보는 중...", 0.1f)
+        progress(Text.get(R.string.core_redeem_official), 0.1f)
         try {
             codes += parseOfficialCodes(client.get(OFFICIAL_URL, BBS_HEADERS))
         } catch (e: Exception) {
@@ -219,14 +220,14 @@ object Redeem {
             val toRead = recentPostIds(search, nowSec - POST_MAX_AGE_SEC).take(MAX_POSTS)
                 .filter { it !in scanned || it in fresh }
             for ((index, postId) in toRead.withIndex()) {
-                progress("커뮤니티 글 보는 중 (${index + 1}/${toRead.size})", 0.2f + 0.6f * index / toRead.size)
+                progress(Text.get(R.string.core_redeem_posts, index + 1, toRead.size), 0.2f + 0.6f * index / toRead.size)
                 Thread.sleep(CheckInClient.REQUEST_GAP_MS)
                 codes += parseCodesInPost(client.get("$BBS/community/post/wapi/getPostFull?post_id=$postId", BBS_HEADERS))
                 store.redeemScannedPosts = store.redeemScannedPosts + postId
             }
         } catch (e: Exception) {
         }
-        progress("위키 보는 중...", 0.9f)
+        progress(Text.get(R.string.core_redeem_wiki), 0.9f)
         codes += runCatching { siteCodes(fetchPublic(PublicCodes.SITE_URL)) }.getOrDefault(emptyList())
         wikiThread.join()
         return wiki to codes.toList()
@@ -276,45 +277,47 @@ object Redeem {
 
     fun summary(report: RedeemReport): String = when {
         report.stopReason != null && report.attempts.none { it.status == RedeemStatus.REDEEMED } -> report.stopReason
-        report.redeemed.isNotEmpty() -> "새 코드 ${report.redeemed.size}개 입력" +
-            (if (report.redeemedRoles > 1) " · 캐릭터 ${report.redeemedRoles}명" else "") + ": ${report.redeemed.joinToString(", ")}"
-        report.attempts.isEmpty() -> "새 코드 없음"
+        report.redeemed.isNotEmpty() -> if (report.redeemedRoles > 1)
+            Text.plural(R.plurals.core_redeem_summary_new_roles, report.redeemed.size, report.redeemed.size, report.redeemedRoles, report.redeemed.joinToString(", "))
+        else Text.plural(R.plurals.core_redeem_summary_new, report.redeemed.size, report.redeemed.size, report.redeemed.joinToString(", "))
+        report.attempts.isEmpty() -> Text.get(R.string.core_redeem_summary_none)
         // 앞부분(':' 앞)은 타일·위젯에 짧게 보인다.
-        else -> "받을 새 코드 없음: ${report.attempts.size}개 넣어 봄 (" + report.attempts.groupingBy { shortStatus(it.status) }.eachCount()
-            .entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" } + ")"
+        else -> Text.plural(R.plurals.core_redeem_summary_tried, report.attempts.size, report.attempts.size,
+            report.attempts.groupingBy { shortStatus(it.status) }.eachCount()
+                .entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" })
     }
 
-    private fun shortStatus(status: RedeemStatus) = when (status) {
-        RedeemStatus.REDEEMED -> "받음"
+    private fun shortStatus(status: RedeemStatus) = Text.get(when (status) {
+        RedeemStatus.REDEEMED -> R.string.core_redeem_short_redeemed
         // 호요랩은 '이 계정이 받음'과 '선착순 마감'을 같은 답(-2017)으로 준다.
-        RedeemStatus.USED -> "이미 받았거나 마감"
-        RedeemStatus.EXPIRED -> "만료"
-        RedeemStatus.INVALID -> "잘못된 코드"
-        RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
-        RedeemStatus.TOO_FAST -> "너무 빠름"
-        RedeemStatus.OTHER -> "기타"
-    }
+        RedeemStatus.USED -> R.string.core_redeem_short_used
+        RedeemStatus.EXPIRED -> R.string.core_redeem_short_expired
+        RedeemStatus.INVALID -> R.string.core_redeem_short_invalid
+        RedeemStatus.NOT_LOGGED_IN -> R.string.core_redeem_short_login
+        RedeemStatus.TOO_FAST -> R.string.core_redeem_short_too_fast
+        RedeemStatus.OTHER -> R.string.core_redeem_short_other
+    })
 
     /** 결과 창에 보일 자세한 내용. */
     fun details(report: RedeemReport): String {
-        if (report.attempts.isEmpty()) return report.stopReason ?: "새로 올라온 코드가 없어요. 이미 입력한 코드는 다시 입력하지 않아요."
+        if (report.attempts.isEmpty()) return report.stopReason ?: Text.get(R.string.core_redeem_details_none)
         val many = report.roleCount > 1
         val lines = report.attempts.joinToString("\n") {
             (if (many && it.role != null) "[${it.role}] " else "") + "${it.code}  ${statusText(it.status)}"
         }
-        val tail = report.redeemed.takeIf { it.isNotEmpty() }?.let { "\n\n보상은 게임 우편함으로 와요." } ?: ""
+        val tail = report.redeemed.takeIf { it.isNotEmpty() }?.let { "\n\n" + Text.get(R.string.core_redeem_details_mail) } ?: ""
         return (report.stopReason?.let { "$it\n\n" } ?: "") + lines + tail
     }
 
-    private fun statusText(status: RedeemStatus) = when (status) {
-        RedeemStatus.REDEEMED -> "받음"
-        RedeemStatus.USED -> "이미 받았거나 마감된 코드"
-        RedeemStatus.EXPIRED -> "만료됨"
-        RedeemStatus.INVALID -> "잘못된 코드"
-        RedeemStatus.NOT_LOGGED_IN -> "로그인 필요"
-        RedeemStatus.TOO_FAST -> "너무 빨라서 건너뜀"
-        RedeemStatus.OTHER -> "받지 못함"
-    }
+    private fun statusText(status: RedeemStatus) = Text.get(when (status) {
+        RedeemStatus.REDEEMED -> R.string.core_redeem_status_redeemed
+        RedeemStatus.USED -> R.string.core_redeem_status_used
+        RedeemStatus.EXPIRED -> R.string.core_redeem_status_expired
+        RedeemStatus.INVALID -> R.string.core_redeem_status_invalid
+        RedeemStatus.NOT_LOGGED_IN -> R.string.core_redeem_status_login
+        RedeemStatus.TOO_FAST -> R.string.core_redeem_status_too_fast
+        RedeemStatus.OTHER -> R.string.core_redeem_status_other
+    })
 
     /** 원신 웹 리딤 응답 코드. 0 외에는 호요랩이 공개하지 않아 자주 보이는 값만 나눈다. */
     internal fun statusOf(retcode: Int) = when (retcode) {
@@ -492,9 +495,9 @@ object Redeem {
     @Throws(IOException::class)
     fun redeemOne(store: Store, raw: String): RedeemAttempt = synchronized(this) {
         val code = raw.trim().uppercase().filter { it.isLetterOrDigit() }
-        val client = CheckInClient(store.cookie ?: return RedeemAttempt(code, RedeemStatus.NOT_LOGGED_IN, "로그인이 필요해요."))
+        val client = CheckInClient(store.cookie ?: return RedeemAttempt(code, RedeemStatus.NOT_LOGGED_IN, Text.get(R.string.core_redeem_login_needed)))
         val role = store.redeemRole ?: chooseOnlyRole(client, store)
-            ?: return RedeemAttempt(code, RedeemStatus.OTHER, "리딤 보상을 받을 캐릭터를 골라 주세요.")
+            ?: return RedeemAttempt(code, RedeemStatus.OTHER, Text.get(R.string.core_redeem_choose_role))
         val attempt = redeem(client, role, code)
         if (attempt.status == RedeemStatus.REDEEMED) {
             store.redeemLog = listOf(RedeemedCode(code, ServerClock.now(), rewardOf(code), role.shortLabel())) + store.redeemLog

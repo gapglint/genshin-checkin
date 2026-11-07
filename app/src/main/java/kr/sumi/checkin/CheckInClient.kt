@@ -160,7 +160,7 @@ class CheckInClient(private val cookie: String) {
                 ?: throw IOException("HTTP ${conn.responseCode}")
             val text = stream.bufferedReader().use { it.readText() }
             // 와이파이 로그인 화면·서버 오류 화면처럼 JSON이 아닌 응답은 네트워크 오류로 다룬다(다시 시도하게, 앱이 죽지 않게).
-            return try { JSONObject(text) } catch (e: org.json.JSONException) { throw IOException("HTTP ${conn.responseCode}: 응답을 읽을 수 없어요") }
+            return try { JSONObject(text) } catch (e: org.json.JSONException) { throw IOException(Text.get(R.string.core_error_unreadable, conn.responseCode)) }
         } finally {
             conn.disconnect()
         }
@@ -185,7 +185,7 @@ class CheckInClient(private val cookie: String) {
             val code = json.optInt("retcode", Int.MIN_VALUE)
             return when {
                 code in NOT_LOGGED_IN -> Outcome.LoginExpired
-                code == TOO_FREQUENT -> Outcome.RateLimited("출석 확인")
+                code == TOO_FREQUENT -> Outcome.RateLimited(Text.get(R.string.core_step_info))
                 code != 0 || json.optJSONObject("data") == null -> Outcome.Failed(describe(json))
                 else -> null
             }
@@ -201,7 +201,7 @@ class CheckInClient(private val cookie: String) {
                 }
                 -5003 -> Outcome.AlreadySigned(day - 1)
                 in NOT_LOGGED_IN -> Outcome.LoginExpired
-                TOO_FREQUENT -> Outcome.RateLimited("출석")
+                TOO_FREQUENT -> Outcome.RateLimited(Text.get(R.string.core_step_sign))
                 else -> Outcome.Failed(describe(json).ifEmpty { "retcode $code" })
             }
         }

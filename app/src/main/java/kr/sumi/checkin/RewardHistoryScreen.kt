@@ -45,7 +45,7 @@ class RewardHistoryScreen(private val context: Context) {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(16), 0, dp(16), dp(8))
     }
-    val more: Button = pillButton().apply { text = "더 보기"; visibility = View.GONE }
+    val more: Button = pillButton().apply { text = context.getString(R.string.home_history_more); visibility = View.GONE }
     /** 리딤 코드 줄을 눌렀을 때(상세 보기). */
     var onCodeClick: ((RedeemedCode) -> Unit)? = null
     val root: LinearLayout = LinearLayout(context).apply {
@@ -70,17 +70,17 @@ class RewardHistoryScreen(private val context: Context) {
         list.removeAllViews()
         list.addView(monthCard(s), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
 
-        list.addView(sectionLabel("리딤 코드"))
+        list.addView(sectionLabel(context.getString(R.string.home_history_codes)))
         // 여러 캐릭터로 받았을 때만 줄마다 어느 캐릭터인지 적는다.
         val manyRoles = s.codes.mapNotNull { it.role }.distinct().size > 1
         list.addView(group(
-            if (s.codes.isEmpty()) listOf(row(R.drawable.ic_item_gift, "아직 이 앱으로 받은 코드가 없어요", null, muted = true))
+            if (s.codes.isEmpty()) listOf(row(R.drawable.ic_item_gift, context.getString(R.string.home_history_no_codes), null, muted = true))
             else listOf(redeemTotals(s.codes)) + s.codes.map {
                 val reward = it.reward?.let { raw -> RewardHistory.formatTotals(Redeem.rewardItems(raw), max = 4) }
-                    ?: "보상은 게임 우편함에서 확인해요"
+                    ?: context.getString(R.string.home_history_check_mail)
                 val code = it
                 row(
-                    R.drawable.ic_item_gift, it.code, DateFormat.format("M월 d일", Date(it.at)).toString(),
+                    R.drawable.ic_item_gift, it.code, DateFormat.format(context.getString(R.string.core_date_month_day_pattern), Date(it.at)).toString(),
                     sub = if (manyRoles && it.role != null) "${it.role}\n$reward" else reward, unseen = it.at > s.seenRedeemAt,
                     onClick = { onCodeClick?.invoke(code) },
                 )
@@ -112,21 +112,22 @@ class RewardHistoryScreen(private val context: Context) {
             setPadding(dp(20), dp(18), dp(20), dp(18))
         }
         card.addView(TextView(context).apply {
-            text = "${RewardHistory.monthLabel(s.month).substringAfter(" ")}에 받은 보상"
+            val month = s.month.substringAfter("-").toIntOrNull()?.takeIf { it in 1..12 } ?: ServerClock.today().monthValue
+            text = context.getString(R.string.home_history_month_rewards, month, RewardHistory.fullMonth(month))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setTextColor(context.getColor(R.color.hero_muted))
         })
         card.addView(LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(stat(R.drawable.ic_item_primogem, "원석", if (s.loaded) "%,d".format(primo) else "–", gold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(stat(R.drawable.ic_item_mora, "모라", if (s.loaded) "%,d".format(mora) else "–", gold = false), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(stat(R.drawable.ic_item_primogem, context.getString(R.string.home_history_primogems), if (s.loaded) "%,d".format(primo) else "–", gold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(stat(R.drawable.ic_item_mora, context.getString(R.string.home_history_mora), if (s.loaded) "%,d".format(mora) else "–", gold = false), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         card.addView(View(context).apply { setBackgroundResource(R.color.hero_line) },
             LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply { topMargin = dp(16); bottomMargin = dp(12) })
         val facts = listOfNotNull(
-            "출석·보충 ${attendance.size}번",
-            "리딤 코드 ${codes.size}개",
-            if (others > 0) "그 밖의 아이템 ${others}종" else null,
+            context.resources.getQuantityString(R.plurals.home_history_fact_attendance, attendance.size, attendance.size),
+            context.resources.getQuantityString(R.plurals.home_history_fact_codes, codes.size, codes.size),
+            if (others > 0) context.resources.getQuantityString(R.plurals.home_history_fact_others, others, others) else null,
         )
         card.addView(TextView(context).apply {
             text = facts.joinToString("  ·  ")
@@ -154,18 +155,18 @@ class RewardHistoryScreen(private val context: Context) {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(14), dp(16), dp(12))
             addView(TextView(context).apply {
-                text = "이 앱으로 받은 리딤 보상"
+                text = context.getString(R.string.home_history_redeem_totals)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                 setTextColor(context.getColor(R.color.ink_muted))
             })
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                addView(total(R.drawable.ic_item_primogem, amount("원석"), "원석"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(total(R.drawable.ic_item_mora, amount("모라"), "모라"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(total(R.drawable.ic_item_gift, "${codes.size}", "코드"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_primogem, amount("원석"), context.getString(R.string.home_history_primogems)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_mora, amount("모라"), context.getString(R.string.home_history_mora)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_gift, "${codes.size}", context.getString(R.string.home_history_codes_label)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
             if (unknown > 0) addView(TextView(context).apply {
-                text = "보상을 모르는 코드 ${unknown}개는 합계에서 빠졌어요"
+                text = context.resources.getQuantityString(R.plurals.home_history_unknown, unknown, unknown)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                 setTextColor(context.getColor(R.color.ink_muted))
                 setPadding(0, dp(8), 0, 0)
@@ -266,7 +267,7 @@ class RewardHistoryScreen(private val context: Context) {
             var dot: View? = null
             if (unseen) {
                 setBackgroundResource(R.color.unseen_bg)
-                contentDescription = "새 보상, $title"
+                contentDescription = context.getString(R.string.home_history_new_reward, title)
             }
             if (unseen || onClick != null) {
                 foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run {
