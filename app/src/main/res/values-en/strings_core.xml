@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Check-in results (CheckIn) -->
+    <string name="core_checkin_brief_signed">Day %1$d</string>
+    <string name="core_checkin_brief_signed_reward">Day %1$d · %2$s</string>
+    <string name="core_checkin_brief_already">Already checked in · Day %1$d</string>
+    <string name="core_checkin_brief_login">Tap to sign in again</string>
+    <string name="core_checkin_brief_captcha">Please check in on the check-in page</string>
+    <string name="core_checkin_brief_not_confirmed">Please look at the check-in page</string>
+    <string name="core_checkin_brief_rate_limited">Will try again shortly</string>
+    <string name="core_checkin_signed">Checked in! (Day %1$d)</string>
+    <string name="core_checkin_signed_reward">Checked in! (Day %1$d)\nReward: %2$s</string>
+    <string name="core_checkin_already">Already checked in today. (Day %1$d)</string>
+    <string name="core_checkin_login_expired">You\'ve been signed out, so check-in and redeem codes have stopped. Sign in again to check in right away.</string>
+    <string name="core_checkin_captcha">HoYoLAB wants a captcha. Please check in yourself on the check-in page.</string>
+    <string name="core_checkin_not_confirmed">HoYoLAB said OK, but the check-in didn\'t go through. Please check the check-in page yourself.</string>
+    <string name="core_checkin_rate_limited">HoYoLAB says there are too many requests (%1$s step). Will try again automatically shortly.</string>
+    <string name="core_checkin_failed">Check-in failed: %1$s</string>
+    <string name="core_step_info">check-in status</string>
+    <string name="core_step_sign">check-in</string>
+    <string name="core_error_unreadable">HTTP %1$d: couldn\'t read the response</string>
+    <string name="core_signed_out">You\'ve been signed out. Please sign in again.</string>
+
+    <!-- Game app (Game) -->
+    <string name="core_game_play_store">Genshin from Play Store / official site</string>
+    <string name="core_game_galaxy_store">Genshin from Galaxy Store</string>
+
+    <!-- Short counts in calendar cells: English uses thousands (%2$d) -->
+    <string name="core_compact_ten_thousand">%2$dK</string>
+    <string name="core_compact_thousand">%1$dK</string>
+
+    <!-- Dates and times -->
+    <string name="core_date_month_day">%3$s %2$d</string>
+    <string name="core_date_month_day_pattern">MMM d</string>
+    <string name="core_clock_am">%1$d:%2$02d AM</string>
+    <string name="core_clock_pm">%1$d:%2$02d PM</string>
+    <string name="core_clock_tomorrow">tomorrow %1$s</string>
+    <string name="core_clock_date">%4$s %2$d, %3$s</string>
+    <string name="core_duration_days_hours">%1$dd %2$dh</string>
+    <string name="core_duration_hours_mins">%1$dh %2$dm</string>
+    <string name="core_duration_hours">%1$dh</string>
+    <string name="core_duration_mins">%1$dm</string>
+
+    <!-- Notification channels -->
+    <string name="core_channel_checkin">Check-in results</string>
+    <string name="core_channel_make_up">Make-up check-in</string>
+    <string name="core_channel_redeem">Redeem codes</string>
+    <string name="core_channel_notes">Resin &amp; Expeditions</string>
+    <string name="core_channel_rerun">Awaited character banners</string>
+    <string name="core_channel_quiet">Night alerts (silent)</string>
+
+    <!-- Notifications (Notifier) -->
+    <string name="core_notif_signed">Genshin check-in done</string>
+    <string name="core_notif_login">HoYoLAB sign-in needed</string>
+    <string name="core_notif_captcha">Check-in needs a captcha</string>
+    <string name="core_notif_not_confirmed">Check-in didn\'t go through</string>
+    <string name="core_notif_failed">Genshin check-in failed</string>
+    <string name="core_notif_makeup_title">Make-up check-in available</string>
+    <plurals name="core_notif_makeup_text">
+        <item quantity="one">You missed %1$d day this month. Tap to make it up now.</item>
+        <item quantity="other">You missed %1$d days this month. Tap to make them up now.</item>
+    </plurals>
+    <plurals name="core_notif_makeup_brief">
+        <item quantity="one">%1$d missed day · tap to make up</item>
+        <item quantity="other">%1$d missed days · tap to make up</item>
+    </plurals>
+    <plurals name="core_notif_redeem_title">
+        <item quantity="one">Redeemed %1$d code</item>
+        <item quantity="other">Redeemed %1$d codes</item>
+    </plurals>
+    <plurals name="core_notif_redeem_title_roles">
+        <item quantity="one">Redeemed %1$d code (%2$d characters)</item>
+        <item quantity="other">Redeemed %1$d codes (%2$d characters)</item>
+    </plurals>
+    <string name="core_notif_redeem_text">%1$s · Collect them from your in-game mail.</string>
+    <string name="core_notif_redeem_failed">Couldn\'t enter redeem codes</string>
+    <string name="core_notif_redeem_brief">%1$s · in-game mail</string>
+    <string name="core_notif_redeem_brief_more">%1$s +%2$d more · in-game mail</string>
+    <string name="core_notif_expiry_title">HoYoLAB sign-in expires soon</string>
+    <string name="core_notif_expiry_text">On %1$s it\'ll be a year since you signed in, so check-in and redeem codes will stop. Tap to sign in again now.</string>
+    <string name="core_notif_expiry_brief">Expires %1$s · tap to sign in again</string>
+    <string name="core_notif_play">Play Genshin</string>
+    <string name="core_notif_resin_full_title">Original Resin is full</string>
+    <string name="core_notif_resin_full_text">Resin %1$d/%2$d · It won\'t go higher, so spend it.</string>
+    <string name="core_notif_resin_full_brief">Resin %1$d/%2$d · full</string>
+    <string name="core_notif_resin_title">Resin is at %1$d</string>
+    <string name="core_notif_resin_text">%1$d/%2$d · full in %3$s (%4$s)</string>
+    <string name="core_notif_resin_brief">%1$d/%2$d · full by %3$s</string>
+    <string name="core_notif_expeditions_title">All Expeditions are done</string>
+    <string name="core_notif_expeditions_text">All %1$d are back. Claim the rewards and send them out again.</string>
+    <string name="core_notif_expeditions_brief">%1$d back · claim rewards</string>
+    <string name="core_notif_coin_title">Realm Currency is full</string>
+    <string name="core_notif_coin_text">Realm Currency %1$s/%2$s · It won\'t go higher, so collect it.</string>
+    <string name="core_notif_coin_brief">Realm Currency %1$s · full</string>
+    <string name="core_notif_rerun_soon_title">%2$s banner is coming</string>
+    <string name="core_notif_rerun_now_title">%2$s banner is live</string>
+    <string name="core_notif_rerun_soon_text">%1$s – %2$s</string>
+    <string name="core_notif_rerun_now_text">Until %1$s</string>
+    <string name="core_notif_rerun_chronicled">%1$s · Chronicled Wish</string>
+    <plurals name="core_notif_new_codes">
+        <item quantity="one">%1$d new redeem code</item>
+        <item quantity="other">%1$d new redeem codes</item>
+    </plurals>
+    <plurals name="core_notif_new_codes_live">
+        <item quantity="one">%1$d new redeem code (livestream)</item>
+        <item quantity="other">%1$d new redeem codes (livestream)</item>
+    </plurals>
+    <string name="core_notif_new_codes_more">%1$s and more</string>
+    <string name="core_notif_new_codes_big">%1$s\nSign in and the app will enter them for you.</string>
+
+    <!-- Real-Time Notes (Notes) -->
+    <string name="core_notes_full_in">full in %1$s</string>
+    <string name="core_notes_full">Full</string>
+    <string name="core_notes_none">None</string>
+    <string name="core_notes_done">%1$d/%2$d done</string>
+    <string name="core_notes_no_expeditions">No Expeditions sent</string>
+    <string name="core_notes_claim">Claim your rewards</string>
+    <string name="core_notes_expeditions_in">All done in %1$s</string>
+    <string name="core_notes_no_teapot">No Serenitea Pot</string>
+    <string name="core_notes_commissions_left">%1$d left</string>
+    <string name="core_notes_claimed">Reward claimed</string>
+    <string name="core_notes_updated">As of %1$s</string>
+    <string name="core_notes_unreadable">Couldn\'t read the response</string>
+    <string name="core_notes_captcha">HoYoLAB wants verification. Will try again shortly</string>
+    <string name="core_notes_no_character">No Genshin character found</string>
+    <string name="core_notes_login">Signed out. Please sign in again</string>
+    <string name="core_notes_off">Real-Time Notes are off in your Battle Chronicle</string>
+
+    <!-- Make-up check-in (MakeUp) -->
+    <string name="core_makeup_sign_first">Check in today first, then you can make up missed days.</string>
+    <string name="core_makeup_no_info">Couldn\'t get make-up check-in info.</string>
+    <string name="core_makeup_earning">Getting make-up cards...</string>
+    <string name="core_makeup_no_cards">Not enough make-up cards. You\'ve done all of today\'s tasks.</string>
+    <string name="core_makeup_progress">Making up a day... (#%1$d)</string>
+    <string name="core_makeup_reward_placeholder">Reward</string>
+    <string name="core_makeup_no_more">No more days to make up.</string>
+    <string name="core_makeup_none_missed">No missed days this month.</string>
+    <string name="core_makeup_monthly_used">You\'ve used all of this month\'s make-ups (%1$d).</string>
+    <string name="core_makeup_daily_used">You\'ve used all of today\'s make-ups (%1$d). You can try again tomorrow.</string>
+    <plurals name="core_makeup_done">
+        <item quantity="one">Made up %1$d day.\nRewards: %2$s</item>
+        <item quantity="other">Made up %1$d days.\nRewards: %2$s</item>
+    </plurals>
+    <string name="core_makeup_rate_limited">Too many requests. Please try again shortly.</string>
+    <string name="core_makeup_failed">Make-up check-in failed: %1$s</string>
+    <plurals name="core_makeup_summary_plain">
+        <item quantity="one">Made up %1$d day</item>
+        <item quantity="other">Made up %1$d days</item>
+    </plurals>
+    <plurals name="core_makeup_summary">
+        <item quantity="one">Made up %1$d day · %2$s</item>
+        <item quantity="other">Made up %1$d days · %2$s</item>
+    </plurals>
+
+    <!-- Redeem codes (Redeem, PublicCodes) -->
+    <string name="core_server_asia">Asia server</string>
+    <string name="core_server_usa">America server</string>
+    <string name="core_server_euro">Europe server</string>
+    <string name="core_server_cht">TW·HK·MO server</string>
+    <string name="core_codes_server_all">All servers</string>
+    <string name="core_codes_server_asia">Asia</string>
+    <string name="core_codes_server_usa">America</string>
+    <string name="core_codes_server_euro">Europe</string>
+    <string name="core_codes_fetch_failed">Couldn\'t get the code list</string>
+    <string name="core_redeem_finding">Looking for redeem codes...</string>
+    <string name="core_redeem_login_needed">Sign-in needed.</string>
+    <string name="core_redeem_choose_role">Please choose the character to get redeem rewards.</string>
+    <string name="core_redeem_trying">Trying codes (%1$d/%2$d)</string>
+    <string name="core_redeem_stop_login">Signed out, so redeem codes couldn\'t be entered. Check-in has stopped too. Please sign in again with this account.</string>
+    <string name="core_redeem_finishing">Finishing up...</string>
+    <string name="core_redeem_official">Checking the official code list...</string>
+    <string name="core_redeem_posts">Checking community posts (%1$d/%2$d)</string>
+    <string name="core_redeem_wiki">Checking the wiki...</string>
+    <plurals name="core_redeem_summary_new">
+        <item quantity="one">Entered %1$d new code: %2$s</item>
+        <item quantity="other">Entered %1$d new codes: %2$s</item>
+    </plurals>
+    <plurals name="core_redeem_summary_new_roles">
+        <item quantity="one">Entered %1$d new code · %2$d characters: %3$s</item>
+        <item quantity="other">Entered %1$d new codes · %2$d characters: %3$s</item>
+    </plurals>
+    <string name="core_redeem_summary_none">No new codes</string>
+    <plurals name="core_redeem_summary_tried">
+        <item quantity="one">No new codes to claim: tried %1$d (%2$s)</item>
+        <item quantity="other">No new codes to claim: tried %1$d (%2$s)</item>
+    </plurals>
+    <string name="core_redeem_short_redeemed">claimed</string>
+    <string name="core_redeem_short_used">used or closed</string>
+    <string name="core_redeem_short_expired">expired</string>
+    <string name="core_redeem_short_invalid">invalid</string>
+    <string name="core_redeem_short_login">sign-in needed</string>
+    <string name="core_redeem_short_too_fast">too fast</string>
+    <string name="core_redeem_short_other">other</string>
+    <string name="core_redeem_status_redeemed">Claimed</string>
+    <string name="core_redeem_status_used">Already used or closed</string>
+    <string name="core_redeem_status_expired">Expired</string>
+    <string name="core_redeem_status_invalid">Invalid code</string>
+    <string name="core_redeem_status_login">Sign-in needed</string>
+    <string name="core_redeem_status_too_fast">Skipped (too fast)</string>
+    <string name="core_redeem_status_other">Not claimed</string>
+    <string name="core_redeem_details_none">No new codes. Codes already entered aren\'t tried again.</string>
+    <string name="core_redeem_details_mail">Rewards arrive in your in-game mail.</string>
+
+    <!-- Reward history (RewardHistory*) -->
+    <string name="home_history_more_kinds">%1$s +%2$d more</string>
+    <string name="home_history_month">%3$s %1$s</string>
+    <string name="home_history_more">Load more</string>
+    <string name="home_history_codes">Redeem codes</string>
+    <string name="home_history_no_codes">No codes redeemed with this app yet</string>
+    <string name="home_history_check_mail">Check your in-game mail for rewards</string>
+    <string name="home_history_month_rewards">Rewards in %2$s</string>
+    <string name="home_history_primogems">Primogems</string>
+    <string name="home_history_mora">Mora</string>
+    <string name="home_history_codes_label">Codes</string>
+    <plurals name="home_history_fact_attendance">
+        <item quantity="one">%1$d check-in</item>
+        <item quantity="other">%1$d check-ins</item>
+    </plurals>
+    <plurals name="home_history_fact_codes">
+        <item quantity="one">%1$d redeem code</item>
+        <item quantity="other">%1$d redeem codes</item>
+    </plurals>
+    <plurals name="home_history_fact_others">
+        <item quantity="one">%1$d other item</item>
+        <item quantity="other">%1$d other items</item>
+    </plurals>
+    <string name="home_history_redeem_totals">Redeem rewards via this app</string>
+    <plurals name="home_history_unknown">
+        <item quantity="one">%1$d code with unknown rewards isn\'t counted</item>
+        <item quantity="other">%1$d codes with unknown rewards aren\'t counted</item>
+    </plurals>
+    <string name="home_history_new_reward">New reward, %1$s</string>
+    <string name="home_history_loading">Loading...</string>
+    <plurals name="home_history_status">
+        <item quantity="one">%1$s check-in reward received in total</item>
+        <item quantity="other">%1$s check-in rewards received in total</item>
+    </plurals>
+    <string name="home_history_load_failed">Couldn\'t load the history. %1$s</string>
+    <string name="home_history_title">Rewards · %1$s</string>
+    <string name="home_history_no_reward_info">The wiki has no reward info for this code. Please check your in-game mail.</string>
+    <string name="home_history_code_date_pattern">MMM d, HH:mm</string>
+    <string name="home_history_received">Received %1$s</string>
+    <string name="home_history_copy">Copy code</string>
+    <string name="home_history_clip_label">Redeem code</string>
+    <string name="home_history_copied">Code copied</string>
+    <string name="home_history_ok">OK</string>
+
+    <!-- Home screen widgets -->
+    <string name="home_widget_daily">Daily check-in</string>
+    <string name="home_widget_login">Sign in</string>
+    <string name="home_widget_login_hint">Please sign in in the app</string>
+    <string name="home_widget_redeem">Redeem codes</string>
+    <string name="home_widget_done">Done</string>
+    <string name="home_widget_check">Check</string>
+    <string name="home_widget_not_yet">Not yet</string>
+    <string name="home_widget_resin_loading">Resin · open the app to load</string>
+    <string name="home_widget_redeem_off">Auto-redeem off</string>
+    <string name="home_widget_redeem_waiting">Waiting for redeem codes</string>
+    <string name="home_widget_rerun">Reruns</string>
+    <string name="home_widget_open_to_load">Open the app to load</string>
+    <string name="home_widget_resin">Resin</string>
+    <string name="home_widget_full_at">Full by %1$s</string>
+    <string name="home_widget_days_suffix">days</string>
+    <string name="home_widget_pickup_now">Banner now</string>
+    <string name="home_widget_expeditions">Expeditions</string>
+    <string name="home_widget_teapot">Currency</string>
+    <string name="home_widget_commissions">Commissions</string>
+    <string name="home_widget_preview_redeem">Entered 3 new codes</string>
+    <string name="home_widget_preview_period">Until Nov 3 · 10 days left</string>
+    <string name="home_widget_preview_furina">Furina</string>
+    <string name="home_widget_preview_hutao">Hu Tao</string>
+    <string name="home_widget_preview_longest">Longest wait · Hu Tao</string>
+</resources>

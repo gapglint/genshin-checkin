@@ -14,13 +14,13 @@ data class GameApp(val packageName: String, val label: String)
  */
 object Game {
     private val PACKAGES = listOf(
-        "com.miHoYo.GenshinImpact" to "플레이스토어·공식 사이트에서 받은 원신",
-        "com.miHoYo.GI.samsung" to "갤럭시 스토어에서 받은 원신",
+        "com.miHoYo.GenshinImpact" to R.string.core_game_play_store,
+        "com.miHoYo.GI.samsung" to R.string.core_game_galaxy_store,
     )
 
     fun installed(context: Context): List<GameApp> = PACKAGES
         .filter { (name, _) -> context.packageManager.getLaunchIntentForPackage(name) != null }
-        .map { (name, label) -> GameApp(name, label) }
+        .map { (name, label) -> GameApp(name, context.getString(label)) }
 
     fun chosen(context: Context): GameApp? {
         val apps = installed(context)

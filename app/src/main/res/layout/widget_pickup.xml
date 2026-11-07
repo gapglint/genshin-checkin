@@ -23,14 +23,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:maxLines="1"
-            android:text="지금 픽업"
+            android:text="@string/home_widget_pickup_now"
             android:textColor="@color/gold"
             android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/pickPeriod"
-            android:text="11월 3일까지 · 10일 남음"
+            android:text="@string/home_widget_preview_period"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
@@ -84,7 +84,7 @@
 
             <TextView
                 android:id="@+id/pickName1"
-                android:text="푸리나"
+                android:text="@string/home_widget_preview_furina"
                 android:textColor="@color/hero_ink"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -131,7 +131,7 @@
 
             <TextView
                 android:id="@+id/pickName2"
-                android:text="호두"
+                android:text="@string/home_widget_preview_hutao"
                 android:textColor="@color/hero_ink"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -239,7 +239,7 @@
 
     <TextView
         android:id="@+id/pickOldest"
-        android:text="가장 오래 기다린 캐릭터 · 호두"
+        android:text="@string/home_widget_preview_longest"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"

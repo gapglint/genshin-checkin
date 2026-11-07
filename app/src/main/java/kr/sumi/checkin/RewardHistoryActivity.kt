@@ -21,12 +21,13 @@ class RewardHistoryActivity : Activity() {
     private var total = 0
     private var page = 0
     private var loading = false
-    private var status = "불러오는 중..."
+    private var status = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MainActivity.drawBehindSystemBars(window)
         store = intent.getStringExtra(EXTRA_ACCOUNT)?.let { AppSettings(this).account(it) } ?: return finish()
+        status = getString(R.string.home_history_loading)
 
         screen = RewardHistoryScreen(this)
         screen.back.setOnClickListener { finish() }
@@ -48,14 +49,14 @@ class RewardHistoryActivity : Activity() {
         val cookie = store.cookie ?: return
         if (loading) return
         loading = true
-        status = "불러오는 중..."
+        status = getString(R.string.home_history_loading)
         screen.more.isEnabled = false
         render()
         Thread {
             val result = try {
                 val json = CheckInClient(cookie).awardHistory(page + 1, PAGE_SIZE)
                 if (json.optInt("retcode", -1) in CheckInClient.NOT_LOGGED_IN) {
-                    Result.failure(IOException("로그인이 풀렸어요. 다시 로그인해 주세요."))
+                    Result.failure(IOException(getString(R.string.core_signed_out)))
                 } else {
                     Result.success(json)
                 }
@@ -76,14 +77,14 @@ class RewardHistoryActivity : Activity() {
                     }
                     entries += pageEntries
                     total = json.optJSONObject("data")?.optInt("total") ?: entries.size
-                    status = "출석·보충 보상 총 ${"%,d".format(total)}번 받았어요"
+                    status = resources.getQuantityString(R.plurals.home_history_status, total, "%,d".format(total))
                     // 이번 달 합계가 맞도록, 받아 온 목록이 아직 이번 달에서 끝나면 한 페이지 더 받는다.
                     val month = ServerClock.today().toString().take(7)
                     if (entries.size < total && entries.last().date.startsWith(month) && page < 3) {
                         screen.root.post { loadPage() }
                     }
                 }.onFailure {
-                    status = "내역을 불러오지 못했어요. ${it.message ?: ""}".trim()
+                    status = getString(R.string.home_history_load_failed, it.message ?: "").trim()
                 }
                 render()
             }
@@ -93,7 +94,7 @@ class RewardHistoryActivity : Activity() {
     private fun render() {
         val unseenAwards = if (page > 0) RewardHistory.unseenAwards(entries, seenAwardKey) else 0
         screen.render(HistoryUiState(
-            title = "보상 내역 · ${store.displayName}",
+            title = getString(R.string.home_history_title, store.displayName),
             status = status,
             month = ServerClock.today().toString().take(7),
             entries = entries.toList(),
@@ -108,19 +109,21 @@ class RewardHistoryActivity : Activity() {
     /** 리딤 코드 상세: 받은 시각, 보상 전체, 코드 복사. */
     private fun showCode(code: RedeemedCode) {
         val items = code.reward?.let { Redeem.rewardItems(it) }.orEmpty()
-        val rewards = if (items.isEmpty()) "위키에 보상 정보가 없는 코드예요. 게임 우편함에서 확인해 주세요."
+        val rewards = if (items.isEmpty()) getString(R.string.home_history_no_reward_info)
         else items.joinToString("\n") { (name, count) -> "· $name ×${"%,d".format(count)}" }
         AppDialog(this)
             .setTitle(code.code)
-            .setMessage("${android.text.format.DateFormat.format("M월 d일 HH:mm", java.util.Date(code.at))}에 받았어요${code.role?.let { "\n$it" } ?: ""}\n\n$rewards")
-            .setNeutralButton("코드 복사") {
+            .setMessage(getString(R.string.home_history_received,
+                android.text.format.DateFormat.format(getString(R.string.home_history_code_date_pattern), java.util.Date(code.at)).toString()) +
+                "${code.role?.let { "\n$it" } ?: ""}\n\n$rewards")
+            .setNeutralButton(getString(R.string.home_history_copy)) {
                 getSystemService(android.content.ClipboardManager::class.java)
-                    .setPrimaryClip(android.content.ClipData.newPlainText("리딤 코드", code.code))
+                    .setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.home_history_clip_label), code.code))
                 if (android.os.Build.VERSION.SDK_INT < 33) {
-                    android.widget.Toast.makeText(this, "코드를 복사했어요", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, getString(R.string.home_history_copied), android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
-            .setPositiveButton("확인")
+            .setPositiveButton(getString(R.string.home_history_ok))
             .show()
     }
 

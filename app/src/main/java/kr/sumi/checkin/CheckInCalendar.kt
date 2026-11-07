@@ -36,8 +36,10 @@ object CheckInCalendar {
 
     /** 칸에 들어갈 짧은 개수: 20, 5천, 1만, 1.5만. */
     fun compact(count: Int): String = when {
-        count >= 10_000 -> (count / 1000 / 10.0).let { if (it % 1.0 == 0.0) "${it.toInt()}만" else "${it}만" }
-        count >= 1_000 -> "${count / 1000}천"
+        // 한국어는 만 단위(1.5만), 영어는 천 단위(15K)라 두 값을 다 넘기고 문구가 고른다.
+        count >= 10_000 -> (count / 1000 / 10.0).let { if (it % 1.0 == 0.0) "${it.toInt()}" else "$it" }
+            .let { Text.get(R.string.core_compact_ten_thousand, it, count / 1000) }
+        count >= 1_000 -> Text.get(R.string.core_compact_thousand, count / 1000)
         else -> "$count"
     }
 

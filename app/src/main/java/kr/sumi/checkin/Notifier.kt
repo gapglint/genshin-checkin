@@ -30,12 +30,12 @@ object Notifier {
 
     fun createChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "출첵 결과", NotificationManager.IMPORTANCE_DEFAULT))
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_MAKE_UP, "보충 출석", NotificationManager.IMPORTANCE_DEFAULT))
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_REDEEM, "리딤 코드", NotificationManager.IMPORTANCE_DEFAULT))
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_NOTES, "레진·탐사 파견", NotificationManager.IMPORTANCE_DEFAULT))
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_RERUN, "기다리는 캐릭터 픽업", NotificationManager.IMPORTANCE_DEFAULT))
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_QUIET, "밤 알림(소리 없음)", NotificationManager.IMPORTANCE_LOW))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, context.getString(R.string.core_channel_checkin), NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_MAKE_UP, context.getString(R.string.core_channel_make_up), NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_REDEEM, context.getString(R.string.core_channel_redeem), NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_NOTES, context.getString(R.string.core_channel_notes), NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_RERUN, context.getString(R.string.core_channel_rerun), NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL_QUIET, context.getString(R.string.core_channel_quiet), NotificationManager.IMPORTANCE_LOW))
     }
 
     /** 밤에 조용히가 켜져 있고 지금이 밤(폰 시각 오후 10시~오전 8시)이면 소리 없는 채널, 아니면 원래 채널. */
@@ -65,13 +65,13 @@ object Notifier {
         val pending = PendingIntent.getActivity(
             context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val title = who(context, store) + when (outcome) {
-            is Outcome.Signed -> "원신 출첵 완료"
-            Outcome.LoginExpired -> "호요랩 로그인이 필요해요"
-            Outcome.CaptchaRequired -> "출첵에 캡차가 필요해요"
-            Outcome.NotConfirmed -> "출석이 반영되지 않았어요"
-            else -> "원신 출첵 실패"
-        }
+        val title = who(context, store) + context.getString(when (outcome) {
+            is Outcome.Signed -> R.string.core_notif_signed
+            Outcome.LoginExpired -> R.string.core_notif_login
+            Outcome.CaptchaRequired -> R.string.core_notif_captcha
+            Outcome.NotConfirmed -> R.string.core_notif_not_confirmed
+            else -> R.string.core_notif_failed
+        })
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
             .favorite(context, title, CheckIn.describe(outcome), if (outcome is Outcome.Signed) Mood.GREET else Mood.WORRY, CheckIn.brief(outcome))
@@ -94,7 +94,11 @@ object Notifier {
         )
         val notification = Notification.Builder(context, channel(context, CHANNEL_MAKE_UP))
             .setSmallIcon(R.drawable.ic_notify)
-            .favorite(context, who(context, store) + "보충 출석을 할 수 있어요", "이번 달에 놓친 날이 ${missed}일 있어요. 누르면 바로 보충해요.", Mood.CHEER, "놓친 날 ${missed}일 · 누르면 보충")
+            .favorite(
+                context, who(context, store) + context.getString(R.string.core_notif_makeup_title),
+                context.resources.getQuantityString(R.plurals.core_notif_makeup_text, missed, missed), Mood.CHEER,
+                context.resources.getQuantityString(R.plurals.core_notif_makeup_brief, missed, missed),
+            )
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -107,15 +111,16 @@ object Notifier {
     fun notifyRedeem(context: Context, store: Store, report: RedeemReport) {
         val (title, text) = when {
             report.redeemed.isNotEmpty() && !AppSettings(context).notifyRedeem -> return
-            report.redeemed.isNotEmpty() -> "리딤 코드 ${report.redeemed.size}개를 받았어요" +
-                (if (report.redeemedRoles > 1) " (캐릭터 ${report.redeemedRoles}명)" else "") to
-                "${report.redeemed.joinToString(", ")} · 게임 우편함에서 받으세요."
-            report.stopReason != null && report.attempts.isNotEmpty() -> "리딤 코드를 입력하지 못했어요" to report.stopReason
+            report.redeemed.isNotEmpty() -> (if (report.redeemedRoles > 1)
+                context.resources.getQuantityString(R.plurals.core_notif_redeem_title_roles, report.redeemed.size, report.redeemed.size, report.redeemedRoles)
+            else context.resources.getQuantityString(R.plurals.core_notif_redeem_title, report.redeemed.size, report.redeemed.size)) to
+                context.getString(R.string.core_notif_redeem_text, report.redeemed.joinToString(", "))
+            report.stopReason != null && report.attempts.isNotEmpty() -> context.getString(R.string.core_notif_redeem_failed) to report.stopReason
             else -> return
         }
-        val brief = if (report.redeemed.isNotEmpty())
-            report.redeemed.first() + (if (report.redeemed.size > 1) " 외 ${report.redeemed.size - 1}개" else "") + " · 우편함"
-        else text
+        val brief = if (report.redeemed.isEmpty()) text
+        else if (report.redeemed.size > 1) context.getString(R.string.core_notif_redeem_brief_more, report.redeemed.first(), report.redeemed.size - 1)
+        else context.getString(R.string.core_notif_redeem_brief, report.redeemed.first())
         // 하루에 여러 번 돌 수 있어(새 코드가 올라올 때마다) 받은 코드까지 넣어 같은 알림만 거른다.
         val key = "$title:${Store.checkInDay()}:${report.redeemed.joinToString(",")}"
         if (key == store.lastRedeemNotified || !canNotify(context)) return
@@ -143,11 +148,15 @@ object Notifier {
         val pending = PendingIntent.getActivity(
             context, id, LoginActivity.loginIntent(context), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val day = java.text.SimpleDateFormat("M월 d일", java.util.Locale.KOREA).format(java.util.Date(expiresAt))
-        val text = "${day}에 로그인한 지 1년이 돼서 출석과 리딤 코드 입력이 멈춰요. 누르면 지금 다시 로그인할 수 있어요."
+        val day = java.text.SimpleDateFormat(context.getString(R.string.core_date_month_day_pattern), context.resources.configuration.locales[0])
+            .format(java.util.Date(expiresAt))
+        val text = context.getString(R.string.core_notif_expiry_text, day)
         val notification = Notification.Builder(context, channel(context, CHANNEL))
             .setSmallIcon(R.drawable.ic_notify)
-            .favorite(context, who(context, store) + "호요랩 로그인이 곧 만료돼요", text, Mood.WORRY, "$day 만료 · 누르면 다시 로그인")
+            .favorite(
+                context, who(context, store) + context.getString(R.string.core_notif_expiry_title), text, Mood.WORRY,
+                context.getString(R.string.core_notif_expiry_brief, day),
+            )
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -176,7 +185,7 @@ object Notifier {
                 .setSmallIcon(R.drawable.ic_notify)
                 .favorite(context, who(context, store) + title, text, Mood.CHEER, brief)
                 .setContentIntent(pending)
-                .apply { if (play != null) addAction(Notification.Action.Builder(null, "원신 켜기", play).build()) }
+                .apply { if (play != null) addAction(Notification.Action.Builder(null, context.getString(R.string.core_notif_play), play).build()) }
                 .setAutoCancel(true)
                 .build()
             context.getSystemService(NotificationManager::class.java).notify(id, notification)
@@ -184,20 +193,25 @@ object Notifier {
         // 제목은 기준이 아니라 지금 실제 개수로 쓴다(처음 받았을 때 이미 기준을 넘어 있을 수 있다).
         if (alerts.resin) {
             if (note.resin >= note.maxResin) {
-                post(ID_RESIN, "레진이 가득 찼어요", "레진 ${note.resin}/${note.maxResin} · 더 쌓이지 않으니 써 주세요.", "레진 ${note.resin}/${note.maxResin} · 가득 참")
+                post(ID_RESIN, context.getString(R.string.core_notif_resin_full_title),
+                    context.getString(R.string.core_notif_resin_full_text, note.resin, note.maxResin),
+                    context.getString(R.string.core_notif_resin_full_brief, note.resin, note.maxResin))
             } else {
                 val left = note.resinFullAt - note.at
-                post(ID_RESIN, "레진이 ${note.resin}개 찼어요",
-                    "${note.resin}/${note.maxResin} · ${Notes.duration(left)} 뒤 가득 차요 (${Notes.clock(note.resinFullAt)})",
-                    "${note.resin}/${note.maxResin} · ${Notes.clock(note.resinFullAt)} 가득")
+                post(ID_RESIN, context.getString(R.string.core_notif_resin_title, note.resin),
+                    context.getString(R.string.core_notif_resin_text, note.resin, note.maxResin, Notes.duration(left), Notes.clock(note.resinFullAt)),
+                    context.getString(R.string.core_notif_resin_brief, note.resin, note.maxResin, Notes.clock(note.resinFullAt)))
             }
         }
         if (alerts.expeditions) {
-            post(ID_EXPEDITIONS, "탐사 파견이 모두 끝났어요", "${note.expeditionsTotal}명 모두 돌아왔어요. 보상을 받고 다시 보내 주세요.", "${note.expeditionsTotal}명 귀환 · 보상 받기")
+            post(ID_EXPEDITIONS, context.getString(R.string.core_notif_expeditions_title),
+                context.getString(R.string.core_notif_expeditions_text, note.expeditionsTotal),
+                context.getString(R.string.core_notif_expeditions_brief, note.expeditionsTotal))
         }
         if (alerts.coin) {
-            post(ID_HOME_COIN, "주전자 동전이 가득 찼어요", "동전 ${"%,d".format(note.homeCoin)}/${"%,d".format(note.maxHomeCoin)} · 더 쌓이지 않으니 받아 주세요.",
-                "동전 ${"%,d".format(note.homeCoin)} · 가득 참")
+            post(ID_HOME_COIN, context.getString(R.string.core_notif_coin_title),
+                context.getString(R.string.core_notif_coin_text, "%,d".format(note.homeCoin), "%,d".format(note.maxHomeCoin)),
+                context.getString(R.string.core_notif_coin_brief, "%,d".format(note.homeCoin)))
         }
     }
 
@@ -205,12 +219,15 @@ object Notifier {
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
     fun notifyRerun(context: Context, c: RerunCharacter, b: Banner, today: java.time.LocalDate) {
         if (!canNotify(context)) return
-        fun day(d: java.time.LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
-        val (title, text) = if (b.start.isAfter(today)) {
-            "기다리던 ${c.ko} 픽업이 열려요" to "${day(b.start)}부터 ${day(b.end)}까지" + (if (b.chronicled) " · 집록 기원" else "")
+        fun day(d: java.time.LocalDate) = Notes.monthDay(d)
+        // 한국어 문구는 한국어 이름(ko), 영어 문구는 영어 이름(name)을 쓴다.
+        val (title, period) = if (b.start.isAfter(today)) {
+            context.getString(R.string.core_notif_rerun_soon_title, c.ko, c.name) to
+                context.getString(R.string.core_notif_rerun_soon_text, day(b.start), day(b.end))
         } else {
-            "기다리던 ${c.ko} 픽업 중이에요" to "${day(b.end)}까지" + (if (b.chronicled) " · 집록 기원" else "")
+            context.getString(R.string.core_notif_rerun_now_title, c.ko, c.name) to context.getString(R.string.core_notif_rerun_now_text, day(b.end))
         }
+        val text = if (b.chronicled) context.getString(R.string.core_notif_rerun_chronicled, period) else period
         val id = ID_RERUN * 10_000 + (c.name.hashCode() and 0x1FFF)
         val pending = PendingIntent.getActivity(
             context, id, RerunActivity.intent(context).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -230,7 +247,9 @@ object Notifier {
     @SuppressLint("MissingPermission") // canNotify에서 알림 권한을 확인한다.
     fun notifyNewCodes(context: Context, codes: List<PublicCode>) {
         if (!canNotify(context) || codes.isEmpty()) return
-        val title = "새 리딤 코드 ${codes.size}개" + if (codes.any { it.official }) " (방송)" else ""
+        val title = context.resources.getQuantityString(
+            if (codes.any { it.official }) R.plurals.core_notif_new_codes_live else R.plurals.core_notif_new_codes, codes.size, codes.size,
+        )
         val text = codes.joinToString("\n") { c -> c.code + (PublicCodes.rewardText(c.reward)?.let { " · $it" } ?: "") }
         val pending = PendingIntent.getActivity(
             context, ID_NEW_CODES, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -239,8 +258,8 @@ object Notifier {
         val notification = Notification.Builder(context, channel(context, CHANNEL_REDEEM))
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
-            .setContentText(text.substringBefore("\n") + if (codes.size > 1) " 외" else "")
-            .setStyle(Notification.BigTextStyle().bigText(text + "\n로그인하면 앱이 알아서 입력해요."))
+            .setContentText(text.substringBefore("\n").let { if (codes.size > 1) context.getString(R.string.core_notif_new_codes_more, it) else it })
+            .setStyle(Notification.BigTextStyle().bigText(context.getString(R.string.core_notif_new_codes_big, text)))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()

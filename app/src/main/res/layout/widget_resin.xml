@@ -28,7 +28,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:maxLines="1"
-            android:text="레진"
+            android:text="@string/home_widget_resin"
             android:textColor="@color/ink"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -60,7 +60,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="파견"
+                android:text="@string/home_widget_expeditions"
                 android:textColor="@color/ink_muted"
                 android:textSize="11sp" />
 
@@ -84,7 +84,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="주전자"
+                android:text="@string/home_widget_teapot"
                 android:textColor="@color/ink_muted"
                 android:textSize="11sp" />
 
@@ -108,7 +108,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="의뢰"
+                android:text="@string/home_widget_commissions"
                 android:textColor="@color/ink_muted"
                 android:textSize="11sp" />
 
