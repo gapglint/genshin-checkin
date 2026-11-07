@@ -1462,8 +1462,24 @@ class MainActivity : Activity() {
             head("오늘")
             row(ItemIcons.of(store.lastReward), if (signed) "출석 완료" else "아직 출석 전이에요", if (signed) store.lastReward else null)
             settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, "다음 자동 출석", describeNextRun(it)) }
-            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, "놓친 ${it}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() } }
             row(R.drawable.ic_check_badge, "출석 페이지 열기 ›") { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+        }
+        // 보충 출석: 카드형의 보충 카드처럼 늘 보인다(할 수 있으면 버튼, 오늘 받은 것, 아니면 지금 상태).
+        card {
+            head("보충 출석")
+            val canMakeUp = store.makeUpMissed.takeIf { store.makeUpDay == today.toString() && it > 0 }
+            val doneToday = store.takeIf { it.makeUpDoneDay == today.toString() }?.let { MakeUp.todaySummary(it.makeUpRewards) }
+            when {
+                canMakeUp != null -> {
+                    row(R.drawable.ic_item_gift, "놓친 ${canMakeUp}일 보충하기 ›") { closeLobbyMenu(); makeUpNow() }
+                    line("보충권은 앱이 대신 받아 와요")
+                }
+                doneToday != null -> row(R.drawable.ic_check_badge, "오늘 보충 완료", doneToday)
+                // 호요랩은 오늘 출석을 먼저 해야 보충을 허락한다. 출석 뒤에는 보충권·이번 달 횟수가 없으면 못 한다.
+                store.calendarMissed > 0 -> row(R.drawable.ic_item_gift, "이번 달 놓친 날 ${store.calendarMissed}일",
+                    if (signed) "지금은 보충할 수 없어요" else "오늘 출석 뒤에 확인해요")
+                else -> row(R.drawable.ic_check_badge, "이번 달 놓친 날 없음")
+            }
         }
         // 계정: 카드형 화면의 계정 칩 대신. 누르면 그 계정으로 바꾸고, 계정이 하나여도 여기서 더할 수 있다.
         card {

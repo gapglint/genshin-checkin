@@ -532,6 +532,9 @@ class LobbyMenu(
     companion object {
         const val HEADER_DP = 176
 
+        /** 아이템 그림을 받는 일꾼 하나(메뉴를 여러 번 열어도 같은 것을 쓴다). */
+        private val iconPool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "item-icons").apply { isDaemon = true } }
+
         /** 로비 메뉴 바탕색(다크 모드면 어둡게). 로비에서 연 카드 화면도 같은 바탕을 쓴다. */
         fun pageColor(context: Context, t: LobbyTheme): Int {
             val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
@@ -700,7 +703,17 @@ class LobbyMenu(
                     cell.addView(LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER
-                        addView(ImageView(context).apply { setImageResource(ItemIcons.of(slot.name)) }, LinearLayout.LayoutParams(dp(22), dp(22)))
+                        // 공식 그림을 쓰면 호요랩의 아이템 그림(게임과 같은 그림), 아니면 앱의 아이콘.
+                        addView(ImageView(context).apply {
+                            val cached = Lobby.cachedItemIcon(context, slot.icon)
+                            if (cached != null) setImageBitmap(cached) else {
+                                setImageResource(ItemIcons.of(slot.name))
+                                if (slot.icon.isNotEmpty() && Lobby.officialArtAllowed(context)) iconPool.execute {
+                                    val bmp = Lobby.itemIcon(context, slot.icon)
+                                    if (bmp != null) post { setImageBitmap(bmp) }
+                                }
+                            }
+                        }, LinearLayout.LayoutParams(dp(26), dp(26)))
                         addView(text(CheckInCalendar.compact(slot.count), 11f, context.getColor(R.color.ink)).apply { gravity = Gravity.CENTER; maxLines = 1 })
                     }, LayoutParams(MATCH_PARENT, MATCH_PARENT))
                     cell.addView(text("$n", 9f, context.getColor(R.color.ink_muted)).apply { setPadding(dp(5), dp(2), 0, 0) })
