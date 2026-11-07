@@ -27,6 +27,9 @@ import java.time.ZoneId
 import java.util.Date
 
 class MainActivity : Activity() {
+    // 앱 안에서 고른 언어로(Android 12까지. 13부터는 시스템이 한다).
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLocale.wrap(base))
+
     private lateinit var settings: AppSettings
     private lateinit var screen: MainScreen
     private lateinit var editor: MainEditor
@@ -728,7 +731,7 @@ class MainActivity : Activity() {
                 quietNight = settings.quietNight,
                 homeStyleLabel = if (settings.homeStyle == Lobby.STYLE_LOBBY && settings.favorite != null)
                     getString(R.string.main_tile_home_lobby, CharNames.of(settings.favorite!!.name)) else getString(R.string.lobby_style_card),
-                language = if (Build.VERSION.SDK_INT >= 33) resources.configuration.locales[0].let { it.getDisplayLanguage(it).replaceFirstChar { c -> c.uppercase() } } else null,
+                language = AppLocale.label(this, AppLocale.chosen(this)),
                 appVersion = appVersion,
                 cardCount = settings.cardOrder.count { settings.isShown(it) },
             )
@@ -1066,14 +1069,20 @@ class MainActivity : Activity() {
             .show()
     }
 
-    /** 앱 언어: Android 13부터 시스템의 '앱 언어' 화면(휴대전화 언어와 따로). */
+    /** 앱 언어 고르기: 휴대전화 언어 · 한국어 · 日本語 · English. 고르면 화면을 그 언어로 다시 연다. */
     private fun openLanguageSettings() {
-        if (Build.VERSION.SDK_INT < 33) return
-        try {
-            startActivity(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", packageName, null)))
-        } catch (e: ActivityNotFoundException) {
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
-        }
+        val choices = AppLocale.CHOICES
+        val current = choices.indexOf(AppLocale.chosen(this)).coerceAtLeast(0)
+        AppDialog(this)
+            .setTitle(getString(R.string.main_language))
+            .setSingleChoiceItems(choices.map { AppLocale.label(this, it) }.toTypedArray(), current) { dialog, which ->
+                dialog.dismiss()
+                if (which == current) return@setSingleChoiceItems
+                AppLocale.set(this, choices[which])
+                // Android 13부터는 시스템이 화면을 다시 연다. 그 전에는 직접.
+                if (Build.VERSION.SDK_INT < 33) recreate()
+            }
+            .show()
     }
 
     /**

@@ -21,6 +21,9 @@ import java.io.IOException
  * 캐릭터 그림 없이 원소 색·이름·버전만으로 그린다(자료는 위키의 기원 기록, Reruns 참고).
  */
 class RerunActivity : Activity() {
+    // 앱 안에서 고른 언어로(Android 12까지. 13부터는 시스템이 한다).
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLocale.wrap(base))
+
     private lateinit var list: LinearLayout
     private lateinit var status: TextView
     private val density by lazy { resources.displayMetrics.density }

@@ -134,7 +134,7 @@ data class MainUiState(
     val editing: Boolean = false,
     /** 로비형 소개 카드를 보일 때(로그인하고 며칠 뒤 한 번만, 다른 안내가 없을 때). */
     val lobbyIntro: Boolean = false,
-    /** 설정 타일에 보일 것: 켜 둔 알림 수, 밤 무음, 홈 스타일 한 줄, 앱 언어(Android 13부터), 버전. */
+    /** 설정 타일에 보일 것: 켜 둔 알림 수, 밤 무음, 홈 스타일 한 줄, 앱 언어, 버전. */
     val notifyOn: Int = 0,
     val quietNight: Boolean = false,
     val homeStyleLabel: String = "",

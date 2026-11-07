@@ -35,6 +35,9 @@ import java.io.IOException
  * 페이지 모드: 캡차 등으로 자동 출첵이 막혔을 때, 고른 계정의 쿠키를 넣고 출첵 페이지를 띄워 직접 누르게 한다.
  */
 class LoginActivity : Activity() {
+    // 앱 안에서 고른 언어로(Android 12까지. 13부터는 시스템이 한다).
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLocale.wrap(base))
+
     private lateinit var webView: WebView
     private lateinit var frame: FrameLayout
     private lateinit var status: TextView

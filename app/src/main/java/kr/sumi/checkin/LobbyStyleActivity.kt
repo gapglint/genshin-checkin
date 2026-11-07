@@ -27,6 +27,9 @@ import java.util.concurrent.Executors
  * 공식 그림·음성은 사이트 설정으로 꺼져 있으면 고를 수 없다.
  */
 class LobbyStyleActivity : Activity() {
+    // 앱 안에서 고른 언어로(Android 12까지. 13부터는 시스템이 한다).
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLocale.wrap(base))
+
     private lateinit var settings: AppSettings
     private lateinit var list: LinearLayout
     private val pool = Executors.newFixedThreadPool(3)

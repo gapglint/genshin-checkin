@@ -26,6 +26,9 @@ import java.io.IOException
  * 보상 받기는 사람이 직접 누른다(이벤트마다 방식이 달라 자동으로 받지 않는다).
  */
 class EventsActivity : Activity() {
+    // 앱 안에서 고른 언어로(Android 12까지. 13부터는 시스템이 한다).
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLocale.wrap(base))
+
     private lateinit var list: LinearLayout
     private lateinit var status: TextView
     private var opening = false

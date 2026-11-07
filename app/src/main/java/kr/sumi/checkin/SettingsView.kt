@@ -32,7 +32,7 @@ data class SettingsUi(
     /** 홈 꾸미기 타일 아래 한 줄, 예: "로비형 · 치치". */
     val homeStyle: String,
     val cardCount: Int,
-    /** 앱 언어 타일(Android 13부터). 없으면 null. */
+    /** 앱 언어 타일에 보일 지금 언어(휴대전화 언어 또는 고른 언어). 없으면 타일을 숨긴다. */
     val language: String?,
     val gameApp: String?,
     val gameAppCount: Int,
@@ -171,7 +171,7 @@ class SettingsView(context: Context) : LinearLayout(context) {
         addView(text(context.getString(R.string.main_account_more), 12.5f, color(R.color.accent), bold = true))
     }, lp(top = 14))
 
-    /** 타일 두 칸씩: 알림 · 홈 꾸미기 · 메인 화면 · 언어(Android 13부터). */
+    /** 타일 두 칸씩: 알림 · 홈 꾸미기 · 메인 화면 · 언어. */
     private fun tiles(ui: SettingsUi, actions: Actions) {
         data class Tile(val icon: Int, val tint: Int, val title: String, val sub: String, val onClick: () -> Unit)
         val list = listOfNotNull(

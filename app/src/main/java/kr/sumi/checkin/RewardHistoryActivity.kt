@@ -12,6 +12,9 @@ import java.io.IOException
  * 이 앱이 받은 기록이고 보상은 위키에 적힌 값이다. 그리는 일은 RewardHistoryScreen이 한다.
  */
 class RewardHistoryActivity : Activity() {
+    // 앱 안에서 고른 언어로(Android 12까지. 13부터는 시스템이 한다).
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLocale.wrap(base))
+
     private lateinit var store: Store
     private lateinit var screen: RewardHistoryScreen
     // 화면을 열 때의 확인 표시. 열자마자 확인한 것으로 저장하지만, 이번 화면에서는 이 기준으로 새 보상을 칠한다.
