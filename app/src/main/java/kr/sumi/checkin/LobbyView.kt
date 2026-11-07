@@ -67,6 +67,8 @@ data class LobbyUi(
     val quote: String? = null,
     /** 대사에 음성이 있으면 말풍선에 스피커 표시(누르면 듣는다). */
     val voice: Boolean = false,
+    /** 배경 그림에서 얼굴이 있는 곳(그림 크기에 대한 비율). 말풍선이 얼굴을 가리지 않게 옮긴다. 모르면 null. */
+    val face: android.graphics.RectF? = null,
 )
 
 /**
@@ -148,6 +150,31 @@ class LobbyView(context: Context) : FrameLayout(context) {
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
         breathing?.let { if (isVisible) it.resume() else it.pause() }
+    }
+
+    /**
+     * 말풍선 위치(위쪽 여백). 기본은 위쪽 막대 아래. 배경 그림의 얼굴과 겹치면 머리 위로, 자리가 없으면 얼굴 아래로 옮긴다.
+     * 아래쪽 이름표·패널까지 내려가야 하면 기본 자리에 둔다(대사를 못 보는 것보다 낫다).
+     */
+    private fun bubbleTop(bubble: View, face: android.graphics.RectF?, art: Bitmap?, w: Int, h: Int): Int {
+        val top = insetTop + dp(68)
+        if (face == null || art == null || w <= 0) return top
+        val imgH = w * art.height / art.width
+        bubble.measure(MeasureSpec.makeMeasureSpec(w - dp(16 + 86), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        val bw = bubble.measuredWidth
+        val bh = bubble.measuredHeight
+        val gap = dp(8)
+        val faceTop = (face.top * imgH).toInt() - gap
+        val faceBottom = (face.bottom * imgH).toInt() + gap
+        val overlapsX = dp(16) < face.right * w && dp(16) + bw > face.left * w
+        fun clear(y: Int) = !overlapsX || y + bh <= faceTop || y >= faceBottom
+        if (clear(top)) return top
+        // 머리 위: 위쪽 막대(계정·레진) 아래까지만 올린다.
+        val above = faceTop - bh
+        if (above >= insetTop + dp(56)) return above
+        // 얼굴 아래: 아래쪽 이름표·패널(약 300dp) 위까지만.
+        if (faceBottom + bh <= h - insetBottom - dp(300)) return faceBottom
+        return top
     }
 
     override fun onDetachedFromWindow() {
@@ -243,7 +270,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
         addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(12), dp(16), 0) })
 
         // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사, 🔊는 지금 대사 다시 듣기, ✕는 닫기.
-        if (!bubbleHidden) addView(LinearLayout(context).apply {
+        if (!bubbleHidden) LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(10))
             val r = dp(14).toFloat()
@@ -299,7 +326,9 @@ class LobbyView(context: Context) : FrameLayout(context) {
                     addView(closeButton())
                 })
             }
-        }, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(68), dp(86), 0) })
+        }.let { bubble ->
+            addView(bubble, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), bubbleTop(bubble, ui.face, art, w, h), dp(86), 0) })
+        }
 
         // 오른쪽 메뉴
         val side = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }

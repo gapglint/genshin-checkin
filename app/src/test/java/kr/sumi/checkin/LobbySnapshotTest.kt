@@ -26,10 +26,12 @@ class LobbySnapshotTest {
     }
 
     /** 사진 대신: 하늘색 → 초록 세로 그라데이션(1080×1920). */
-    private fun fakeArt(): Bitmap = Bitmap.createBitmap(1080, 1920, Bitmap.Config.ARGB_8888).also {
+    private fun fakeArt(face: android.graphics.RectF? = null): Bitmap = Bitmap.createBitmap(1080, 1920, Bitmap.Config.ARGB_8888).also {
         Canvas(it).drawRect(0f, 0f, 1080f, 1920f, Paint().apply {
             shader = LinearGradient(0f, 0f, 0f, 1920f, intArrayOf(0xFF9FD3E8.toInt(), 0xFFDDEBC9.toInt(), 0xFF5E9446.toInt()), null, Shader.TileMode.CLAMP)
         })
+        // 얼굴 자리 표시
+        if (face != null) Canvas(it).drawOval(face.left * 1080, face.top * 1920, face.right * 1080, face.bottom * 1920, Paint().apply { color = 0xFFE05050.toInt() })
     }
 
     private val base = LobbyUi(
@@ -54,6 +56,17 @@ class LobbySnapshotTest {
         quote = "테스트용 긴 대사예요. 말풍선에 접지 않고 넣는 길이보다 긴 대사는 네 줄만 보이고, 아래 '전체 보기'를 누르면 말풍선이 펼쳐져서 끝까지 다 읽을 수 있어요. 이 문장은 네 줄을 넘기려고 일부러 길게 썼어요. 한 줄 더, 또 한 줄 더 이어지다가 여기까지 보이면 펼친 거예요.",
         greeting = "레진이 가득 찼어요! 출석은 받아 뒀어요.", voice = true,
     ), fakeArt())
+
+    /** 얼굴(빨간 동그라미)과 겹치면 말풍선이 얼굴 아래로(얼굴이 위쪽이라 머리 위엔 자리가 없다). */
+    @Test fun bubbleBelowFace() = lobby(base.copy(
+        quote = "좋은 아침이에요, 여행자님. 아침부터 이렇게 만나다니… 오늘은 모든 일이 잘 풀리겠어요",
+        greeting = "오늘 출석이랑 새 코드도 받아 뒀어요.", voice = true, face = android.graphics.RectF(0.3f, 0.1f, 0.62f, 0.24f),
+    ), fakeArt(android.graphics.RectF(0.3f, 0.1f, 0.62f, 0.24f)))
+
+    /** 얼굴이 조금 아래에 있으면 머리 위로. */
+    @Test fun bubbleAboveFace() = lobby(base.copy(
+        quote = "좋은 아침이에요, 여행자님.", greeting = "오늘 출석은 받아 뒀어요.", face = android.graphics.RectF(0.2f, 0.26f, 0.5f, 0.4f),
+    ), fakeArt(android.graphics.RectF(0.2f, 0.26f, 0.5f, 0.4f)))
 
     @Test fun patternNoArt() = lobby(base.copy(name = "치치", element = "cryo", meta = "얼음 · Lv.90 · 호감도 10", credit = false), null)
 

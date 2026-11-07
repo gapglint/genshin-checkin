@@ -264,6 +264,17 @@ object Lobby {
     }
 
     /** 사이트의 얼굴 위치 목록(하루에 한 번 받는다). 못 받으면 지난 것, 그것도 없으면 null. */
+    /** 받아 둔 얼굴 위치만(받지 않는다): 최애의 세로 그림에서 얼굴이 있는 곳(비율). 로비 말풍선이 얼굴을 피하는 데 쓴다. */
+    fun portraitFace(context: Context, name: String): android.graphics.RectF? {
+        val raw = prefs(context).getString("portraits", null) ?: return null
+        val json = portraitsMemo?.takeIf { it.first == raw }?.second ?: try { JSONObject(raw) } catch (e: Exception) { return null }
+        portraitsMemo = raw to json
+        val f = json.optJSONObject(name)?.optJSONArray("face")?.takeIf { it.length() == 4 } ?: return null
+        return android.graphics.RectF(f.optDouble(0).toFloat(), f.optDouble(1).toFloat(), f.optDouble(2).toFloat(), f.optDouble(3).toFloat())
+    }
+
+    private var portraitsMemo: Pair<String, JSONObject>? = null
+
     private fun portraits(context: Context): JSONObject? {
         val p = prefs(context)
         val cached = p.getString("portraits", null)

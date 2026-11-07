@@ -1243,6 +1243,7 @@ class MainActivity : Activity() {
             name = fav.name, element = fav.element, meta = meta, greeting = greeting,
             resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
             dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
+            face = if (credit) Lobby.portraitFace(this, fav.name) else null,
             account = s.accounts.takeIf { it.size > 1 }?.firstOrNull { it.id == s.currentId }?.label,
             quote = quote?.text, voice = Lobby.officialVoicesAllowed(this) && quote?.audioFor(settings.voiceLanguage) != null,
         )
