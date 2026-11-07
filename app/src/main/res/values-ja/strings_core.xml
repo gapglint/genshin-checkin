@@ -257,4 +257,6 @@
     <string name="home_widget_preview_furina">フリーナ</string>
     <string name="home_widget_preview_hutao">胡桃</string>
     <string name="home_widget_preview_longest">一番長く待っているキャラ · 胡桃</string>
+    <string name="home_history_month_chip">%1$d月</string>
+    <string name="home_history_art_credit">アイテム画像 © HoYoverse（HoYoLAB）</string>
 </resources>

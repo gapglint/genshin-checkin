@@ -83,12 +83,12 @@ class StoreAssetsTest {
 
     private val sampleCalendar = List(31) { i ->
         when {
-            i % 7 == 6 -> CalendarSlot("원석", 20)
-            i % 7 == 2 -> CalendarSlot("모라", 5000)
-            i % 7 == 4 -> CalendarSlot("영웅의 경험", 3)
-            i % 7 == 0 -> CalendarSlot("정제용 양질 광석", 3)
-            else -> CalendarSlot("모라", 1000 * (i % 3 + 1))
-        }
+            i % 7 == 6 -> "원석" to 20
+            i % 7 == 2 -> "모라" to 5000
+            i % 7 == 4 -> "영웅의 경험" to 3
+            i % 7 == 0 -> "정제용 양질 광석" to 3
+            else -> "모라" to 1000 * (i % 3 + 1)
+        }.let { (name, count) -> CalendarSlot(name, count, StoreItemArt.url(name)) } // 받아 둔 게임 아이템 그림이 있으면 그것으로
     }
     private val signed = MainUiState(
         loggedIn = true, accounts = listOf(AccountChip("100000000", "여행자", true), AccountChip("100000001", "부계정", false)),
@@ -96,7 +96,7 @@ class StoreAssetsTest {
         totalDays = 17, month = 10, reward = "원석 x20", lastChecked = "10월 18일 01:03", nextRun = "내일 01:02",
         makeUpMissed = 2, redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000",
         redeemSummary = "10월 18일 01:05 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력",
-        redeemWhen = "10월 18일 01:05", historyUnseen = 3,
+        redeemWhen = "10월 18일 01:05", historyUnseen = 3, redeemNew = 1, monthPrimos = 250,
         calendar = sampleCalendar, calendarReachable = 31,
         notes = NotesUi(
             resin = 142, maxResin = 200, fullLabel = "7시간 44분 뒤 가득", fullTime = "오후 3:20",
@@ -129,6 +129,7 @@ class StoreAssetsTest {
         scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false, history: HistoryUiState? = null,
         custom: ((android.content.Context) -> View)? = null, settings: Boolean = false,
     ) {
+        StoreItemArt.install(paparazzi.context)
         // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         val w = if (tablet) 1440 else 1080
         val h = if (tablet) 2560 else 1920
@@ -322,7 +323,7 @@ class StoreAssetsTest {
         val names = listOf("원석" to 20, "모라" to 5000, "영웅의 경험" to 3, "원석" to 20, "정제용 양질 광석" to 3, "모라" to 5000, "원석" to 20)
         val entries = (18 downTo 1).map { day ->
             val (name, count) = names[day % names.size]
-            RewardEntry("$day", name, count, "2026-10-%02d".format(day))
+            RewardEntry("$day", name, count, "2026-10-%02d".format(day), StoreItemArt.url(name))
         }
         return HistoryUiState(
             title = "보상 내역 · 여행자", status = "출석·보충 보상 총 412번 받았어요", month = "2026-10",

@@ -270,4 +270,6 @@
     <string name="home_widget_preview_furina">Furina</string>
     <string name="home_widget_preview_hutao">Hu Tao</string>
     <string name="home_widget_preview_longest">Longest wait · Hu Tao</string>
+    <string name="home_history_month_chip">%2$s</string>
+    <string name="home_history_art_credit">Item art © HoYoverse (HoYoLAB)</string>
 </resources>

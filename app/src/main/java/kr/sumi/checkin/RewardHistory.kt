@@ -4,7 +4,8 @@ import org.json.JSONObject
 import java.io.IOException
 
 /** 보상 한 건. date는 서버 기준 'yyyy-MM-dd'. key는 '어디까지 확인했는지' 표시에 쓰는 고유값. */
-data class RewardEntry(val key: String, val name: String, val count: Int, val date: String)
+/** 출석·보충 보상 한 줄. [icon]은 호요랩이 주는 아이템 그림 주소(없으면 빈 문자열). */
+data class RewardEntry(val key: String, val name: String, val count: Int, val date: String, val icon: String = "")
 
 /**
  * 보상 내역과 '확인' 상태.
@@ -22,7 +23,7 @@ object RewardHistory {
             val name = it.optString("name")
             val count = it.optInt("cnt")
             val created = it.optString("created_at")
-            RewardEntry(it.optString("id").ifEmpty { "$created|$name|$count" }, name, count, dateOf(created))
+            RewardEntry(it.optString("id").ifEmpty { "$created|$name|$count" }, name, count, dateOf(created), it.optString("img"))
         }
     }
 

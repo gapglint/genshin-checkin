@@ -59,6 +59,7 @@ class RewardHistoryScreen(private val context: Context) {
             addView(more, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), dp(8), dp(16), dp(24)) })
         }
         addView(ScrollView(context).apply {
+            scroll = this
             isVerticalScrollBarEnabled = false
             addView(content, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL))
         }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
@@ -68,14 +69,20 @@ class RewardHistoryScreen(private val context: Context) {
         title.text = s.title
         status.text = s.status
         list.removeAllViews()
+        // 아이템 이름 → 호요랩 그림 주소(출석 기록에 같이 온다). 리딤 보상·합계 아이콘도 이것으로.
+        art = s.entries.filter { it.icon.isNotEmpty() }.associate { it.name to it.icon } + art
+        val months = s.entries.map { it.date.take(7) }.distinct()
+        if (months.size > 1) list.addView(monthChips(months))
         list.addView(monthCard(s), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
 
-        list.addView(sectionLabel(context.getString(R.string.home_history_codes)))
+        // 리딤 코드: 합계는 제목 옆 한 줄로, 코드마다 받은 보상.
+        val codeTotals = RewardHistory.formatTotals(RewardHistory.totals(s.codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) }), max = 2)
+        list.addView(sectionLabel(context.getString(R.string.home_history_codes), codeTotals?.takeIf { s.codes.isNotEmpty() && it.isNotEmpty() }))
         // 여러 캐릭터로 받았을 때만 줄마다 어느 캐릭터인지 적는다.
         val manyRoles = s.codes.mapNotNull { it.role }.distinct().size > 1
         list.addView(group(
             if (s.codes.isEmpty()) listOf(row(R.drawable.ic_item_gift, context.getString(R.string.home_history_no_codes), null, muted = true))
-            else listOf(redeemTotals(s.codes)) + s.codes.map {
+            else s.codes.map {
                 val reward = it.reward?.let { raw -> RewardHistory.formatTotals(Redeem.rewardItems(raw), max = 4) }
                     ?: context.getString(R.string.home_history_check_mail)
                 val code = it
@@ -87,14 +94,51 @@ class RewardHistoryScreen(private val context: Context) {
             }
         ))
 
+        monthViews.clear()
         for ((month, items) in s.entries.groupBy { it.date.take(7) }) {
             val sum = RewardHistory.formatTotals(RewardHistory.totals(items.map { it.name to it.count }), max = 2)
-            list.addView(sectionLabel(RewardHistory.monthLabel(month), sum))
+            list.addView(sectionLabel(RewardHistory.monthLabel(month), sum).also { monthViews[month] = it })
             list.addView(group(items.map {
-                row(iconFor(it.name), "${it.name} ×${"%,d".format(it.count)}", RewardHistory.dayLabel(it.date), unseen = it.key in s.newAwardKeys)
+                row(iconFor(it.name), "${it.name} ×${"%,d".format(it.count)}", RewardHistory.dayLabel(it.date), unseen = it.key in s.newAwardKeys, artUrl = it.icon)
             }))
         }
         more.visibility = if (s.entries.size < s.total) View.VISIBLE else View.GONE
+        // 게임 아이템 그림을 쓰면 출처를 적는다.
+        if (art.isNotEmpty() && Lobby.officialArtAllowed(context)) list.addView(TextView(context).apply {
+            text = context.getString(R.string.home_history_art_credit)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(context.getColor(R.color.ink_muted))
+            setPadding(dp(4), dp(14), dp(4), 0)
+        })
+    }
+
+    /** 받은 아이템 그림 주소(이름 → 주소). 더 받아 온 쪽에서도 쓰도록 모아 둔다. */
+    private var art: Map<String, String> = emptyMap()
+    private val monthViews = mutableMapOf<String, View>()
+    private var scroll: ScrollView? = null
+
+    /** 달 버튼: 누르면 그 달 목록으로 내려간다. 맨 앞(이번 달)은 맨 위로. */
+    private fun monthChips(months: List<String>) = android.widget.HorizontalScrollView(context).apply {
+        isHorizontalScrollBarEnabled = false
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(8), 0, dp(8))
+            months.forEachIndexed { i, month ->
+                addView(TextView(context).apply {
+                    val m = month.substringAfter("-").toIntOrNull() ?: 0
+                    text = context.getString(R.string.home_history_month_chip, m, RewardHistory.fullMonth(m))
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                    setTextColor(context.getColor(if (i == 0) R.color.on_action else R.color.ink_muted))
+                    if (i == 0) setTypeface(typeface, Typeface.BOLD)
+                    setPadding(dp(14), dp(7), dp(14), dp(7))
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(99).toFloat()
+                        if (i == 0) setColor(context.getColor(R.color.action)) else { setColor(context.getColor(R.color.surface)); setStroke(dp(1), context.getColor(R.color.line)) }
+                    }
+                    setOnClickListener { if (i == 0) scroll?.smoothScrollTo(0, 0) else monthViews[month]?.let { v -> scroll?.smoothScrollTo(0, v.top + list.top) } }
+                }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { if (i > 0) leftMargin = dp(6) })
+            }
+        })
     }
 
     /** 이번 달 받은 보상(출석·보충 + 이 앱으로 받은 리딤)을 크게. 메인 화면의 출석 카드와 같은 남색 카드. */
@@ -119,8 +163,10 @@ class RewardHistoryScreen(private val context: Context) {
         })
         card.addView(LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(stat(R.drawable.ic_item_primogem, context.getString(R.string.home_history_primogems), if (s.loaded) "%,d".format(primo) else "–", gold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(stat(R.drawable.ic_item_mora, context.getString(R.string.home_history_mora), if (s.loaded) "%,d".format(mora) else "–", gold = false), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(stat(R.drawable.ic_item_primogem, context.getString(R.string.home_history_primogems), if (s.loaded) "%,d".format(primo) else "–", gold = true,
+                artUrl = art.entries.firstOrNull { ItemIcons.isPrimogem(it.key) }?.value), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(stat(R.drawable.ic_item_mora, context.getString(R.string.home_history_mora), if (s.loaded) "%,d".format(mora) else "–", gold = false,
+                artUrl = art.entries.firstOrNull { ItemIcons.isMora(it.key) }?.value), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         card.addView(View(context).apply { setBackgroundResource(R.color.hero_line) },
             LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply { topMargin = dp(16); bottomMargin = dp(12) })
@@ -146,61 +192,13 @@ class RewardHistoryScreen(private val context: Context) {
         }
     }
 
-    /** 이 앱으로 받은 리딤 보상 합계: 원석·모라·코드 수를 아이콘과 큰 숫자로. */
-    private fun redeemTotals(codes: List<RedeemedCode>): View {
-        val totals = RewardHistory.totals(codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) })
-        fun amount(kind: (String) -> Boolean) = "%,d".format(totals.filter { kind(it.first) }.sumOf { it.second })
-        val unknown = codes.count { it.reward == null }
-        return LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(12))
-            addView(TextView(context).apply {
-                text = context.getString(R.string.home_history_redeem_totals)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(context.getColor(R.color.ink_muted))
-            })
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                addView(total(R.drawable.ic_item_primogem, amount(ItemIcons::isPrimogem), context.getString(R.string.home_history_primogems)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(total(R.drawable.ic_item_mora, amount(ItemIcons::isMora), context.getString(R.string.home_history_mora)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(total(R.drawable.ic_item_gift, "${codes.size}", context.getString(R.string.home_history_codes_label)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
-            if (unknown > 0) addView(TextView(context).apply {
-                text = context.resources.getQuantityString(R.plurals.home_history_unknown, unknown, unknown)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                setTextColor(context.getColor(R.color.ink_muted))
-                setPadding(0, dp(8), 0, 0)
-            })
-        }
-    }
-
-    private fun total(icon: Int, value: String, label: String) = LinearLayout(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        addView(ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(8) })
-        addView(LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(TextView(context).apply {
-                text = value
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-                setTypeface(typeface, Typeface.BOLD)
-                setTextColor(context.getColor(R.color.ink))
-                fontFeatureSettings = "tnum"
-            })
-            addView(TextView(context).apply {
-                text = label
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                setTextColor(context.getColor(R.color.ink_muted))
-            })
-        })
-    }
-
-    private fun stat(icon: Int, label: String, value: String, gold: Boolean) = LinearLayout(context).apply {
+    private fun stat(icon: Int, label: String, value: String, gold: Boolean, artUrl: String? = null) = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(6) })
+            val big = artUrl != null && Lobby.officialArtAllowed(context)
+            addView(ImageView(context).apply { setItemImage(this, icon, artUrl) }, LinearLayout.LayoutParams(dp(if (big) 26 else 18), dp(if (big) 26 else 18)).apply { marginEnd = dp(6) })
             addView(TextView(context).apply {
                 text = label
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
@@ -218,6 +216,18 @@ class RewardHistoryScreen(private val context: Context) {
     }
 
     private fun iconFor(name: String) = ItemIcons.of(name)
+
+    /**
+     * 공식 그림을 쓸 수 있고 주소가 있으면 호요랩 아이템 그림(받아 둔 것, 없으면 앱 아이콘을 두고 받아서 바꾼다), 아니면 앱 아이콘.
+     * 받아 둔 그림을 바로 넣었으면 true.
+     */
+    private fun setItemImage(view: ImageView, icon: Int, url: String?, onLate: (ImageView.() -> Unit)? = null): Boolean {
+        val cached = url?.let { Lobby.cachedItemIcon(context, it) }
+        if (cached != null) { view.setImageBitmap(cached); return true }
+        view.setImageResource(icon)
+        if (url != null) Lobby.itemIconAsync(context, url) { view.setImageBitmap(it); onLate?.invoke(view) }
+        return false
+    }
 
     private fun sectionLabel(text: String, trailing: String? = null) = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -252,7 +262,7 @@ class RewardHistoryScreen(private val context: Context) {
      */
     private fun row(
         icon: Int, title: String, trailing: String?, muted: Boolean = false, unseen: Boolean = false,
-        sub: String? = null, onClick: (() -> Unit)? = null,
+        sub: String? = null, onClick: (() -> Unit)? = null, artUrl: String? = null,
     ) = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -276,9 +286,10 @@ class RewardHistoryScreen(private val context: Context) {
             }
             addView(FrameLayout(context).apply {
                 addView(ImageView(context).apply {
-                    setImageResource(icon)
                     scaleType = ImageView.ScaleType.CENTER_INSIDE
-                    setPadding(dp(9), dp(9), dp(9), dp(9))
+                    // 게임 아이템 그림이면 동그라미를 거의 채우게, 앱 아이콘이면 지금처럼 작게.
+                    val official = setItemImage(this, icon, artUrl) { setPadding(dp(4), dp(4), dp(4), dp(4)) }
+                    if (official) setPadding(dp(4), dp(4), dp(4), dp(4)) else setPadding(dp(9), dp(9), dp(9), dp(9))
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(context.getColor(R.color.item_tile))
