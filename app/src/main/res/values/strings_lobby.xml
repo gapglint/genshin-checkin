@@ -193,4 +193,16 @@
     <string name="lobby_voice_ask_no">Not now</string>
     <string name="lobby_quote_follows_voice">Show lines in %1$s too</string>
     <string name="lobby_quote_follows_voice_sub">Bubble text in the same language as the voice. Off: the app\'s language.</string>
+    <!-- Style screen: preview and tabs -->
+    <string name="lobby_tab_character">Character</string>
+    <string name="lobby_tab_bg">Background</string>
+    <string name="lobby_tab_voice">Voice</string>
+    <string name="lobby_owned_tab">My characters %1$d</string>
+    <string name="lobby_waiting_tab">Waiting for</string>
+    <string name="lobby_preview_pick">Pick your favourite character below</string>
+    <string name="lobby_preview_card">Card home is on</string>
+    <string name="lobby_listen">Listen</string>
+    <string name="lobby_listen_loading">Loading lines…</string>
+    <string name="lobby_voice_fine">Voices and lines © HoYoverse (HoYoLAB Wiki) · only played lines are kept</string>
+    <string name="lobby_voice_stored">Saved voices %1$s MB</string>
 </resources>

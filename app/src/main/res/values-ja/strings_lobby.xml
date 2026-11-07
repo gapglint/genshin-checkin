@@ -186,4 +186,16 @@
     <string name="lobby_voice_ask_no">今は聞かない</string>
     <string name="lobby_quote_follows_voice">セリフも%1$sで表示</string>
     <string name="lobby_quote_follows_voice_sub">吹き出しの文字をボイスと同じ言語で表示します。オフにするとアプリの言語で表示します。</string>
+    <!-- 着せ替え: プレビュー・タブ -->
+    <string name="lobby_tab_character">キャラ</string>
+    <string name="lobby_tab_bg">背景</string>
+    <string name="lobby_tab_voice">ボイス</string>
+    <string name="lobby_owned_tab">所持キャラ %1$d</string>
+    <string name="lobby_waiting_tab">待っているキャラ</string>
+    <string name="lobby_preview_pick">下からお気に入りキャラを選んでください</string>
+    <string name="lobby_preview_card">今はカード型ホームです</string>
+    <string name="lobby_listen">試聴</string>
+    <string name="lobby_listen_loading">セリフを読み込み中…</string>
+    <string name="lobby_voice_fine">ボイス・セリフ © HoYoverse（HoYoLAB Wiki）・再生したものだけ保存します</string>
+    <string name="lobby_voice_stored">保存済みボイス %1$sMB</string>
 </resources>

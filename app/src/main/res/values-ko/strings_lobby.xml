@@ -188,4 +188,16 @@
     <string name="lobby_voice_ask_no">지금은 안 들을래요</string>
     <string name="lobby_quote_follows_voice">대사도 %1$s로 보기</string>
     <string name="lobby_quote_follows_voice_sub">말풍선 글을 음성과 같은 언어로 보여 줘요. 끄면 앱 언어로 봐요.</string>
+    <!-- 꾸미기: 미리보기·탭 -->
+    <string name="lobby_tab_character">캐릭터</string>
+    <string name="lobby_tab_bg">배경</string>
+    <string name="lobby_tab_voice">음성</string>
+    <string name="lobby_owned_tab">내 캐릭터 %1$d</string>
+    <string name="lobby_waiting_tab">기다리는 캐릭터</string>
+    <string name="lobby_preview_pick">아래에서 최애 캐릭터를 골라 주세요</string>
+    <string name="lobby_preview_card">지금은 카드형 홈이에요</string>
+    <string name="lobby_listen">들어보기</string>
+    <string name="lobby_listen_loading">대사를 받는 중이에요</string>
+    <string name="lobby_voice_fine">음성·대사 © HoYoverse(호요랩 위키) · 들은 대사만 저장해요</string>
+    <string name="lobby_voice_stored">저장된 음성 %1$sMB</string>
 </resources>
