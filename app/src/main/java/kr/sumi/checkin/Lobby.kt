@@ -374,16 +374,17 @@ object Lobby {
     fun waitingLine(context: Context, name: String, today: java.time.LocalDate) = waitingLine(Reruns.cached(context), name, today)
 
     internal fun waitingLine(data: RerunData?, name: String, today: java.time.LocalDate): String {
-        if (data == null) return "아직 만나지 못했어요"
-        val c = data.byKo(name) ?: return "아직 만나지 못했어요"
+        val unmet = Text.get(R.string.lobby_waiting_unmet)
+        if (data == null) return unmet
+        val c = data.byKo(name) ?: return unmet
         when (data.phase(c, today)) {
-            RerunPhase.NOW -> return "아직 만나지 못했어요 · 지금 픽업 중!"
-            RerunPhase.SECOND_HALF, RerunPhase.LATER -> return "아직 만나지 못했어요 · 곧 픽업이 열려요"
+            RerunPhase.NOW -> return Text.get(R.string.lobby_waiting_now)
+            RerunPhase.SECOND_HALF, RerunPhase.LATER -> return Text.get(R.string.lobby_waiting_soon)
             else -> {}
         }
-        val since = data.since(c, today) ?: return "아직 만나지 못했어요"
-        if (since == 0) return "아직 만나지 못했어요 · 이번 버전 전반에 픽업했어요"
-        return "아직 만나지 못했어요 · 마지막 픽업 ${since}버전 전"
+        val since = data.since(c, today) ?: return unmet
+        if (since == 0) return Text.get(R.string.lobby_waiting_this_version)
+        return Text.plural(R.plurals.lobby_waiting_since, since, since)
     }
 
     /** 호요랩 위키 캐릭터 문서(이름으로 찾는다). 못 찾으면 null. */

@@ -7,6 +7,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
 
+/** 픽업 기간에 쓰는 날짜(한국어 "10월 18일", 영어 "Oct 18"). */
+internal fun rerunDay(d: LocalDate) =
+    Text.get(R.string.rerun_day, d.monthValue, d.dayOfMonth, d.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH))
+
+/** 픽업이 끝나는 날과 남은 날, 예: "10월 18일까지 · 3일 남음". */
+internal fun rerunUntil(today: LocalDate, end: LocalDate): String {
+    val left = java.time.temporal.ChronoUnit.DAYS.between(today, end).toInt()
+    return Text.plural(R.plurals.rerun_period_until, left, rerunDay(end), left)
+}
+
 /** 복각표에 쓰는 버전 하나. label은 화면에 보일 이름(6.x는 'Luna I'처럼). */
 data class GameVersion(val v: String, val label: String, val start: LocalDate)
 
@@ -97,7 +107,6 @@ data class RerunData(
     /** 메인 화면 카드와 홈 화면 위젯에 쓰는 요약: 지금(없으면 다음) 픽업 캐릭터, 기간, 가장 오래 기다린 캐릭터. */
     /** 홈 카드에 보일 것. [fours]면 같은 픽업의 4성도 5성 뒤에 붙인다(복각표의 '4성 캐릭터도 보기'를 따른다). */
     fun card(today: LocalDate, fours: Boolean = false): RerunCardUi {
-        fun day(d: LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
         val live = live(today)
         val next = if (live.isEmpty()) upcoming(today) else emptyList()
         val shown = live.ifEmpty { next }
@@ -105,12 +114,13 @@ data class RerunData(
         val four = if (fours) shown.flatMap { it.four }.distinct().mapNotNull { character(it) }.map { it.ko to it.element } else emptyList()
         val chars = five + four
         val period = when {
-            live.isNotEmpty() -> live.minOf { it.end }.let { "${day(it)}까지 · ${java.time.temporal.ChronoUnit.DAYS.between(today, it)}일 남음" }
-            next.isNotEmpty() -> "${day(next.minOf { it.start })}부터"
+            live.isNotEmpty() -> rerunUntil(today, live.minOf { it.end })
+            next.isNotEmpty() -> Text.get(R.string.rerun_from, rerunDay(next.minOf { it.start }))
             else -> ""
         }
-        val oldest = ranked(today, standard = false).firstOrNull()?.let { (c, since) -> "가장 오래 기다린 캐릭터 · ${c.ko} ${since}버전째" }
-        return RerunCardUi(if (live.isNotEmpty()) "지금 픽업" else if (next.isNotEmpty()) "다음 픽업" else "복각표", period, chars, oldest, four.map { it.first }.toSet())
+        val oldest = ranked(today, standard = false).firstOrNull()?.let { (c, since) -> Text.plural(R.plurals.rerun_oldest, since, c.ko, since) }
+        val title = Text.get(if (live.isNotEmpty()) R.string.rerun_card_live else if (next.isNotEmpty()) R.string.rerun_next else R.string.rerun_title)
+        return RerunCardUi(title, period, chars, oldest, four.map { it.first }.toSet())
     }
 
     /** 오래 안 나온 순(같으면 이름순). 상시 캐릭터는 따로 보여 주므로 standard로 거른다. */
@@ -160,7 +170,7 @@ object Reruns {
             prefs.edit().putLong("checked_at", System.currentTimeMillis()).apply()
             return changed
         } catch (e: org.json.JSONException) {
-            throw IOException("복각표 자료를 읽지 못했어요")
+            throw IOException(Text.get(R.string.rerun_read_failed))
         } finally {
             conn.disconnect()
         }

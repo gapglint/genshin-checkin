@@ -78,9 +78,9 @@ class LoginActivity : Activity() {
         MainActivity.drawBehindSystemBars(window)
         val pageStore = pageAccountId?.let { AppSettings(this).account(it) }
         val screenTitle = when {
-            loginMode -> "호요랩 로그인"
-            intent.hasExtra(EXTRA_URL) -> intent.getStringExtra(EXTRA_TITLE) ?: "이벤트"
-            else -> "원신 출석체크 · ${pageStore?.displayName ?: ""}"
+            loginMode -> getString(R.string.login_title_login)
+            intent.hasExtra(EXTRA_URL) -> intent.getStringExtra(EXTRA_TITLE) ?: getString(R.string.login_title_event)
+            else -> getString(R.string.login_title_checkin, pageStore?.displayName ?: "")
         }
         title = screenTitle
 
@@ -91,14 +91,14 @@ class LoginActivity : Activity() {
         status.text = if (loginMode) {
             // 할 일(이메일·비밀번호 로그인)을 한 줄로 진하게, 나머지는 옅게.
             android.text.SpannableStringBuilder().apply {
-                append(LOGIN_HINT_HEAD, android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0)
+                append(getString(R.string.login_hint_head), android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0)
                 setSpan(android.text.style.ForegroundColorSpan(getColor(R.color.ink)), 0, length, 0)
-                append("\n구글 로그인은 구글이 막아서 안 될 수 있어요. 로그인되면 자동으로 닫히고, 1년 동안 유지돼요.")
+                append(getString(R.string.login_hint_tail))
             }
         } else if (intent.hasExtra(EXTRA_URL)) {
-            "${pageStore?.displayName ?: ""} 계정으로 로그인해서 열었어요. 페이지에서 보상 받기까지 눌러 주세요."
+            getString(R.string.login_page_status, pageStore?.displayName ?: "")
         } else {
-            "오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요."
+            getString(R.string.login_checkin_status)
         }
         webView = newWebView().apply {
             webViewClient = object : WebViewClient() {
@@ -123,7 +123,7 @@ class LoginActivity : Activity() {
                     frame.removeView(view)
                     view.destroy()
                     frame.addView(TextView(this@LoginActivity).apply {
-                        text = "로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도해 주세요."
+                        text = getString(R.string.login_engine_gone)
                         textSize = 15f
                         gravity = android.view.Gravity.CENTER
                         setTextColor(getColor(R.color.ink))
@@ -209,7 +209,7 @@ class LoginActivity : Activity() {
                             view.evaluateJavascript(GOOGLE_BLOCKED_JS) { found ->
                                 if (found == "true" && view === popup) {
                                     closePopup()
-                                    googleBlocked("구글 로그인이 막혔어요")
+                                    googleBlocked(getString(R.string.login_google_blocked))
                                 }
                             }
                         }
@@ -220,7 +220,7 @@ class LoginActivity : Activity() {
                             view.evaluateJavascript(BLANK_PAGE_JS) { blank ->
                                 if (blank == "true" && view === popup && loginCookie() == null) {
                                     closePopup()
-                                    googleBlocked("로그인이 끝나지 않았어요")
+                                    googleBlocked(getString(R.string.login_not_finished))
                                 }
                             }
                         }, BLANK_POPUP_MS)
@@ -242,9 +242,8 @@ class LoginActivity : Activity() {
     private fun googleBlocked(title: String) {
         AppDialog(this)
             .setTitle(title)
-            .setMessage("구글은 다른 앱 안에서 하는 구글 로그인을 막기도 해요. 이 로그인 창에서 구글 이메일 주소와 호요버스 비밀번호로 로그인해 주세요.\n\n" +
-                "비밀번호가 없다면 로그인 창의 「문제 발생」에서 새로 만들 수 있어요. 같은 계정이라 게임 데이터는 그대로예요.")
-            .setPositiveButton("이메일로 로그인")
+            .setMessage(getString(R.string.login_google_message))
+            .setPositiveButton(getString(R.string.login_email_button))
             .show()
     }
 
@@ -359,7 +358,7 @@ class LoginActivity : Activity() {
         val store = settings.saveLogin(id, cookie)
         CheckIn.schedule(this, restart = true)
         setResult(RESULT_OK)
-        val message = if (existing) "${store.displayName} 계정을 다시 로그인했어요." else "계정을 추가했어요. 이제 자동으로 출석해요."
+        val message = if (existing) getString(R.string.login_relogged, store.displayName) else getString(R.string.login_added)
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         finish()
     }
@@ -378,7 +377,6 @@ class LoginActivity : Activity() {
               return b.innerText.trim().length === 0 && !b.querySelector('img,svg,canvas,input,button,iframe,video');
             })()
         """
-        private const val LOGIN_HINT_HEAD = "호요버스 계정 이메일과 비밀번호로 로그인해 주세요"
         /** 구글의 '로그인할 수 없음(안전하지 않은 브라우저)' 화면인지. 주소(rejected·disallowed)나 문구로 본다. */
         private const val GOOGLE_BLOCKED_JS = """
             (function () {

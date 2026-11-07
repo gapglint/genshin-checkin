@@ -43,9 +43,9 @@ class LobbyStyleActivity : Activity() {
         MainActivity.drawBehindSystemBars(window)
         settings = AppSettings(this)
         val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
-        header.findViewById<TextView>(R.id.headerTitle).text = "홈 꾸미기"
+        header.findViewById<TextView>(R.id.headerTitle).text = getString(R.string.lobby_style_title)
         header.findViewById<View>(R.id.headerBack).setOnClickListener { finish() }
-        header.findViewById<TextView>(R.id.headerStatus).text = "로비형은 최애 캐릭터가 홈의 주인공이 되는 화면이에요. 언제든 카드형으로 돌아갈 수 있어요."
+        header.findViewById<TextView>(R.id.headerStatus).text = getString(R.string.lobby_style_intro)
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, dp(16), dp(32)) }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -61,7 +61,7 @@ class LobbyStyleActivity : Activity() {
         characters = Lobby.cachedCharacters(this, store).takeIf { it.isNotEmpty() }
         pool.execute {
             Lobby.refreshConfig(this)
-            val result = try { Lobby.refreshCharacters(this, store, force = characters == null) } catch (e: IOException) { loadError = "캐릭터를 불러오지 못했어요"; null }
+            val result = try { Lobby.refreshCharacters(this, store, force = characters == null) } catch (e: IOException) { loadError = getString(R.string.lobby_chars_load_failed); null }
             val all = Lobby.wikiCharacters(this)
             runOnUiThread { if (!isDestroyed) { if (result != null) characters = result; wiki = all; render() } }
         }
@@ -87,7 +87,7 @@ class LobbyStyleActivity : Activity() {
             val ok = try { Lobby.savePhoto(this, uri, resources.displayMetrics.widthPixels); true } catch (e: Exception) { false }
             runOnUiThread {
                 if (ok) settings.lobbyBackground = Lobby.BG_PHOTO
-                else Toast.makeText(this, "사진을 불러오지 못했어요", Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this, R.string.lobby_photo_failed,Toast.LENGTH_SHORT).show()
                 render()
             }
         }
@@ -98,52 +98,51 @@ class LobbyStyleActivity : Activity() {
         val store = settings.current()
         val fav = settings.favorite
 
-        section("홈 스타일")
-        choice("카드형", "출석·레진·달력을 카드로 한눈에 (기본)", settings.homeStyle == Lobby.STYLE_CARD) {
+        section(getString(R.string.lobby_section_style))
+        choice(getString(R.string.lobby_style_card), getString(R.string.lobby_style_card_sub), settings.homeStyle == Lobby.STYLE_CARD) {
             settings.homeStyle = Lobby.STYLE_CARD; render()
         }
-        choice("로비형", if (fav == null) "아래에서 최애 캐릭터를 먼저 골라 주세요" else "${fav.name}이(가) 홈의 주인공이 돼요", settings.homeStyle == Lobby.STYLE_LOBBY) {
-            if (store == null) Toast.makeText(this, "로그인하면 쓸 수 있어요", Toast.LENGTH_SHORT).show()
-            else if (settings.favorite == null) Toast.makeText(this, "최애 캐릭터를 먼저 골라 주세요", Toast.LENGTH_SHORT).show()
+        choice(getString(R.string.lobby_style_lobby),
+            if (fav == null) getString(R.string.lobby_style_lobby_pick) else getString(R.string.lobby_style_lobby_sub, fav.name), settings.homeStyle == Lobby.STYLE_LOBBY) {
+            if (store == null) Toast.makeText(this, R.string.lobby_need_login, Toast.LENGTH_SHORT).show()
+            else if (settings.favorite == null) Toast.makeText(this, R.string.lobby_pick_fav_first, Toast.LENGTH_SHORT).show()
             else { settings.homeStyle = Lobby.STYLE_LOBBY; render() }
         }
 
-        section("최애 캐릭터")
+        section(getString(R.string.lobby_section_fav))
         val chars = characters
         when {
-            store == null -> note("로그인하면 내 캐릭터 중에서 고를 수 있어요.")
-            chars == null -> note(loadError ?: "내 캐릭터를 불러오는 중이에요...")
-            chars.isEmpty() -> note("호요랩 전적에서 캐릭터를 찾지 못했어요.")
+            store == null -> note(getString(R.string.lobby_login_to_pick))
+            chars == null -> note(loadError ?: getString(R.string.lobby_chars_loading))
+            chars.isEmpty() -> note(getString(R.string.lobby_chars_none))
             // 순서는 등급·레벨로 고정한다(고른 최애를 앞으로 옮기면 누를 때 칸이 순간이동해 보인다).
             else -> characterGrid(chars.sortedWith(compareByDescending<OwnedCharacter> { it.rarity % 100 }.thenByDescending { it.level })
                 .map { Pick(it.name, it.element, it.image, it.id, it.rarity) }, fav)
         }
         if (store != null && chars != null) waitingSection(chars, fav)
 
-        section("캐릭터 음성")
-        if (!Lobby.officialVoicesAllowed(this)) note("지금은 캐릭터 음성을 쓸 수 없어요. 대사 글은 그대로 보여요.") else voiceChips()
-        note("음성·대사 © HoYoverse(호요랩 위키). 기본은 꺼져 있어요. 대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때 그 대사만 받고, 받은 건 폰에 두고 다시 써요. 최애나 언어를 바꾸면 이전 음성은 지워져요.")
+        section(getString(R.string.lobby_section_voice))
+        if (!Lobby.officialVoicesAllowed(this)) note(getString(R.string.lobby_voice_unavailable)) else voiceChips()
+        note(getString(R.string.lobby_voice_note))
         val voiceBytes = Lobby.voiceCacheBytes(this)
-        if (voiceBytes > 0) choice("저장된 음성 지우기", "지금 %.1fMB · 다시 들으면 다시 받아요".format(voiceBytes / 1_000_000.0), false) {
+        if (voiceBytes > 0) choice(getString(R.string.lobby_voice_clear), getString(R.string.lobby_voice_clear_sub, "%.1f".format(voiceBytes / 1_000_000.0)), false) {
             Lobby.clearVoiceCache(this); render()
         }
 
-        section("로비 배경")
+        section(getString(R.string.lobby_section_bg))
         val official = Lobby.officialArtAllowed(this)
-        if (official) choice("공식 그림", "호요랩 위키의 캐릭터 그림을 받아 이 폰에만 저장해요", settings.lobbyBackground == Lobby.BG_OFFICIAL) {
+        if (official) choice(getString(R.string.lobby_bg_official), getString(R.string.lobby_bg_official_sub), settings.lobbyBackground == Lobby.BG_OFFICIAL) {
             settings.lobbyBackground = Lobby.BG_OFFICIAL; render()
         }
-        choice("내 사진", if (Lobby.photoFile(this).exists()) "고른 사진을 써요 · 눌러서 바꾸기" else "갤러리에서 사진 고르기", settings.lobbyBackground == Lobby.BG_PHOTO) {
+        choice(getString(R.string.lobby_bg_photo),
+            getString(if (Lobby.photoFile(this).exists()) R.string.lobby_bg_photo_set else R.string.lobby_bg_photo_pick), settings.lobbyBackground == Lobby.BG_PHOTO) {
             @Suppress("DEPRECATION")
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*"), PICK_PHOTO)
         }
-        choice("원소 무늬", "최애 원소 색과 무늬만", settings.lobbyBackground == Lobby.BG_PATTERN || (!official && settings.lobbyBackground == Lobby.BG_OFFICIAL)) {
+        choice(getString(R.string.lobby_bg_pattern), getString(R.string.lobby_bg_pattern_sub), settings.lobbyBackground == Lobby.BG_PATTERN || (!official && settings.lobbyBackground == Lobby.BG_OFFICIAL)) {
             settings.lobbyBackground = Lobby.BG_PATTERN; render()
         }
-        note(
-            (if (official) "공식 그림의 저작권은 HoYoverse에 있어요. 앱에 넣지 않고 호요랩 위키에서 받아 이 폰에서만 보여 줘요.\n" else "지금은 공식 그림을 쓸 수 없어요. 내 사진이나 원소 무늬를 써 주세요.\n") +
-                "고른 사진은 줄여서 앱 안에만 저장하고, 어디에도 보내지 않아요."
-        )
+        note(getString(if (official) R.string.lobby_bg_note_official else R.string.lobby_bg_note_off))
     }
 
     /** 고를 수 있는 캐릭터 한 칸. 아직 없는 캐릭터는 id가 0이고 그림은 위키 얼굴 그림. */
@@ -156,13 +155,14 @@ class LobbyStyleActivity : Activity() {
     private fun waitingSection(owned: List<OwnedCharacter>, fav: Favorite?) {
         val ownedNames = owned.map { it.name }.toSet()
         val waitingFav = fav != null && fav.name !in ownedNames
-        choice("아직 없는 캐릭터 중에서", if (waitingFav) "${fav!!.name}을(를) 기다리는 중이에요 · 픽업이 열리면 알려 드려요" else "기다리는 캐릭터를 최애로 · 픽업이 열리면 알려 드려요",
+        choice(getString(R.string.lobby_waiting_choice),
+            if (waitingFav) getString(R.string.lobby_waiting_choice_fav, fav!!.name) else getString(R.string.lobby_waiting_choice_sub),
             waitingFav) { showWaiting = !showWaiting; render() }
         if (!showWaiting) return
         val all = wiki
         when {
-            all == null -> note("캐릭터 목록을 불러오는 중이에요...")
-            all.isEmpty() -> note("캐릭터 목록을 불러오지 못했어요.")
+            all == null -> note(getString(R.string.lobby_wiki_loading))
+            all.isEmpty() -> note(getString(R.string.lobby_wiki_failed))
             else -> characterGrid(all.filter { it.name !in ownedNames }
                 .map { Pick(it.name, it.element, it.icon, 0, it.rarity) }, fav)
         }
@@ -179,7 +179,7 @@ class LobbyStyleActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
                 setPadding(0, dp(8), 0, dp(4))
-                contentDescription = c.name + if (selected) ", 최애" else ""
+                contentDescription = if (selected) getString(R.string.lobby_cell_fav_desc, c.name) else c.name
                 setOnClickListener {
                     if (fav?.name != c.name) Lobby.clearVoiceCache(this@LobbyStyleActivity)
                     settings.favorite = Favorite(c.name, c.element, c.image, c.id)
@@ -238,7 +238,15 @@ class LobbyStyleActivity : Activity() {
     /** 음성 언어 고르기: 한국어·일본어·중국어·영어·끄기를 한 줄 칩으로. */
     private fun voiceChips() = list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
-        val options = Lobby.VOICE_LANGUAGES.keys.map { it to Lobby.VOICE_LANGUAGES.getValue(it) } + ("off" to "끄기")
+        // Lobby.VOICE_LANGUAGES의 값은 위키 자료의 언어 이름(한국어)이라 화면에는 리소스 이름을 쓴다.
+        fun voiceLabel(code: String) = when (code) {
+            "ko" -> getString(R.string.lobby_voice_ko)
+            "ja" -> getString(R.string.lobby_voice_ja)
+            "zh" -> getString(R.string.lobby_voice_zh)
+            "en" -> getString(R.string.lobby_voice_en)
+            else -> Lobby.VOICE_LANGUAGES.getValue(code)
+        }
+        val options = Lobby.VOICE_LANGUAGES.keys.map { it to voiceLabel(it) } + ("off" to getString(R.string.lobby_voice_off))
         for ((code, label) in options) {
             val selected = settings.voiceLanguage == code
             addView(TextView(this@LobbyStyleActivity).apply {
@@ -252,7 +260,7 @@ class LobbyStyleActivity : Activity() {
                     cornerRadius = dp(99).toFloat()
                     if (selected) setColor(getColor(R.color.action)) else { setColor(getColor(R.color.surface)); setStroke(dp(1), getColor(R.color.line)) }
                 }
-                contentDescription = "음성 ${text}" + if (selected) ", 선택됨" else ""
+                contentDescription = getString(if (selected) R.string.lobby_voice_chip_desc_selected else R.string.lobby_voice_chip_desc, label)
                 setOnClickListener { if (settings.voiceLanguage != code) Lobby.clearVoiceCache(this@LobbyStyleActivity); settings.voiceLanguage = code; render() }
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { if (code != "ko") leftMargin = dp(6) })
         }

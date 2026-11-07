@@ -35,7 +35,7 @@ class EventsActivity : Activity() {
         super.onCreate(savedInstanceState)
         MainActivity.drawBehindSystemBars(window)
         val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
-        header.findViewById<TextView>(R.id.headerTitle).text = "이벤트"
+        header.findViewById<TextView>(R.id.headerTitle).text = getString(R.string.events_title)
         header.findViewById<View>(R.id.headerBack).setOnClickListener { finish() }
         status = header.findViewById(R.id.headerStatus)
         list = LinearLayout(this).apply {
@@ -48,13 +48,13 @@ class EventsActivity : Activity() {
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(ScrollView(this@EventsActivity).apply { addView(list) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
-        LobbyMenu.dress(this, header as LinearLayout, root, "이벤트") { finish() }
+        LobbyMenu.dress(this, header as LinearLayout, root, getString(R.string.events_title)) { finish() }
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
         render()
         Events.markSeen(this)
         if (!Events.isFresh(this) || Events.cached(this).isEmpty()) Thread {
-            val error = try { Events.refresh(this, force = true); null } catch (e: IOException) { e.message ?: "네트워크 오류" }
+            val error = try { Events.refresh(this, force = true); null } catch (e: IOException) { e.message ?: getString(R.string.events_network_error) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 Events.markSeen(this)
@@ -68,10 +68,10 @@ class EventsActivity : Activity() {
     private fun render(error: String? = null) {
         val events = Events.live(this)
         status.text = when {
-            events.isNotEmpty() -> "호요랩의 원신 이벤트예요. 누르면 로그인된 상태로 열려요. 보상 받기는 직접 눌러 주세요."
-            error != null -> "불러오지 못했어요: $error"
-            Events.cached(this).isEmpty() -> "불러오는 중..."
-            else -> "지금 진행 중인 이벤트가 없어요."
+            events.isNotEmpty() -> getString(R.string.events_status)
+            error != null -> getString(R.string.events_load_failed, error)
+            Events.cached(this).isEmpty() -> getString(R.string.events_loading)
+            else -> getString(R.string.events_none)
         }
         if (events.isEmpty()) { renders++; list.removeAllViews(); return }
         // 이미 그려 둔 목록은 새 배너를 받는 동안 그대로 둔다. 배너를 받은 뒤 한 번에 그린다(오래 걸리면 3초 뒤 남은 그림은 자리만 두고 그린다).
@@ -96,7 +96,7 @@ class EventsActivity : Activity() {
                 opening = false
                 val account = AppSettings(this).current()?.accountId
                 if (account != null) {
-                    startActivity(LoginActivity.pageIntent(this, account, url, "이벤트"))
+                    startActivity(LoginActivity.pageIntent(this, account, url, getString(R.string.events_title)))
                 } else try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 } catch (x: android.content.ActivityNotFoundException) {
@@ -145,7 +145,8 @@ class EventsList(
             daysLeft(e)?.let { left ->
                 val soon = left <= 3
                 addView(TextView(context).apply {
-                    text = if (left <= 0) "오늘 끝나요" else "${left}일 남음"
+                    text = if (left <= 0) context.getString(R.string.events_ends_today)
+                        else context.resources.getQuantityString(R.plurals.events_days_left, left.toInt(), left.toInt())
                     textSize = 12f
                     setTypeface(typeface, Typeface.BOLD)
                     setTextColor(if (soon) context.getColor(R.color.on_gold) else Color.WHITE)
@@ -193,18 +194,20 @@ class EventsList(
 
     /** 제목으로 고른 표시: 웹이벤트, 원석 보상. */
     private fun tags(e: GameEvent) = listOfNotNull(
-        Triple("웹이벤트", R.color.hero, R.color.hero_ink).takeIf { e.path.startsWith("http") || "웹이벤트" in e.name || "웹 이벤트" in e.name },
-        Triple("원석", R.color.gold, R.color.on_gold).takeIf { "원석" in e.name },
+        // 제목 비교("웹이벤트"·"원석")는 호요랩 한국어 제목과 맞춰 보는 것이라 그대로 둔다.
+        Triple(context.getString(R.string.events_tag_web), R.color.hero, R.color.hero_ink).takeIf { e.path.startsWith("http") || "웹이벤트" in e.name || "웹 이벤트" in e.name },
+        Triple(context.getString(R.string.events_tag_primogem), R.color.gold, R.color.on_gold).takeIf { "원석" in e.name },
     )
 
     private fun daysLeft(e: GameEvent): Long? =
         if (e.end == 0L) null else java.time.Duration.between(java.time.Instant.ofEpochMilli(nowMs), java.time.Instant.ofEpochSecond(e.end)).toDays()
 
     private fun until(e: GameEvent): String {
-        if (e.end == 0L) return "상시 이벤트"
+        if (e.end == 0L) return context.getString(R.string.events_permanent)
         // 이벤트는 서버 시각(UTC+8) 23:59에 끝나는 일이 많아, 한국 시간으로 적으면 다음 날 새벽 0:59가 된다. 서버 날짜로 적는다.
         val end = java.time.Instant.ofEpochSecond(e.end).atZone(ServerClock.ZONE)
-        return "${end.monthValue}월 ${end.dayOfMonth}일까지"
+        return context.getString(R.string.events_until, end.monthValue, end.dayOfMonth,
+            end.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH))
     }
 }
 
