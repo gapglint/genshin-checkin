@@ -142,6 +142,10 @@ data class MainUiState(
     val appVersion: String = "",
     /** 메인 화면에 보이는 카드 수. */
     val cardCount: Int = 0,
+    /** 마지막 리딤에서 새로 넣은 코드 수(타일에 크게). 모르면 0. */
+    val redeemNew: Int = 0,
+    /** 이번 달 받은 원석(출석 보상 달력의 받은 칸 + 이 앱이 받은 리딤 코드). 모르면 null. */
+    val monthPrimos: Int? = null,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -569,8 +573,14 @@ class MainScreen(val root: View) {
                     cell.addView(LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = android.view.Gravity.CENTER
-                        addView(android.widget.ImageView(context).apply { setImageResource(itemIcon(slot.name)) },
-                            LinearLayout.LayoutParams(dp(22), dp(22)))
+                        // 공식 그림을 쓸 수 있으면 호요랩이 주는 게임 아이템 그림(받아 둔 것, 없으면 받아서 바꾼다), 아니면 앱 아이콘.
+                        addView(android.widget.ImageView(context).apply {
+                            val art = Lobby.cachedItemIcon(context, slot.icon)
+                            if (art != null) setImageBitmap(art) else {
+                                setImageResource(itemIcon(slot.name))
+                                Lobby.itemIconAsync(context, slot.icon) { setImageBitmap(it) }
+                            }
+                        }, LinearLayout.LayoutParams(dp(26), dp(26)))
                         addView(TextView(context).apply {
                             text = CheckInCalendar.compact(slot.count)
                             textSize = 11f
@@ -616,6 +626,8 @@ class MainScreen(val root: View) {
         tileRedeemValue.text = when {
             !s.redeemEnabled -> context.getString(R.string.main_redeem_off)
             s.redeemRole == null -> context.getString(R.string.main_redeem_pick_role)
+            // 새로 넣은 코드가 있으면 수를 크게: "1 새 코드 입력"
+            s.redeemNew > 0 -> bigNumber(s.redeemNew, context.resources.getQuantityString(R.plurals.main_tile_new_codes, s.redeemNew), R.color.accent)
             else -> s.redeemShort ?: context.getString(R.string.main_redeem_on)
         }
         tileRedeemValue.setTextColor(context.getColor(if (s.redeemEnabled && s.redeemRole == null) R.color.accent else R.color.ink))
@@ -625,14 +637,38 @@ class MainScreen(val root: View) {
             else -> context.getString(R.string.main_tap_to_check)
         }
         tileRedeem.isEnabled = s.busy == null
-        tileHistoryValue.text = when {
+        val unseen = when {
             s.historyUnseen >= RewardHistory.PAGE_SIZE -> context.getString(R.string.main_new_rewards_many, RewardHistory.PAGE_SIZE)
             s.historyUnseen > 0 -> context.resources.getQuantityString(R.plurals.main_new_rewards, s.historyUnseen, s.historyUnseen)
-            else -> context.getString(R.string.main_view_rewards)
+            else -> null
         }
-        tileHistoryValue.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink))
-        tileHistorySub.text = context.getString(R.string.main_history_sub)
+        // 이번 달 원석을 크게("원석 110"), 그 아래 새 보상 수. 원석을 모르면 예전처럼 새 보상 수.
+        if (s.monthPrimos != null) {
+            tileHistoryValue.text = bigNumber(s.monthPrimos, context.getString(R.string.main_tile_primos), R.color.ink)
+            tileHistorySub.text = unseen ?: context.getString(R.string.main_history_sub)
+            tileHistorySub.setTextColor(context.getColor(if (unseen != null) R.color.accent else R.color.ink_muted))
+        } else {
+            tileHistoryValue.text = unseen ?: context.getString(R.string.main_view_rewards)
+            tileHistoryValue.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink))
+            tileHistorySub.text = context.getString(R.string.main_history_sub)
+            tileHistorySub.setTextColor(context.getColor(R.color.ink_muted))
+        }
         tileHistoryDot.visibility = if (s.historyUnseen > 0) View.VISIBLE else View.GONE
+    }
+
+    /** 숫자는 크게, 뒤 글은 작게: "110 원석", "1 새 코드". */
+    private fun bigNumber(n: Int, label: String, colorRes: Int): CharSequence {
+        val number = "%,d".format(n)
+        return android.text.SpannableStringBuilder(number).apply {
+            setSpan(android.text.style.AbsoluteSizeSpan(26, true), 0, length, 0)
+            setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(context.getColor(colorRes)), 0, length, 0)
+            append("  ")
+            val start = length
+            append(label)
+            setSpan(android.text.style.AbsoluteSizeSpan(13, true), start, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(context.getColor(R.color.ink_muted)), start, length, 0)
+        }
     }
 
     private fun renderAccounts(s: MainUiState) {

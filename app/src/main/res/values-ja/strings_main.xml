@@ -318,4 +318,6 @@
     <string name="main_notify_group_check_in">チェックイン・コード</string>
     <string name="main_notify_group_game">ゲーム</string>
     <string name="main_notify_group_night">夜</string>
+    <plurals name="main_tile_new_codes"><item quantity="other">件の新しいコード</item></plurals>
+    <string name="main_tile_primos">原石</string>
 </resources>

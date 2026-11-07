@@ -692,6 +692,8 @@ class MainActivity : Activity() {
                     "$at · $summary"
                 },
                 redeemShort = store?.lastRedeemSummary?.substringBefore(":")?.trim(),
+                redeemNew = store?.lastRedeemNew?.coerceAtLeast(0) ?: 0,
+                monthPrimos = store?.let { monthPrimos(it) },
                 redeemWhen = store?.lastRedeemSummary?.let { DateFormat.format(getString(R.string.main_fmt_date_time), Date(store.lastRedeemAt)).toString() },
                 busy = busy,
                 busyProgress = busyProgress,
@@ -1072,6 +1074,21 @@ class MainActivity : Activity() {
         } catch (e: ActivityNotFoundException) {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
+    }
+
+    /**
+     * 이번 달 받은 원석: 출석 보상 달력에서 받은 칸(누적 일수만큼, 보충 포함)의 원석 + 이 앱이 이번 달 받은 리딤 코드의 원석.
+     * 이번 달 달력을 아직 못 받았으면 null(타일은 예전처럼 새 보상 수를 보인다).
+     */
+    private fun monthPrimos(store: Store): Int? {
+        val month = Store.checkInDay().toString().take(7)
+        val slots = store.calendarAwards.takeIf { store.calendarDay?.take(7) == month && it.isNotEmpty() } ?: return null
+        val signed = if (store.signedDay?.startsWith(month) == true) store.signedTotal else 0
+        val fromCheckIn = slots.take(signed).filter { ItemIcons.isPrimogem(it.name) }.sumOf { it.count }
+        val monthStart = java.time.LocalDate.parse("$month-01")
+        val fromCodes = store.redeemLog.filter { ServerClock.dayOf(it.at) >= monthStart }
+            .sumOf { c -> c.reward?.let { Redeem.rewardItems(it, DataLang.KO) }.orEmpty().filter { (name, _) -> ItemIcons.isPrimogem(name) }.sumOf { it.second } }
+        return fromCheckIn + fromCodes
     }
 
     private val appVersion by lazy { try { packageManager.getPackageInfo(packageName, 0).versionName ?: "" } catch (e: Exception) { "" } }

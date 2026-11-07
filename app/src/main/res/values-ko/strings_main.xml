@@ -318,4 +318,6 @@
     <string name="main_notify_group_check_in">출석·코드</string>
     <string name="main_notify_group_game">게임</string>
     <string name="main_notify_group_night">밤</string>
+    <plurals name="main_tile_new_codes"><item quantity="other">새 코드 입력</item></plurals>
+    <string name="main_tile_primos">원석</string>
 </resources>

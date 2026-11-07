@@ -142,6 +142,20 @@ object Lobby {
         return if (file.exists()) BitmapFactory.decodeFile(file.path)?.also { itemMemory.put(url, it) } else null
     }
 
+    private val itemLoader = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "item-icons").apply { isDaemon = true } }
+    private val itemLoading = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /** 받아 두지 않은 아이템 그림을 배경에서 받아 [done]을 화면 스레드에서 부른다. 같은 그림은 한 번만 받는다. */
+    fun itemIconAsync(context: Context, url: String, done: (Bitmap) -> Unit) {
+        if (!url.startsWith("https://") || !officialArtAllowed(context) || !itemLoading.add(url)) return
+        val app = context.applicationContext ?: context
+        itemLoader.execute {
+            val bmp = itemIcon(app, url)
+            itemLoading.remove(url)
+            if (bmp != null) android.os.Handler(android.os.Looper.getMainLooper()).post { done(bmp) }
+        }
+    }
+
     /** 호요랩 출석 보상 아이템 그림(작은 PNG)을 받아 임시 저장 공간에 둔다. 네트워크라 배경 스레드에서. */
     fun itemIcon(context: Context, url: String): Bitmap? {
         cachedItemIcon(context, url)?.let { return it }

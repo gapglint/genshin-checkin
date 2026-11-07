@@ -327,4 +327,6 @@
     <string name="main_notify_group_check_in">Check-in &amp; codes</string>
     <string name="main_notify_group_game">In game</string>
     <string name="main_notify_group_night">Night</string>
+    <plurals name="main_tile_new_codes"><item quantity="one">new code</item><item quantity="other">new codes</item></plurals>
+    <string name="main_tile_primos">Primogems</string>
 </resources>
