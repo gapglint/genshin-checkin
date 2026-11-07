@@ -159,6 +159,7 @@ object Notes {
             maxResin = n.maxResin,
             fullLabel = if (resin >= n.maxResin) "" else Text.get(R.string.core_notes_full_in, duration(n.resinFullAt - now)),
             fullTime = if (resin >= n.maxResin) Text.get(R.string.core_notes_full) else clock(n.resinFullAt),
+            fullAt = n.resinFullAt,
             expeditions = when {
                 n.expeditionsTotal == 0 -> Text.get(R.string.core_notes_none)
                 allBack -> Text.get(R.string.core_notes_done, n.expeditionsTotal, n.expeditionsTotal)

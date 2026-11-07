@@ -33,6 +33,16 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getString("last_problem", null)
         set(value) = prefs.edit { putString("last_problem", value) }
 
+    /** 마지막 문제의 종류("login", "captcha", 그 밖은 null). 화면이 문구 대신 이것으로 안내를 고른다(언어와 관계없이). */
+    var lastProblemKind: String?
+        get() = prefs.getString("last_problem_kind", null)
+        set(value) = prefs.edit { putString("last_problem_kind", value) }
+
+    /** 마지막 리딤에서 새로 받은 코드 수. 로비가 '오늘 새 코드 받음'을 문구 대신 이것으로 안다. -1이면 모름(이 값을 저장하기 전). */
+    var lastRedeemNew: Int
+        get() = prefs.getInt("last_redeem_new", -1)
+        set(value) = prefs.edit { putInt("last_redeem_new", value) }
+
     var lastProblemDay: String?
         get() = prefs.getString("last_problem_day", null)
         set(value) = prefs.edit { putString("last_problem_day", value) }

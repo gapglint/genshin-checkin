@@ -1225,8 +1225,9 @@ class MainActivity : Activity() {
         val notes = s.notes
         val resinFull = notes != null && notes.resin >= notes.maxResin
         val redeemedToday = store?.lastRedeemAt?.let { it > 0 && ServerClock.dayOf(it) == ServerClock.today() } == true &&
-            s.redeemShort?.startsWith("새 코드") == true
+            (store?.lastRedeemNew?.takeIf { it >= 0 }?.let { it > 0 } ?: (s.redeemShort?.startsWith("새 코드") == true))
         val note = s.note
+        val problemKind = store?.lastProblemKind
         // 앱이 한 일 한 줄. 최애 대사가 있으면 대사 아래에 작게, 없으면 인사와 함께 보인다.
         val status = when {
             s.busy != null -> getString(R.string.main_status_busy, s.busy.trimEnd('.', ' '))
@@ -1239,11 +1240,19 @@ class MainActivity : Activity() {
         }
         val quote = lobbyQuote(fav, hour, note != null, s.signedToday && (redeemedToday || s.historyUnseen > 0))
         val greeting = if (quote != null) status else if (note != null) status.replace(". ", ".\n") else getString(R.string.main_lobby_greeting, hello, who, status)
-        val big = notes?.fullTime?.takeIf { it.isNotEmpty() && !resinFull }?.removePrefix("오전 ")?.removePrefix("오후 ")
+        // 오늘 가득 차면 시각만 크게("3:20")와 오전/오후 설명, 내일 이후면 날짜가 붙은 문장 그대로.
+        val zone = java.time.ZoneId.systemDefault()
+        val fullAt = notes?.fullAt?.takeIf { it > 0 && !resinFull && notes.fullTime.isNotEmpty() }?.let { java.time.Instant.ofEpochMilli(it).atZone(zone) }
+        val fullToday = fullAt != null && fullAt.toLocalDate() == java.time.Instant.ofEpochMilli(ServerClock.now()).atZone(zone).toLocalDate()
+        val big = when {
+            fullAt == null -> null
+            fullToday -> "${(fullAt.hour % 12).let { if (it == 0) 12 else it }}:${"%02d".format(fullAt.minute)}"
+            else -> notes.fullTime
+        }
         val bigLabel = when {
-            resinFull -> null
-            big != null -> getString(if (notes.fullTime.startsWith("오전")) R.string.main_lobby_full_am else R.string.main_sum_resin_full)
-            else -> null
+            big == null -> null
+            fullToday && fullAt!!.hour < 12 -> getString(R.string.main_lobby_full_am)
+            else -> getString(R.string.main_sum_resin_full)
         }
         val gameButton = if (s.gameInstalled) getString(R.string.main_launch_game) else null
         val launchGame = { Game.launchIntent(this)?.let { startActivity(it) }; Unit }
@@ -1257,12 +1266,13 @@ class MainActivity : Activity() {
         )
         return when {
             s.busy != null -> { dockAction = {}; base.copy(dockTone = DockTone.BUSY, dockTitle = s.busy, busyProgress = s.busyProgress) }
-            note != null && note.startsWith("로그인이 풀려") -> {
+            // 문제 종류는 저장한 값으로(언어와 관계없이). 종류를 저장하기 전 기록이면 예전처럼 문구로 본다.
+            note != null && (problemKind == "login" || problemKind == null && note.startsWith("로그인이 풀려")) -> {
                 dockAction = { startActivity(LoginActivity.loginIntent(this)) }
                 base.copy(dockTone = DockTone.WARN, dockTitle = getString(R.string.main_login_expired_title),
                     dockSub = getString(R.string.main_dock_relogin_sub), dockButton = getString(R.string.main_login_again))
             }
-            note != null && note.contains("캡차") -> {
+            note != null && (problemKind == "captcha" || problemKind == null && note.contains("캡차")) -> {
                 dockAction = { store?.let { startActivity(LoginActivity.checkInPageIntent(this, it.accountId)) } }
                 base.copy(dockTone = DockTone.WARN, dockTitle = getString(R.string.main_dock_captcha_title),
                     dockSub = getString(R.string.main_dock_captcha_sub), dockButton = getString(R.string.main_open_check_in_page))

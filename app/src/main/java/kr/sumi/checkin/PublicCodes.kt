@@ -121,7 +121,7 @@ object PublicCodes {
         if (server == ALL_SERVERS) Text.get(R.string.core_codes_server_all)
         else SERVER_TEXT.entries.fold(server) { text, (ko, id) -> text.replace(ko, Text.get(id)) }
 
-    private const val ALL_SERVERS = "전 서버"
+    const val ALL_SERVERS = "전 서버"
     private val SERVER_TEXT = mapOf(
         "아시아" to R.string.core_codes_server_asia, "미국" to R.string.core_codes_server_usa, "유럽" to R.string.core_codes_server_euro,
     )

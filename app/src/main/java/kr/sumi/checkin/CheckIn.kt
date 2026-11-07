@@ -67,6 +67,11 @@ object CheckIn {
             store.lastProblem = null
         } else {
             store.lastProblem = describe(outcome)
+            store.lastProblemKind = when (outcome) {
+                is Outcome.LoginExpired -> "login"
+                is Outcome.CaptchaRequired -> "captcha"
+                else -> null
+            }
             store.lastProblemDay = today
         }
         store.lastRunAt = ServerClock.now()

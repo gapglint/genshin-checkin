@@ -166,6 +166,7 @@ object Redeem {
         val report = RedeemReport(found, attempts, stop)
         store.lastRedeemAt = ServerClock.now()
         store.lastRedeemSummary = summary(report)
+        store.lastRedeemNew = report.redeemed.size
         return report
     }
 

@@ -103,8 +103,8 @@ class RewardHistoryScreen(private val context: Context) {
         val codes = s.codes.filter { ServerClock.dayOf(it.at).toString().startsWith(s.month) }
         val items = attendance.map { it.name to it.count } + codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) }
         val totals = RewardHistory.totals(items)
-        val primo = totals.firstOrNull { it.first == "원석" }?.second ?: 0
-        val mora = totals.firstOrNull { it.first == "모라" }?.second ?: 0
+        val primo = totals.firstOrNull { (it.first == "원석" || it.first == "Primogem") }?.second ?: 0
+        val mora = totals.firstOrNull { (it.first == "모라" || it.first == "Mora") }?.second ?: 0
         val others = totals.count { it.first != "원석" && it.first != "모라" }
 
         val card = LinearLayout(context).apply {
@@ -218,10 +218,10 @@ class RewardHistoryScreen(private val context: Context) {
     }
 
     private fun iconFor(name: String) = when {
-        name.contains("원석") -> R.drawable.ic_item_primogem
-        name.contains("모라") -> R.drawable.ic_item_mora
-        name.contains("경험") -> R.drawable.ic_item_book
-        name.contains("광석") -> R.drawable.ic_item_ore
+        (name.contains("원석") || name.contains("Primogem")) -> R.drawable.ic_item_primogem
+        (name.contains("모라") || name.contains("Mora")) -> R.drawable.ic_item_mora
+        (name.contains("경험") || name.contains("Experience")) -> R.drawable.ic_item_book
+        (name.contains("광석") || name.contains("Ore")) -> R.drawable.ic_item_ore
         else -> R.drawable.ic_item_gift
     }
 

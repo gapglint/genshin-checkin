@@ -8,10 +8,10 @@ import android.widget.LinearLayout
 /** 보상 이름(한국어)에 맞는 직접 그린 아이템 아이콘. */
 object ItemIcons {
     fun of(reward: String?) = when {
-        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
-        reward.contains("모라") -> R.drawable.ic_item_mora
-        reward.contains("경험") -> R.drawable.ic_item_book
-        reward.contains("광석") -> R.drawable.ic_item_ore
+        reward == null || (reward.contains("원석") || reward.contains("Primogem")) -> R.drawable.ic_item_primogem
+        (reward.contains("모라") || reward.contains("Mora")) -> R.drawable.ic_item_mora
+        (reward.contains("경험") || reward.contains("Experience")) -> R.drawable.ic_item_book
+        (reward.contains("광석") || reward.contains("Ore")) -> R.drawable.ic_item_ore
         else -> R.drawable.ic_item_gift
     }
 }
@@ -34,6 +34,8 @@ data class NotesUi(
     val commissionsSub: String,
     /** 펼쳤을 때 맨 아래, 예: "오후 3:02 기준". */
     val updated: String,
+    /** 레진이 가득 차는 시각(서버 기준 밀리초, 모르면 0). 로비가 시각만 크게 쓸 때 쓴다. */
+    val fullAt: Long = 0,
 )
 
 /** 메인 화면에 그릴 내용. 저장소에서 만들고, 화면은 이것만 보고 그린다. 계정에 관한 값은 지금 고른 계정 것이다. */
@@ -579,7 +581,7 @@ class MainScreen(val root: View) {
             calendarGrid.addView(row)
         }
         // 다음 원석이 언제인지, 놓친 날이 있으면 보충 안내.
-        val nextPrimo = (next..s.calendar.size).firstOrNull { s.calendar[it - 1].name.contains("원석") && it <= s.calendarReachable }
+        val nextPrimo = (next..s.calendar.size).firstOrNull { s.calendar[it - 1].name.let { n -> n.contains("원석") || n.contains("Primogem") } && it <= s.calendarReachable }
         val primoText = nextPrimo?.let {
             val days = it - next + (if (s.signedToday) 1 else 0)
             val whenText = if (days == 0) context.getString(R.string.main_when_today) else context.resources.getQuantityString(R.plurals.main_days_later, days, days)
@@ -699,8 +701,9 @@ class MainScreen(val root: View) {
                         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
                         if (row.live) pill(context.getString(R.string.main_code_live), R.color.rerun_recent, R.color.on_action)
                         else if (row.isNew) pill("NEW", R.color.gold, R.color.on_gold)
-                        if (row.server == "전 서버") pill(row.server, R.color.item_tile, R.color.ink_muted)
-                        else pill(row.server, R.color.element_hydro, R.color.on_action)
+                        // row.server는 사이트 자료 그대로(한국어). 보일 때는 지금 언어로.
+                        if (row.server == PublicCodes.ALL_SERVERS) pill(PublicCodes.serverText(row.server), R.color.item_tile, R.color.ink_muted)
+                        else pill(PublicCodes.serverText(row.server), R.color.element_hydro, R.color.on_action)
                     })
                     // 만료일은 보상 앞에 적는다(곧 끝나면 붉게). 표시가 한 줄에 넘치지 않게 둘째 줄로.
                     val detail = listOfNotNull(row.until, reward).joinToString(" · ")
