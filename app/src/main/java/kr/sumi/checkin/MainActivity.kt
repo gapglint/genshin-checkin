@@ -1251,6 +1251,7 @@ class MainActivity : Activity() {
             name = fav.name, element = fav.element, meta = meta, greeting = greeting,
             resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
             dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
+            face = if (credit) Lobby.portraitFace(this, fav.name) else null,
             account = s.accounts.takeIf { it.size > 1 }?.firstOrNull { it.id == s.currentId }?.label,
             quote = quote?.text, voice = Lobby.officialVoicesAllowed(this) && quote?.audioFor(settings.voiceLanguage) != null,
         )
@@ -1325,6 +1326,7 @@ class MainActivity : Activity() {
                 LobbyView.MENU_PICKUP -> startActivity(RerunActivity.intent(this@MainActivity))
                 LobbyView.MENU_EVENTS -> startActivity(EventsActivity.intent(this@MainActivity))
                 LobbyView.MENU_CARDS -> { lobbyHidden = true; refresh(); updateBackCallback() }
+                LobbyView.MENU_CHECKIN -> openLobbyMenu(getString(R.string.main_card_check_in)) { checkInMenu() }
                 LobbyView.MENU_DECORATE -> startActivity(LobbyStyleActivity.intent(this@MainActivity))
             }
         }
@@ -1475,8 +1477,35 @@ class MainActivity : Activity() {
             head(getString(R.string.main_today_cap))
             row(ItemIcons.of(store.lastReward), getString(if (signed) R.string.main_signed_done else R.string.main_dock_waiting), if (signed) store.lastReward else null)
             settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, getString(R.string.main_next_auto), describeNextRun(it)) }
-            store.makeUpMissed?.takeIf { store.makeUpDay == today.toString() && it > 0 }?.let { row(R.drawable.ic_item_gift, resources.getQuantityString(R.plurals.main_make_up_link, it, it)) { closeLobbyMenu(); makeUpNow() } }
             row(R.drawable.ic_check_badge, getString(R.string.main_open_check_in_page_link)) { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
+        }
+        // 보충 출석: 카드형의 보충 카드처럼 늘 보인다(할 수 있으면 버튼, 오늘 받은 것, 아니면 지금 상태).
+        card {
+            head(getString(R.string.main_lobby_make_up_head))
+            val canMakeUp = store.makeUpMissed.takeIf { store.makeUpDay == today.toString() && it > 0 }
+            val doneToday = store.takeIf { it.makeUpDoneDay == today.toString() }?.let { MakeUp.todaySummary(it.makeUpRewards) }
+            when {
+                canMakeUp != null -> {
+                    row(R.drawable.ic_item_gift, resources.getQuantityString(R.plurals.main_make_up_link, canMakeUp, canMakeUp)) { closeLobbyMenu(); makeUpNow() }
+                    line(getString(R.string.main_lobby_make_up_note))
+                }
+                doneToday != null -> row(R.drawable.ic_check_badge, getString(R.string.main_lobby_make_up_done), doneToday)
+                // 호요랩은 오늘 출석을 먼저 해야 보충을 허락한다. 출석 뒤에는 보충권·이번 달 횟수가 없으면 못 한다.
+                store.calendarMissed > 0 -> row(R.drawable.ic_item_gift, resources.getQuantityString(R.plurals.main_lobby_missed_month, store.calendarMissed, store.calendarMissed),
+                    getString(if (signed) R.string.main_lobby_make_up_unavailable else R.string.main_lobby_make_up_after_check_in))
+                else -> row(R.drawable.ic_check_badge, getString(R.string.main_lobby_missed_none))
+            }
+        }
+        // 계정: 카드형 화면의 계정 칩 대신. 누르면 그 계정으로 바꾸고, 계정이 하나여도 여기서 더할 수 있다.
+        card {
+            head(getString(R.string.main_lobby_accounts_head))
+            for (a in settings.accounts()) {
+                val current = a.accountId == store.accountId
+                row(R.drawable.ic_account, a.displayName, getString(if (current) R.string.main_lobby_account_current else if (a.signedToday) R.string.main_signed_done else R.string.main_lobby_account_not_signed)) {
+                    if (!current) { settings.currentId = a.accountId; lobbyArtKey = null; closeLobbyMenu(); refresh() }
+                }
+            }
+            row(R.drawable.ic_account, getString(R.string.main_lobby_account_add)) { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
         }
     }
 

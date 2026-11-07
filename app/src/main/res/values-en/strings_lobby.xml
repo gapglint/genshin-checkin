@@ -33,6 +33,7 @@
     <string name="lobby_menu_pickup">Banners</string>
     <string name="lobby_menu_events">Events</string>
     <string name="lobby_menu_cards">Cards</string>
+    <string name="lobby_menu_checkin">Check-in</string>
     <string name="lobby_menu_decorate">Style</string>
     <string name="lobby_fav_badge">★ Favourite</string>
     <string name="lobby_credit_art">Art</string>

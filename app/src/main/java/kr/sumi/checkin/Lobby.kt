@@ -128,6 +128,31 @@ object Lobby {
     private const val FACES_URL = "https://apps.sumi.kr/checkin/data/faces.json"
     private val faceMemory = android.util.LruCache<String, Bitmap>(128)
 
+    // ---------- 출석 보상 아이템 그림 ----------
+
+    private val itemMemory = android.util.LruCache<String, Bitmap>(64)
+    private fun itemFile(context: Context, url: String) = File(File(context.cacheDir, "items").apply { mkdirs() }, "${url.hashCode().toUInt()}.png")
+
+    /** 받아 둔 아이템 그림만(받지 않는다). 공식 그림이 꺼져 있거나 없으면 null. */
+    fun cachedItemIcon(context: Context, url: String): Bitmap? {
+        if (!url.startsWith("https://") || !officialArtAllowed(context)) return null
+        itemMemory.get(url)?.let { return it }
+        val file = itemFile(context, url)
+        return if (file.exists()) BitmapFactory.decodeFile(file.path)?.also { itemMemory.put(url, it) } else null
+    }
+
+    /** 호요랩 출석 보상 아이템 그림(작은 PNG)을 받아 임시 저장 공간에 둔다. 네트워크라 배경 스레드에서. */
+    fun itemIcon(context: Context, url: String): Bitmap? {
+        cachedItemIcon(context, url)?.let { return it }
+        if (!url.startsWith("https://") || !officialArtAllowed(context)) return null
+        return try {
+            saveImage(itemFile(context, url), getBytes(url))
+            cachedItemIcon(context, url)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /** 저장해 둔 얼굴 그림만(받지 않는다). 공식 그림이 꺼져 있으면 null. 화면을 바로 그릴 때 쓴다. */
     fun cachedFace(context: Context, ko: String): Bitmap? {
         if (!officialArtAllowed(context)) return null
@@ -264,6 +289,17 @@ object Lobby {
     }
 
     /** 사이트의 얼굴 위치 목록(하루에 한 번 받는다). 못 받으면 지난 것, 그것도 없으면 null. */
+    /** 받아 둔 얼굴 위치만(받지 않는다): 최애의 세로 그림에서 얼굴이 있는 곳(비율). 로비 말풍선이 얼굴을 피하는 데 쓴다. */
+    fun portraitFace(context: Context, name: String): android.graphics.RectF? {
+        val raw = prefs(context).getString("portraits", null) ?: return null
+        val json = portraitsMemo?.takeIf { it.first == raw }?.second ?: try { JSONObject(raw) } catch (e: Exception) { return null }
+        portraitsMemo = raw to json
+        val f = json.optJSONObject(name)?.optJSONArray("face")?.takeIf { it.length() == 4 } ?: return null
+        return android.graphics.RectF(f.optDouble(0).toFloat(), f.optDouble(1).toFloat(), f.optDouble(2).toFloat(), f.optDouble(3).toFloat())
+    }
+
+    private var portraitsMemo: Pair<String, JSONObject>? = null
+
     private fun portraits(context: Context): JSONObject? {
         val p = prefs(context)
         val cached = p.getString("portraits", null)

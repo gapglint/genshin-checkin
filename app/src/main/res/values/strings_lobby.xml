@@ -30,6 +30,7 @@
     <string name="lobby_menu_pickup">픽업</string>
     <string name="lobby_menu_events">이벤트</string>
     <string name="lobby_menu_cards">카드</string>
+    <string name="lobby_menu_checkin">출석</string>
     <string name="lobby_menu_decorate">꾸미기</string>
     <string name="lobby_fav_badge">★ 최애</string>
     <string name="lobby_credit_art">그림</string>

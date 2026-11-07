@@ -286,4 +286,16 @@
         <item quantity="one">%1$d kind</item>
         <item quantity="other">%1$d kinds</item>
     </plurals>
+    <!-- Lobby check-in menu: make-up and accounts -->
+    <string name="main_lobby_make_up_head">Make-up check-in</string>
+    <string name="main_lobby_make_up_note">The app collects make-up cards for you</string>
+    <string name="main_lobby_make_up_done">Made up today</string>
+    <plurals name="main_lobby_missed_month"><item quantity="one">Missed %1$d day this month</item><item quantity="other">Missed %1$d days this month</item></plurals>
+    <string name="main_lobby_make_up_unavailable">Can\'t make up now</string>
+    <string name="main_lobby_make_up_after_check_in">After today\'s check-in</string>
+    <string name="main_lobby_missed_none">No missed days this month</string>
+    <string name="main_lobby_accounts_head">Accounts</string>
+    <string name="main_lobby_account_current">Current</string>
+    <string name="main_lobby_account_not_signed">Not yet</string>
+    <string name="main_lobby_account_add">+ Add account ›</string>
 </resources>

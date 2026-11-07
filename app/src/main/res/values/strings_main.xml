@@ -277,4 +277,16 @@
     <plurals name="main_item_kinds">
         <item quantity="other">%1$d종</item>
     </plurals>
+    <!-- 로비 출석 메뉴: 보충 출석·계정 -->
+    <string name="main_lobby_make_up_head">보충 출석</string>
+    <string name="main_lobby_make_up_note">보충권은 앱이 대신 받아 와요</string>
+    <string name="main_lobby_make_up_done">오늘 보충 완료</string>
+    <plurals name="main_lobby_missed_month"><item quantity="other">이번 달 놓친 날 %1$d일</item></plurals>
+    <string name="main_lobby_make_up_unavailable">지금은 보충할 수 없어요</string>
+    <string name="main_lobby_make_up_after_check_in">오늘 출석 뒤에 확인해요</string>
+    <string name="main_lobby_missed_none">이번 달 놓친 날 없음</string>
+    <string name="main_lobby_accounts_head">계정</string>
+    <string name="main_lobby_account_current">지금 계정</string>
+    <string name="main_lobby_account_not_signed">출석 전</string>
+    <string name="main_lobby_account_add">+ 계정 추가 ›</string>
 </resources>

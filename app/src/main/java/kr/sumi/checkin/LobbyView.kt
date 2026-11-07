@@ -67,6 +67,8 @@ data class LobbyUi(
     val quote: String? = null,
     /** 대사에 음성이 있으면 말풍선에 스피커 표시(누르면 듣는다). */
     val voice: Boolean = false,
+    /** 배경 그림에서 얼굴이 있는 곳(그림 크기에 대한 비율). 말풍선이 얼굴을 가리지 않게 옮긴다. 모르면 null. */
+    val face: android.graphics.RectF? = null,
 )
 
 /**
@@ -93,6 +95,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
         const val MENU_PICKUP = "pickup"
         const val MENU_EVENTS = "events"
         const val MENU_CARDS = "cards"
+        const val MENU_CHECKIN = "checkin"
         const val MENU_DECORATE = "decorate"
     }
 
@@ -148,6 +151,31 @@ class LobbyView(context: Context) : FrameLayout(context) {
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
         breathing?.let { if (isVisible) it.resume() else it.pause() }
+    }
+
+    /**
+     * 말풍선 위치(위쪽 여백). 기본은 위쪽 막대 아래. 배경 그림의 얼굴과 겹치면 머리 위로, 자리가 없으면 얼굴 아래로 옮긴다.
+     * 아래쪽 이름표·패널까지 내려가야 하면 기본 자리에 둔다(대사를 못 보는 것보다 낫다).
+     */
+    private fun bubbleTop(bubble: View, face: android.graphics.RectF?, art: Bitmap?, w: Int, h: Int): Int {
+        val top = insetTop + dp(68)
+        if (face == null || art == null || w <= 0) return top
+        val imgH = w * art.height / art.width
+        bubble.measure(MeasureSpec.makeMeasureSpec(w - dp(16 + 86), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        val bw = bubble.measuredWidth
+        val bh = bubble.measuredHeight
+        val gap = dp(8)
+        val faceTop = (face.top * imgH).toInt() - gap
+        val faceBottom = (face.bottom * imgH).toInt() + gap
+        val overlapsX = dp(16) < face.right * w && dp(16) + bw > face.left * w
+        fun clear(y: Int) = !overlapsX || y + bh <= faceTop || y >= faceBottom
+        if (clear(top)) return top
+        // 머리 위: 위쪽 막대(계정·레진) 아래까지만 올린다.
+        val above = faceTop - bh
+        if (above >= insetTop + dp(56)) return above
+        // 얼굴 아래: 아래쪽 이름표·패널(약 300dp) 위까지만.
+        if (faceBottom + bh <= h - insetBottom - dp(300)) return faceBottom
+        return top
     }
 
     override fun onDetachedFromWindow() {
@@ -244,7 +272,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
         addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(12), dp(16), 0) })
 
         // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사, 🔊는 지금 대사 다시 듣기, ✕는 닫기.
-        if (!bubbleHidden) addView(LinearLayout(context).apply {
+        if (!bubbleHidden) LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(10))
             val r = dp(14).toFloat()
@@ -302,7 +330,9 @@ class LobbyView(context: Context) : FrameLayout(context) {
                     addView(closeButton())
                 })
             }
-        }, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(68), dp(86), 0) })
+        }.let { bubble ->
+            addView(bubble, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), bubbleTop(bubble, ui.face, art, w, h), dp(86), 0) })
+        }
 
         // 오른쪽 메뉴
         val side = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -310,7 +340,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             Menu(R.drawable.ic_item_gift, context.getString(R.string.lobby_menu_rewards), MENU_REWARDS, ui.rewardsDot || ui.redeemDot),
             Menu(R.drawable.ic_rerun, context.getString(R.string.lobby_menu_pickup), MENU_PICKUP, false),
             Menu(R.drawable.ic_events, context.getString(R.string.lobby_menu_events), MENU_EVENTS, ui.eventsDot),
-            Menu(R.drawable.ic_lobby_cards, context.getString(R.string.lobby_menu_cards), MENU_CARDS, false),
+            Menu(R.drawable.ic_calendar, context.getString(R.string.lobby_menu_checkin), MENU_CHECKIN, false),
             Menu(R.drawable.ic_edit, context.getString(R.string.lobby_menu_decorate), MENU_DECORATE, false),
         )) {
             val size = iconSize
@@ -509,6 +539,9 @@ class LobbyMenu(
     companion object {
         const val HEADER_DP = 176
 
+        /** 아이템 그림을 받는 일꾼 하나(메뉴를 여러 번 열어도 같은 것을 쓴다). */
+        private val iconPool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "item-icons").apply { isDaemon = true } }
+
         /** 로비 메뉴 바탕색(다크 모드면 어둡게). 로비에서 연 카드 화면도 같은 바탕을 쓴다. */
         fun pageColor(context: Context, t: LobbyTheme): Int {
             val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
@@ -677,7 +710,17 @@ class LobbyMenu(
                     cell.addView(LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER
-                        addView(ImageView(context).apply { setImageResource(ItemIcons.of(slot.name)) }, LinearLayout.LayoutParams(dp(22), dp(22)))
+                        // 공식 그림을 쓰면 호요랩의 아이템 그림(게임과 같은 그림), 아니면 앱의 아이콘.
+                        addView(ImageView(context).apply {
+                            val cached = Lobby.cachedItemIcon(context, slot.icon)
+                            if (cached != null) setImageBitmap(cached) else {
+                                setImageResource(ItemIcons.of(slot.name))
+                                if (slot.icon.isNotEmpty() && Lobby.officialArtAllowed(context)) iconPool.execute {
+                                    val bmp = Lobby.itemIcon(context, slot.icon)
+                                    if (bmp != null) post { setImageBitmap(bmp) }
+                                }
+                            }
+                        }, LinearLayout.LayoutParams(dp(26), dp(26)))
                         addView(text(CheckInCalendar.compact(slot.count), 11f, context.getColor(R.color.ink)).apply { gravity = Gravity.CENTER; maxLines = 1 })
                     }, LayoutParams(MATCH_PARENT, MATCH_PARENT))
                     cell.addView(text("$n", 9f, context.getColor(R.color.ink_muted)).apply { setPadding(dp(5), dp(2), 0, 0) })
