@@ -191,4 +191,6 @@
     <string name="lobby_voice_ask_title">Hear the character\'s voice too?</string>
     <string name="lobby_voice_ask_body">Tap the bubble or the character to hear the line. Only lines you play are downloaded and kept (about 0.1–0.4 MB each). You can change the language any time under Voice below.</string>
     <string name="lobby_voice_ask_no">Not now</string>
+    <string name="lobby_quote_follows_voice">Show lines in %1$s too</string>
+    <string name="lobby_quote_follows_voice_sub">Bubble text in the same language as the voice. Off: the app\'s language.</string>
 </resources>

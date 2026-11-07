@@ -426,6 +426,10 @@ class AppSettings(private val context: Context) {
     var voiceLanguage: String
         get() = prefs.getString("voice_language", "off") ?: "off"
         set(value) = prefs.edit { putString("voice_language", value) }
+    /** 말풍선 대사 글도 음성 언어로 볼지(기본은 앱 언어). 일본어 음성을 고른 사람이 대사도 일본어로 보고 싶을 때. */
+    var quoteFollowsVoice: Boolean
+        get() = prefs.getBoolean("quote_follows_voice", false)
+        set(value) = prefs.edit { putBoolean("quote_follows_voice", value) }
     /** 최애를 처음 고른 뒤 음성을 켤지 한 번 물어봤는지(아래쪽 설정을 모르고 지나치지 않게). */
     var voiceAsked: Boolean
         get() = prefs.getBoolean("voice_asked", false)

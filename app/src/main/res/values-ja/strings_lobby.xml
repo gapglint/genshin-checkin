@@ -184,4 +184,6 @@
     <string name="lobby_voice_ask_title">キャラクターのボイスも聞きますか？</string>
     <string name="lobby_voice_ask_body">吹き出しやキャラクターをタップすると、そのセリフのボイスが流れます。再生したセリフだけをその時にダウンロードして保存します（1つあたり約0.1〜0.4MB）。言語は下のボイス欄でいつでも変えられます。</string>
     <string name="lobby_voice_ask_no">今は聞かない</string>
+    <string name="lobby_quote_follows_voice">セリフも%1$sで表示</string>
+    <string name="lobby_quote_follows_voice_sub">吹き出しの文字をボイスと同じ言語で表示します。オフにするとアプリの言語で表示します。</string>
 </resources>

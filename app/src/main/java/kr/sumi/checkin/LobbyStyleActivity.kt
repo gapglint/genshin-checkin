@@ -123,7 +123,19 @@ class LobbyStyleActivity : Activity() {
         if (store != null && chars != null) waitingSection(chars, fav)
 
         section(getString(R.string.lobby_section_voice))
-        if (!Lobby.officialVoicesAllowed(this)) note(getString(R.string.lobby_voice_unavailable)) else voiceChips()
+        if (!Lobby.officialVoicesAllowed(this)) note(getString(R.string.lobby_voice_unavailable)) else {
+            voiceChips()
+            // 음성이 앱 언어와 다르면: 대사 글도 음성 언어로 볼지(예: 한국어 앱에서 일본어 음성 + 일본어 대사).
+            val voice = settings.voiceLanguage
+            val voiceLang = mapOf("ko" to DataLang.KO, "ja" to DataLang.JA, "zh" to "zh-cn", "en" to DataLang.EN)[voice]
+            if (voiceLang != null && voiceLang != DataLang.code()) {
+                val label = getString(when (voice) { "ko" -> R.string.lobby_voice_ko; "ja" -> R.string.lobby_voice_ja; "zh" -> R.string.lobby_voice_zh; else -> R.string.lobby_voice_en })
+                choice(getString(R.string.lobby_quote_follows_voice, label), getString(R.string.lobby_quote_follows_voice_sub), settings.quoteFollowsVoice) {
+                    settings.quoteFollowsVoice = !settings.quoteFollowsVoice
+                    render()
+                }
+            }
+        }
         note(getString(R.string.lobby_voice_note))
         val voiceBytes = Lobby.voiceCacheBytes(this)
         if (voiceBytes > 0) choice(getString(R.string.lobby_voice_clear), getString(R.string.lobby_voice_clear_sub, "%.1f".format(voiceBytes / 1_000_000.0)), false) {

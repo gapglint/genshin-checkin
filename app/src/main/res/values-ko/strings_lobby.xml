@@ -186,4 +186,6 @@
     <string name="lobby_voice_ask_title">캐릭터 음성도 들을까요?</string>
     <string name="lobby_voice_ask_body">말풍선이나 캐릭터를 누르면 그 대사의 음성을 들려줘요. 들은 대사만 그때 받아 저장해요(대사 하나에 약 0.1~0.4MB). 언어는 아래 음성 칸에서 언제든 바꿀 수 있어요.</string>
     <string name="lobby_voice_ask_no">지금은 안 들을래요</string>
+    <string name="lobby_quote_follows_voice">대사도 %1$s로 보기</string>
+    <string name="lobby_quote_follows_voice_sub">말풍선 글을 음성과 같은 언어로 보여 줘요. 끄면 앱 언어로 봐요.</string>
 </resources>

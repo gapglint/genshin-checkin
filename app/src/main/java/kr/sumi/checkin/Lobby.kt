@@ -595,8 +595,21 @@ object Lobby {
             .joinToString(" ").takeIf { it.isNotEmpty() }
     }
 
+    /** 음성 언어(앱 설정 값) → 위키 언어. */
+    private val VOICE_WIKI_LANG = mapOf("ko" to DataLang.KO, "ja" to DataLang.JA, "zh" to "zh-cn", "en" to DataLang.EN)
+
+    /**
+     * 말풍선 대사 글의 언어. 기본은 앱 언어. '대사도 음성 언어로'를 켰고 음성을 쓰면 음성 언어(일본어 음성이면 일본어 대사).
+     * 중국어 위키 대사도 개방 조건 없이 대사만 있어서 그대로 쓴다.
+     */
+    fun lineLang(context: Context): String {
+        val settings = AppSettings(context)
+        if (settings.quoteFollowsVoice) VOICE_WIKI_LANG[settings.voiceLanguage]?.let { return it }
+        return DataLang.code()
+    }
+
     /** 대사 파일. 한국어는 예전 이름 그대로, 다른 언어는 이름에 언어를 넣는다(언어마다 따로 둔다). */
-    private fun voicesFile(context: Context, name: String, lang: String = DataLang.code()) =
+    private fun voicesFile(context: Context, name: String, lang: String = lineLang(context)) =
         File(dir(context), if (lang == DataLang.KO) "voices_v4_${name.hashCode().toUInt()}.json" else "voices_v4_${lang}_${name.hashCode().toUInt()}.json")
 
     /**
@@ -604,7 +617,7 @@ object Lobby {
      * 그 문서를 못 받으면 한국어 대사만 저장해 두고(그동안 보인다) 다음에 다시 받는다.
      */
     private fun saveVoicesFrom(context: Context, name: String, id: String, page: JSONObject) {
-        val lang = DataLang.code()
+        val lang = lineLang(context)
         val ko = wikiVoices(page)
         if (lang == DataLang.KO || !voicesFile(context, name, DataLang.KO).exists()) saveVoices(context, name, voiceLines(ko), DataLang.KO)
         if (lang == DataLang.KO || voicesFile(context, name, lang).exists()) return
