@@ -82,6 +82,10 @@ class Store(private val context: Context, val accountId: String) {
     var calendarDay: String?
         get() = prefs.getString("calendar_day", null)
         set(value) = prefs.edit { putString("calendar_day", value) }
+    /** 달력 보상 이름의 언어(앱 언어가 바뀌면 다시 받는다). 예전 버전에서 받은 것은 한국어. */
+    var calendarLang: String
+        get() = prefs.getString("calendar_lang", null) ?: DataLang.KO
+        set(value) = prefs.edit { putString("calendar_lang", value) }
 
     var makeUpMissed: Int
         get() = prefs.getInt("make_up_missed", 0)

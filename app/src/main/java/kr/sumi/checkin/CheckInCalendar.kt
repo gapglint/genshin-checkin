@@ -19,7 +19,7 @@ object CheckInCalendar {
     }
 
     /** 오늘 이미 받아 왔으면 다시 받지 않는다. */
-    fun isFresh(store: Store) = store.calendarDay == ServerClock.today().toString() && store.calendarAwards.let { a ->
+    fun isFresh(store: Store) = store.calendarDay == ServerClock.today().toString() && store.calendarLang == DataLang.code() && store.calendarAwards.let { a ->
         // 아이템 그림 주소를 저장하기 전에 받아 둔 목록이면 다시 받는다.
         a.isNotEmpty() && a.any { it.icon.isNotEmpty() }
     }
@@ -36,6 +36,7 @@ object CheckInCalendar {
         store.calendarMissed = info.optInt("sign_cnt_missed")
         store.signedTotal = info.optInt("total_sign_day", store.signedTotal)
         store.calendarDay = ServerClock.today().toString()
+        store.calendarLang = DataLang.code()
     }
 
     /** 칸에 들어갈 짧은 개수: 20, 5천, 1만, 1.5만. */

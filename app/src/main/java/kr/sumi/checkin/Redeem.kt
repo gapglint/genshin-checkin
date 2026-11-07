@@ -73,19 +73,38 @@ object Redeem {
     private const val WIKI_URL = "https://genshin-impact.fandom.com/api.php" +
         "?action=parse&page=Promotional_Code&prop=wikitext&format=json&formatversion=2"
     private val WIKI_SERVERS = mapOf("os_asia" to "SEA", "os_usa" to "NA", "os_euro" to "EU", "os_cht" to "SAR")
-    /** 리딤 보상에 자주 나오는 아이템의 한국어 이름. 나머지는 위키의 영어 이름으로 보여 준다. */
-    private val ITEM_NAMES = mapOf(
+    /**
+     * 리딤 보상에 자주 나오는 아이템의 한국어·일본어 이름(게임 표기). 나머지는 위키에서 배운 이름([ItemNames]),
+     * 그것도 없으면 위키의 영어 이름으로 보여 준다. 영어는 위키 이름 그대로.
+     */
+    private val ITEM_NAMES_KO = mapOf(
         "Primogem" to "원석", "Mora" to "모라",
         "Hero's Wit" to "영웅의 경험", "Adventurer's Experience" to "모험가의 경험", "Wanderer's Advice" to "방랑자의 경험",
         "Mystic Enhancement Ore" to "정제용 마법 광석", "Fine Enhancement Ore" to "정제용 양질 광석", "Enhancement Ore" to "정제용 광석",
         "Fragile Resin" to "취약한 레진",
     )
+    private val ITEM_NAMES_JA = mapOf(
+        "Primogem" to "原石", "Mora" to "モラ",
+        "Hero's Wit" to "大英雄の経験", "Adventurer's Experience" to "冒険家の経験", "Wanderer's Advice" to "流浪者の経験",
+        "Mystic Enhancement Ore" to "仕上げ用魔鉱", "Fine Enhancement Ore" to "仕上げ用良鉱", "Enhancement Ore" to "仕上げ用雑鉱",
+        "Fragile Resin" to "脆弱樹脂",
+    )
+
+    private fun itemNames(lang: String) = when (lang) {
+        DataLang.KO -> ITEM_NAMES_KO
+        DataLang.JA -> ITEM_NAMES_JA
+        else -> emptyMap()
+    }
     private val COMMENT = Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL)
     private val NAMED_PARAM = Regex("""^[A-Za-z_]+\s*=.*""", RegexOption.DOT_MATCHES_ALL)
     private val SERVER_SPLIT = Regex("""[,/\s]+""")
     private val DATE = Regex("""\d{4}-\d{2}-\d{2}""")
     private val CODE_TEXT = Regex("[A-Z0-9]{6,20}")
-    private val BBS_HEADERS = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to "ko-kr")
+    /**
+     * 코드 찾기용 호요랩 요청(공식 코드 목록, '리딤코드' 글 검색·본문). 한국어 검색어로 한국어 글을 찾으므로 앱 언어와 상관없이 한국어로 받는다.
+     * 받은 글은 화면에 보이지 않고 코드만 뽑는다.
+     */
+    private val BBS_HEADERS = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to DataLang.KO)
 
     /** 이 계정의 원신 캐릭터 목록(서버별). */
     @Throws(IOException::class)
@@ -249,8 +268,8 @@ object Redeem {
         wikiCache?.let { (at, json) -> if (System.currentTimeMillis() - at < 10 * 60_000) return json }
         return fetchPublic(WIKI_URL).also {
             wikiCache = System.currentTimeMillis() to it
-            // 처음 보는 보상 아이템의 한국어 이름을 배워 둔다(한 번 배우면 다시 묻지 않는다).
-            ItemNames.learnFromWiki(it, ITEM_NAMES.keys)
+            // 처음 보는 보상 아이템의 앱 언어 이름을 배워 둔다(한 번 배우면 다시 묻지 않는다).
+            ItemNames.learnFromWiki(it, itemNames(DataLang.code()).keys)
         }
     }
 
@@ -271,7 +290,7 @@ object Redeem {
 
     private fun redeem(client: CheckInClient, role: GameRole, code: String): RedeemAttempt {
         val url = "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyHyl" +
-            "?cdkey=$code&game_biz=$GAME_BIZ&lang=ko&region=${role.region}&uid=${role.uid}&t=${ServerClock.now()}"
+            "?cdkey=$code&game_biz=$GAME_BIZ&lang=${DataLang.short()}&region=${role.region}&uid=${role.uid}&t=${ServerClock.now()}"
         val json = client.get(url, mapOf("Origin" to "https://www.hoyolab.com", "Referer" to "https://www.hoyolab.com/"))
         return RedeemAttempt(code, statusOf(json.optInt("retcode", Int.MIN_VALUE)), json.optString("message"), role.shortLabel())
     }
@@ -413,12 +432,12 @@ object Redeem {
         return rewards
     }
 
-    /** 위키 보상 표기를 (한국어 이름, 개수) 목록으로. 모르는 아이템은 영어 이름 그대로 둔다. */
-    fun rewardItems(raw: String): List<Pair<String, Int>> = raw.split(";").mapNotNull { part ->
+    /** 위키 보상 표기를 (앱 언어 이름, 개수) 목록으로. 모르는 아이템은 영어 이름 그대로 둔다. */
+    fun rewardItems(raw: String, lang: String = DataLang.code()): List<Pair<String, Int>> = raw.split(";").mapNotNull { part ->
         // 위키 링크·틀 괄호를 뗀다. 안드로이드의 정규식(ICU)은 짝 없는 '}'를 오류로 보므로 정규식을 쓰지 않는다.
         val name = listOf("[[", "]]", "{{", "}}").fold(part.substringBefore("*")) { text, mark -> text.replace(mark, "") }.trim()
         val count = part.substringAfter("*", "").trim().replace(",", "").toIntOrNull() ?: return@mapNotNull null
-        if (name.isEmpty()) null else (ITEM_NAMES[name] ?: ItemNames.korean(name) ?: name) to count
+        if (name.isEmpty()) null else (itemNames(lang)[name] ?: ItemNames.local(name, lang) ?: name) to count
     }
 
     /** {{Code Row ...}} 틀마다 최상위 '|'로 나눈 인자 목록. 안쪽 {{ }}·[[ ]]의 '|'는 나누지 않는다. */

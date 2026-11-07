@@ -5,13 +5,23 @@ import android.widget.TextView
 import android.widget.Button
 import android.widget.LinearLayout
 
-/** 보상 이름(한국어)에 맞는 직접 그린 아이템 아이콘. */
+/** 보상 이름에 맞는 직접 그린 아이템 아이콘. 보상 이름은 앱 언어(한국어·일본어·영어)로 오고, 언어를 바꾸기 전에 받은 이름도 섞여 있다. */
 object ItemIcons {
+    /** 원석·모라의 정확한 이름(합계를 낼 때). */
+    private val PRIMOGEM = setOf("원석", "Primogem", "原石")
+    private val MORA = setOf("모라", "Mora", "モラ")
+    /** 이름에 들어 있으면 그 아이콘(경험치 책: 영웅의 경험·大英雄の経験·Hero's Wit, 광석: 정제용 마법 광석·精鍛用魔鉱). */
+    private val BOOK = listOf("경험", "Experience", "経験", "Hero's Wit", "Wanderer's Advice")
+    private val ORE = listOf("광석", "Ore", "鉱")
+
+    fun isPrimogem(name: String) = name in PRIMOGEM
+    fun isMora(name: String) = name in MORA
+
     fun of(reward: String?) = when {
-        reward == null || (reward.contains("원석") || reward.contains("Primogem")) -> R.drawable.ic_item_primogem
-        (reward.contains("모라") || reward.contains("Mora")) -> R.drawable.ic_item_mora
-        (reward.contains("경험") || reward.contains("Experience")) -> R.drawable.ic_item_book
-        (reward.contains("광석") || reward.contains("Ore")) -> R.drawable.ic_item_ore
+        reward == null || PRIMOGEM.any { reward.contains(it) } -> R.drawable.ic_item_primogem
+        MORA.any { reward.contains(it) } -> R.drawable.ic_item_mora
+        BOOK.any { reward.contains(it) } -> R.drawable.ic_item_book
+        ORE.any { reward.contains(it) } -> R.drawable.ic_item_ore
         else -> R.drawable.ic_item_gift
     }
 }
@@ -150,7 +160,11 @@ data class RerunCardUi(
     val oldest: String?,
     /** [chars] 중 4성(보라 테두리). */
     val fours: Set<String> = emptySet(),
-)
+    /** [chars]의 한국어 이름 → 보일 이름(앱 언어). 없으면 한국어 이름 그대로. */
+    val names: Map<String, String> = emptyMap(),
+) {
+    fun label(ko: String) = names[ko] ?: ko
+}
 
 class MainScreen(val root: View) {
     private companion object {
@@ -581,7 +595,7 @@ class MainScreen(val root: View) {
             calendarGrid.addView(row)
         }
         // 다음 원석이 언제인지, 놓친 날이 있으면 보충 안내.
-        val nextPrimo = (next..s.calendar.size).firstOrNull { s.calendar[it - 1].name.let { n -> n.contains("원석") || n.contains("Primogem") } && it <= s.calendarReachable }
+        val nextPrimo = (next..s.calendar.size).firstOrNull { ItemIcons.of(s.calendar[it - 1].name) == R.drawable.ic_item_primogem && it <= s.calendarReachable }
         val primoText = nextPrimo?.let {
             val days = it - next + (if (s.signedToday) 1 else 0)
             val whenText = if (days == 0) context.getString(R.string.main_when_today) else context.resources.getQuantityString(R.plurals.main_days_later, days, days)
@@ -783,7 +797,7 @@ class MainScreen(val root: View) {
                     }
                 }, LinearLayout.LayoutParams(dp(if (many) 48 else 52), dp(if (many) 48 else 52)))
                 addView(TextView(context).apply {
-                    text = name.trim().split(" ").last()
+                    text = r!!.label(name).trim().split(" ").last()
                     textSize = 13f
                     gravity = android.view.Gravity.CENTER
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -794,7 +808,7 @@ class MainScreen(val root: View) {
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }, if (many) LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) else LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
         }
-        rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, context.getString(R.string.main_rerun_open_desc)).joinToString(", ")
+        rerunCard.contentDescription = listOfNotNull(r?.title, r?.let { u -> u.chars.joinToString { u.label(it.first) } }, r?.period, r?.oldest, context.getString(R.string.main_rerun_open_desc)).joinToString(", ")
     }
 
     /** 영어 문구용 달 이름(Oct 등). 한국어 문구는 숫자를 쓴다. */

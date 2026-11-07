@@ -118,9 +118,11 @@ data class RerunData(
             next.isNotEmpty() -> Text.get(R.string.rerun_from, rerunDay(next.minOf { it.start }))
             else -> ""
         }
-        val oldest = ranked(today, standard = false).firstOrNull()?.let { (c, since) -> Text.plural(R.plurals.rerun_oldest, since, c.ko, since) }
+        val oldest = ranked(today, standard = false).firstOrNull()?.let { (c, since) -> Text.plural(R.plurals.rerun_oldest, since, CharNames.of(c.ko, c.name), since) }
         val title = Text.get(if (live.isNotEmpty()) R.string.rerun_card_live else if (next.isNotEmpty()) R.string.rerun_next else R.string.rerun_title)
-        return RerunCardUi(title, period, chars, oldest, four.map { it.first }.toSet())
+        // 보일 이름(앱 언어). 한국어면 비워 둔다(열쇠인 한국어 이름을 그대로 보인다).
+        val names = chars.mapNotNull { (ko, _) -> byKo(ko)?.let { c -> CharNames.of(c.ko, c.name) }?.takeIf { it != ko }?.let { ko to it } }.toMap()
+        return RerunCardUi(title, period, chars, oldest, four.map { it.first }.toSet(), names)
     }
 
     /** 오래 안 나온 순(같으면 이름순). 상시 캐릭터는 따로 보여 주므로 standard로 거른다. */

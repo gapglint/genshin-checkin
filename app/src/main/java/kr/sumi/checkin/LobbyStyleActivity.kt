@@ -63,6 +63,7 @@ class LobbyStyleActivity : Activity() {
             Lobby.refreshConfig(this)
             val result = try { Lobby.refreshCharacters(this, store, force = characters == null) } catch (e: IOException) { loadError = getString(R.string.lobby_chars_load_failed); null }
             val all = Lobby.wikiCharacters(this)
+            Lobby.refreshLocalNames(this)
             runOnUiThread { if (!isDestroyed) { if (result != null) characters = result; wiki = all; render() } }
         }
     }
@@ -103,7 +104,7 @@ class LobbyStyleActivity : Activity() {
             settings.homeStyle = Lobby.STYLE_CARD; render()
         }
         choice(getString(R.string.lobby_style_lobby),
-            if (fav == null) getString(R.string.lobby_style_lobby_pick) else getString(R.string.lobby_style_lobby_sub, fav.name), settings.homeStyle == Lobby.STYLE_LOBBY) {
+            if (fav == null) getString(R.string.lobby_style_lobby_pick) else getString(R.string.lobby_style_lobby_sub, CharNames.of(fav.name)), settings.homeStyle == Lobby.STYLE_LOBBY) {
             if (store == null) Toast.makeText(this, R.string.lobby_need_login, Toast.LENGTH_SHORT).show()
             else if (settings.favorite == null) Toast.makeText(this, R.string.lobby_pick_fav_first, Toast.LENGTH_SHORT).show()
             else { settings.homeStyle = Lobby.STYLE_LOBBY; render() }
@@ -156,7 +157,7 @@ class LobbyStyleActivity : Activity() {
         val ownedNames = owned.map { it.name }.toSet()
         val waitingFav = fav != null && fav.name !in ownedNames
         choice(getString(R.string.lobby_waiting_choice),
-            if (waitingFav) getString(R.string.lobby_waiting_choice_fav, fav!!.name) else getString(R.string.lobby_waiting_choice_sub),
+            if (waitingFav) getString(R.string.lobby_waiting_choice_fav, CharNames.of(fav!!.name)) else getString(R.string.lobby_waiting_choice_sub),
             waitingFav) { showWaiting = !showWaiting; render() }
         if (!showWaiting) return
         val all = wiki
@@ -179,7 +180,7 @@ class LobbyStyleActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
                 setPadding(0, dp(8), 0, dp(4))
-                contentDescription = if (selected) getString(R.string.lobby_cell_fav_desc, c.name) else c.name
+                contentDescription = if (selected) getString(R.string.lobby_cell_fav_desc, CharNames.of(c.name)) else CharNames.of(c.name)
                 setOnClickListener {
                     if (fav?.name != c.name) Lobby.clearVoiceCache(this@LobbyStyleActivity)
                     settings.favorite = Favorite(c.name, c.element, c.image, c.id)
@@ -214,7 +215,7 @@ class LobbyStyleActivity : Activity() {
                 }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.TOP or Gravity.END))
             }, LinearLayout.LayoutParams(dp(66), dp(64)))
             cell.addView(TextView(this).apply {
-                text = c.name
+                text = CharNames.of(c.name)
                 textSize = 11.5f
                 gravity = Gravity.CENTER
                 maxLines = 1

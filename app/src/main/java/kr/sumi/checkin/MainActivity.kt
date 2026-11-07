@@ -178,6 +178,7 @@ class MainActivity : Activity() {
         loadCalendarIfStale()
         loadNotes()
         loadRerunsIfStale()
+        loadNamesIfStale()
         loadEventsIfStale()
         loadCodesIfStale()
         loadLobbyIfStale()
@@ -233,6 +234,19 @@ class MainActivity : Activity() {
     }
 
     private var loadingReruns = false
+
+    private var loadingNames = false
+
+    /** 앱 언어가 한국어가 아니면 캐릭터 이름(위키 목록)을 일주일에 한 번 받아 둔다. 복각표·최애를 보일 때만. */
+    private fun loadNamesIfStale() {
+        if (loadingNames || !Lobby.localNamesStale(this)) return
+        if (!settings.showReruns && Reruns.watched(this).isEmpty() && settings.favorite == null) return
+        loadingNames = true
+        Thread {
+            Lobby.refreshLocalNames(this)
+            runOnUiThread { loadingNames = false; refresh() }
+        }.start()
+    }
 
     /** 복각표 자료를 하루 한 번 조용히 받아 온다(작은 파일, 바뀌지 않았으면 받지 않는다). */
     private fun loadRerunsIfStale() {
@@ -1280,7 +1294,7 @@ class MainActivity : Activity() {
         val gameButton = if (s.gameInstalled) getString(R.string.main_launch_game) else null
         val launchGame = { Game.launchIntent(this)?.let { startActivity(it) }; Unit }
         val base = LobbyUi(
-            name = fav.name, element = fav.element, meta = meta, greeting = greeting,
+            name = CharNames.of(fav.name), element = fav.element, meta = meta, greeting = greeting,
             resin = notes?.resin, maxResin = notes?.maxResin ?: 200, totalDays = s.totalDays,
             dockTitle = "", redeemDot = false, rewardsDot = s.historyUnseen > 0, eventsDot = s.eventsUnseen > 0, credit = credit,
             face = if (credit) Lobby.portraitFace(this, fav.name) else null,
@@ -1405,13 +1419,13 @@ class MainActivity : Activity() {
      * 대사가 아직 없으면 받아 오고, 없으면 null(기본 인사).
      */
     private fun lobbyQuote(fav: Favorite, hour: Int, problem: Boolean, newReward: Boolean): Lobby.VoiceLine? {
-        if (Lobby.voices(this, fav.name).isEmpty()) {
-            if (loadingVoices != fav.name && Lobby.officialArtAllowed(this)) {
-                loadingVoices = fav.name
-                Thread { Lobby.loadVoices(this, fav.name); runOnUiThread { if (Lobby.voices(this, fav.name).isNotEmpty()) refresh() } }.start()
-            }
-            return null
+        // 앱 언어 대사가 아직 없으면 받아 온다(그동안은 받아 둔 한국어 대사를 쓴다).
+        val loadKey = "${fav.name}|${DataLang.code()}"
+        if (Lobby.needsVoices(this, fav.name) && loadingVoices != loadKey) {
+            loadingVoices = loadKey
+            Thread { Lobby.loadVoices(this, fav.name); runOnUiThread { if (!Lobby.needsVoices(this, fav.name)) { lobbyLineKey = null; refresh() } } }.start()
         }
+        if (Lobby.voices(this, fav.name).isEmpty()) return null
         val all = Lobby.unlockedVoices(this, fav.name)
         // 저절로 바뀌는 인사는 접지 않고 보이는 길이만(긴 대사는 사용자가 눌러서 들을 때).
         val voices = all.filter { it.text.length <= Lobby.BUBBLE_MAX }
@@ -1587,16 +1601,16 @@ class MainActivity : Activity() {
         val month = ServerClock.today().toString().take(7)
         val thisMonth = entries.orEmpty().filter { it.date.startsWith(month) }
         val totals = RewardHistory.totals(thisMonth.map { it.name to it.count })
-        fun sum(name: String) = totals.firstOrNull { it.first == name }?.second ?: 0
+        fun sum(kind: (String) -> Boolean) = totals.filter { kind(it.first) }.sumOf { it.second }
         card {
             head(month.takeLast(2).toInt().let { getString(R.string.main_month_rewards, it, monthName(it)) })
             when {
                 entries == null -> line(getString(R.string.main_loading))
                 error != null -> line(error)
                 else -> iconStats(
-                    Triple(R.drawable.ic_item_primogem, "%,d".format(sum("원석")), getString(R.string.main_primogems)),
-                    Triple(R.drawable.ic_item_mora, "%,d".format(sum("모라")), getString(R.string.main_mora)),
-                    totals.count { it.first != "원석" && it.first != "모라" }.let { kinds ->
+                    Triple(R.drawable.ic_item_primogem, "%,d".format(sum(ItemIcons::isPrimogem)), getString(R.string.main_primogems)),
+                    Triple(R.drawable.ic_item_mora, "%,d".format(sum(ItemIcons::isMora)), getString(R.string.main_mora)),
+                    totals.count { !ItemIcons.isPrimogem(it.first) && !ItemIcons.isMora(it.first) }.let { kinds ->
                         Triple(R.drawable.ic_item_gift, resources.getQuantityString(R.plurals.main_item_kinds, kinds, kinds), getString(R.string.main_other_items))
                     },
                 )
