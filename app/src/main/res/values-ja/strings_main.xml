@@ -289,4 +289,9 @@
     <string name="main_lobby_account_current">現在のアカウント</string>
     <string name="main_lobby_account_not_signed">未チェックイン</string>
     <string name="main_lobby_account_add">+ アカウント追加 ›</string>
+    <!-- 最初のチェックイン後に一度だけ出るロビーの案内 -->
+    <string name="main_lobby_offer_title">お気に入りキャラと一緒に使いますか？</string>
+    <string name="main_lobby_offer_body">ホームをお気に入りキャラのロビーにできます。時間に合わせてあいさつし、タップするとセリフを話します。\n\nキャラクターの絵とセリフは、選んだときにHoYoLAB Wikiからダウンロードします（1人あたり約1〜3MB）。ボイスはオンにしたときだけダウンロードします。\n\n今のカード型のままでも使えます。あとから着せ替えでいつでも変えられます。</string>
+    <string name="main_lobby_offer_yes">キャラを選ぶ</string>
+    <string name="main_lobby_offer_no">今はいい</string>
 </resources>

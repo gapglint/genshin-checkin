@@ -180,4 +180,8 @@
     <string name="login_email_button">メールアドレスでログイン</string>
     <string name="login_relogged">%1$sのアカウントに再ログインしました。</string>
     <string name="login_added">アカウントを追加しました。これから自動でチェックインします。</string>
+    <!-- お気に入りを初めて選んだあとに一度だけ聞くボイスの案内 -->
+    <string name="lobby_voice_ask_title">キャラクターのボイスも聞きますか？</string>
+    <string name="lobby_voice_ask_body">吹き出しやキャラクターをタップすると、そのセリフのボイスが流れます。再生したセリフだけをその時にダウンロードして保存します（1つあたり約0.1〜0.4MB）。言語は下のボイス欄でいつでも変えられます。</string>
+    <string name="lobby_voice_ask_no">今は聞かない</string>
 </resources>
