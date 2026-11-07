@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>원신 리딤 자동출첵</title>
 <meta name="description" content="방송 리딤코드 자동 입력과 원신 호요랩 새벽 1시 자동출석, 레진 알림까지. 광고 없음. 아이폰은 웹에서 코드와 새 코드 알림을 받아요.">
-<meta property="og:title" content="원신 리딤 자동출첵 · 테스터 모집">
+<meta property="og:title" content="원신 리딤 자동출첵">
 <meta property="og:description" content="링크 안 눌러도, 원석은 우편함에. 안드로이드는 앱으로, 아이폰은 웹으로.">
 <meta property="og:image" content="https://apps.sumi.kr/checkin/img/icon.png">
 <link rel="icon" href="/checkin/img/icon.png">
@@ -59,19 +59,11 @@
          background: var(--hero); color: var(--gold); font-weight: 700; font-size: 17px; text-decoration: none; }
   .cta span { font-size: 22px; line-height: 1; }
   @media (prefers-color-scheme: dark) { .cta { background: var(--gold); color: #2A1F08; } }
-  .step-cta { justify-content: flex-start; padding: 0 18px; gap: 12px; }
-  .step-cta i { font-style: normal; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px;
-                background: rgba(255,255,255,.14); }
-  .step-cta span { margin-left: auto; }
-  .cta-note { margin: 6px 4px 12px; font-size: 12px; color: var(--muted); }
-  .then { margin: 2px 4px 0; font-size: 14px; line-height: 1.7; color: var(--ink); }
+  .then { margin: 14px 4px 0; font-size: 14px; line-height: 1.7; color: var(--ink); }
   .then b { color: var(--accent); }
   .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 6px; }
   .panel-head b { font-size: 16px; }
   .panel-head span { font-size: 12px; color: var(--muted); }
-  details.help { margin: 8px 0 0; padding: 10px 12px; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--gold) 16%, var(--surface)); }
-  details.help summary { font-size: 13px; color: var(--accent); }
-  details.help p { font-size: 13px; color: var(--ink); line-height: 1.55; }
   .warn-tip { margin: 8px 2px 0; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--gold) 16%, var(--surface));
               font-size: 13px; line-height: 1.55; color: var(--ink); }
   .warn-tip b { display: block; color: var(--accent); }
@@ -136,15 +128,10 @@
   </div>
 
   <section class="panel" data-for="android">
-    <div class="panel-head"><b>두 번 누르면 설치</b><span>비공개 테스트 · 순서대로</span></div>
-    <a class="cta step-cta" href="https://groups.google.com/g/sumi-checkin-testers" target="_blank" rel="noopener"><i>1</i>테스터 그룹 가입<span aria-hidden="true">›</span></a>
-    <p class="cta-note">구글 계정으로 '그룹 가입'을 눌러요</p>
-    <a class="cta step-cta" href="https://play.google.com/store/apps/details?id=kr.sumi.checkin" target="_blank" rel="noopener"><i>2</i>플레이스토어에서 설치<span aria-hidden="true">›</span></a>
-    <p class="cta-note">같은 계정으로 · '테스터 되기'가 보이면 먼저 눌러요</p>
-    <p class="then">그다음 앱에서 호요랩 로그인하면 끝.<br><b>로그인이 망설여지면 새 코드 알림만 받아도 돼요.</b></p>
-    <details class="help"><summary>'항목을 찾을 수 없음'이 떠요</summary>
-      <p>그룹에 가입한 계정과 플레이스토어 계정이 달라서 그래요. 플레이스토어 앱 오른쪽 위 프로필에서 <strong>가입한 계정으로 바꾼 뒤</strong> 다시 '설치'를 눌러 주세요.</p></details>
-    <p class="fine">안드로이드 8.0 이상 · 무료 · 광고 없음 · 테스트 2주 동안 지우지 말아 주세요</p>
+    <div class="panel-head"><b>플레이스토어에서 설치</b><span>무료 · 광고 없음</span></div>
+    <a class="cta" href="https://play.google.com/store/apps/details?id=kr.sumi.checkin" target="_blank" rel="noopener">플레이스토어에서 받기<span aria-hidden="true">›</span></a>
+    <p class="then">설치하고 앱에서 호요랩 로그인하면 끝.<br><b>로그인이 망설여지면 새 코드 알림만 받아도 돼요.</b></p>
+    <p class="fine">안드로이드 8.0 이상</p>
   </section>
 
   <section class="panel" data-for="ios" hidden>
