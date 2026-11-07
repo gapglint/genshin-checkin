@@ -1217,8 +1217,9 @@ class MainActivity : Activity() {
         val owned = Lobby.cachedCharacters(this, store).firstOrNull { it.name == fav.name }
         // 기다리던 최애를 뽑았으면 전적의 내 캐릭터 정보로 바꾼다(그림·번호).
         if (owned != null && fav.id == 0) settings.favorite = Favorite(owned.name, owned.element, owned.image, owned.id)
-        val elementKo = Lobby.ELEMENT_KO[fav.element] ?: ""
         val elementEn = fav.element.replaceFirstChar { it.uppercase() }
+        // 원소 이름은 지금 언어로(한국어는 '불', 일본어는 '炎').
+        val elementKo = RerunActivity.elementName(this, elementEn).takeIf { it != elementEn } ?: Lobby.ELEMENT_KO[fav.element] ?: ""
         val meta = when {
             owned != null -> getString(R.string.main_lobby_meta_owned, elementKo, elementEn, owned.level, owned.fetter, owned.constellation)
             fav.id == 0 -> Lobby.waitingLine(this, fav.name, ServerClock.today())
