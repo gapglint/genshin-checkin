@@ -22,7 +22,7 @@
     <string name="main_next_run">次の自動チェックイン · %1$s</string>
     <string name="main_login">HoYoLABにログイン</string>
     <string name="main_check_in_now">今すぐチェックイン</string>
-    <string name="main_hero_eyebrow_named">%1$sさんのデイリーチェックイン</string>
+    <string name="main_hero_eyebrow_named">%1$sさんの毎日チェックイン</string>
     <string name="main_hero_eyebrow">HoYoLAB デイリーチェックイン</string>
     <string name="main_account_check">ログイン状態を確認</string>
     <string name="main_account_sub">HoYoLAB UID %1$s · 最終確認 %2$s</string>
@@ -58,7 +58,7 @@
     <string name="main_add_account">+ アカウント追加</string>
     <string name="main_chip_checking">確認中</string>
     <string name="main_chip_login">要ログイン</string>
-    <string name="main_chip_done">今日はチェックイン済み</string>
+    <string name="main_chip_done">今日の分は完了</string>
     <string name="main_chip_pending">未チェックイン</string>
     <string name="main_code_desc">%1$s%2$s。タップで入力ページへ</string>
     <string name="main_code_live">生放送</string>
