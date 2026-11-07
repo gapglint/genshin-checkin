@@ -223,9 +223,10 @@ class LobbyView(context: Context) : FrameLayout(context) {
 
         // 위: 레진·출석 표시, 설정
         val hud = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        if (ui.resin != null) hud.addView(pill(R.drawable.ic_lobby_moon, "${ui.resin}", "/${ui.maxResin}", t, "레진 ${ui.resin}개, 자세히",
+        if (ui.resin != null) hud.addView(pill(R.drawable.ic_lobby_moon, "${ui.resin}", "/${ui.maxResin}", t, context.getString(R.string.lobby_resin_desc, ui.resin),
             full = ui.resin >= ui.maxResin) { actions.onResin() })
-        hud.addView(pill(R.drawable.ic_lobby_check, "${ui.totalDays}", "일째", t, "이번 달 ${ui.totalDays}일 출석, 달력 보기") { actions.onCheckIn() },
+        hud.addView(pill(R.drawable.ic_lobby_check, "${ui.totalDays}", resources.getQuantityString(R.plurals.lobby_days_unit, ui.totalDays), t,
+            resources.getQuantityString(R.plurals.lobby_checkin_desc, ui.totalDays, ui.totalDays)) { actions.onCheckIn() },
             LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { if (ui.resin != null) leftMargin = dp(8) })
         hud.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
         ui.account?.let { name ->
@@ -234,12 +235,12 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 maxWidth = dp(110)
                 setPadding(dp(12), dp(8), dp(12), dp(8))
-                contentDescription = "지금 계정 $name, 바꾸기"
+                contentDescription = context.getString(R.string.lobby_account_desc, name)
                 background = GradientDrawable().apply { setColor(0x30FFFFFF); setStroke(dp(1), 0x40FFFFFF); cornerRadius = dp(99).toFloat() }
                 setOnClickListener { actions.onAccount() }
             }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { rightMargin = dp(8) })
         }
-        hud.addView(roundIcon(R.drawable.ic_settings, 40, "설정") { actions.onSettings() })
+        hud.addView(roundIcon(R.drawable.ic_settings, 40, context.getString(R.string.lobby_settings)) { actions.onSettings() })
         addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(12), dp(16), 0) })
 
         // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사, 🔊는 지금 대사 다시 듣기, ✕는 닫기.
@@ -249,7 +250,9 @@ class LobbyView(context: Context) : FrameLayout(context) {
             val r = dp(14).toFloat()
             background = GradientDrawable().apply { setColor(0xEEFFFFFF.toInt()); cornerRadii = floatArrayOf(r, r, r, r, r, r, dp(4).toFloat(), dp(4).toFloat()) }
             setOnClickListener { actions.onBubble() }
-            contentDescription = listOfNotNull(ui.quote, ui.greeting).joinToString(". ") + if (ui.quote != null) ", 눌러서 다른 대사" else ""
+            contentDescription = listOfNotNull(ui.quote, ui.greeting).joinToString(". ").let {
+                if (ui.quote != null) context.getString(R.string.lobby_bubble_desc_more, it) else it
+            }
             if (ui.quote != null) {
                 // 긴 대사([Lobby.BUBBLE_MAX]자 넘게)는 네 줄만 보여 주고, 네 줄을 넘으면 '전체 보기'로 펼친다. 펼친 것은 대사가 바뀔 때까지.
                 val long = ui.quote.length > Lobby.BUBBLE_MAX
@@ -265,10 +268,10 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 val lines = if (long && textWidth > 0) android.text.StaticLayout.Builder
                     .obtain(quoteView.text, 0, quoteView.text.length, quoteView.paint, textWidth)
                     .setLineSpacing(dp(2).toFloat(), 1f).build().lineCount else 0
-                val more = text(if (open) "접기 ▴" else "전체 보기 ▾", 12f, t.deep, bold = true).apply {
+                val more = text(context.getString(if (open) R.string.lobby_quote_less else R.string.lobby_quote_more), 12f, t.deep, bold = true).apply {
                     visibility = if (lines > 4) VISIBLE else GONE
                     setPadding(0, dp(6), dp(8), dp(2))
-                    contentDescription = if (open) "대사 접기" else "대사 전체 보기"
+                    contentDescription = context.getString(if (open) R.string.lobby_quote_less_desc else R.string.lobby_quote_more_desc)
                     setOnClickListener {
                         expandedQuote = if (open) null else ui.quote
                         lastBind?.invoke()
@@ -284,7 +287,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                     }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
                     if (ui.voice) addView(text("🔊", 13f, t.deep).apply {
                         setPadding(dp(8), 0, dp(4), dp(4))
-                        contentDescription = "대사 다시 듣기"
+                        contentDescription = context.getString(R.string.lobby_quote_replay_desc)
                         setOnClickListener { actions.onVoice() }
                     })
                     addView(closeButton())
@@ -304,11 +307,11 @@ class LobbyView(context: Context) : FrameLayout(context) {
         // 오른쪽 메뉴
         val side = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         for ((icon, label, key, dot) in listOf(
-            Menu(R.drawable.ic_item_gift, "보상", MENU_REWARDS, ui.rewardsDot || ui.redeemDot),
-            Menu(R.drawable.ic_rerun, "픽업", MENU_PICKUP, false),
-            Menu(R.drawable.ic_events, "이벤트", MENU_EVENTS, ui.eventsDot),
-            Menu(R.drawable.ic_lobby_cards, "카드", MENU_CARDS, false),
-            Menu(R.drawable.ic_edit, "꾸미기", MENU_DECORATE, false),
+            Menu(R.drawable.ic_item_gift, context.getString(R.string.lobby_menu_rewards), MENU_REWARDS, ui.rewardsDot || ui.redeemDot),
+            Menu(R.drawable.ic_rerun, context.getString(R.string.lobby_menu_pickup), MENU_PICKUP, false),
+            Menu(R.drawable.ic_events, context.getString(R.string.lobby_menu_events), MENU_EVENTS, ui.eventsDot),
+            Menu(R.drawable.ic_lobby_cards, context.getString(R.string.lobby_menu_cards), MENU_CARDS, false),
+            Menu(R.drawable.ic_edit, context.getString(R.string.lobby_menu_decorate), MENU_DECORATE, false),
         )) {
             val size = iconSize
             side.addView(LinearLayout(context).apply {
@@ -337,7 +340,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
         bottom.addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), 0, dp(20), dp(16))
-            addView(text("★ 최애", 11f, t.dark, bold = true).apply {
+            addView(text(context.getString(R.string.lobby_fav_badge), 11f, t.dark, bold = true).apply {
                 setPadding(dp(9), dp(3), dp(9), dp(3))
                 background = GradientDrawable().apply { setColor(t.light); cornerRadius = dp(99).toFloat() }
             }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
@@ -356,9 +359,13 @@ class LobbyView(context: Context) : FrameLayout(context) {
         })
         bottom.addView(dock(ui, t, actions), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(14), 0, dp(14), 0) })
         // 출처: 지금 쓰는 공식 자료(그림·대사·음성)를 모두 적는다.
-        val used = listOfNotNull("그림".takeIf { ui.credit }, "대사".takeIf { ui.quote != null }, "음성".takeIf { ui.voice })
+        val used = listOfNotNull(
+            context.getString(R.string.lobby_credit_art).takeIf { ui.credit },
+            context.getString(R.string.lobby_credit_lines).takeIf { ui.quote != null },
+            context.getString(R.string.lobby_credit_voice).takeIf { ui.voice },
+        )
         bottom.addView(text(
-            if (used.isEmpty()) "비공식 팬 도구" else "${used.joinToString("·")} © HoYoverse · 호요랩 위키 · 비공식 팬 도구",
+            if (used.isEmpty()) context.getString(R.string.lobby_credit_fan) else context.getString(R.string.lobby_credit_full, used.joinToString("·")),
             10f, 0x88FFFFFF.toInt(),
         ).apply {
             gravity = Gravity.CENTER
@@ -450,7 +457,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
     /** 말풍선 닫기. 캐릭터를 누르면 다시 나온다. */
     private fun closeButton() = text("✕", 13f, 0xFF7A8296.toInt()).apply {
         setPadding(dp(8), 0, 0, dp(4))
-        contentDescription = "말풍선 닫기, 캐릭터를 누르면 다시 나와요"
+        contentDescription = context.getString(R.string.lobby_bubble_close_desc)
         setOnClickListener { bubbleHidden = true; lastBind?.invoke() }
     }
 
@@ -551,14 +558,14 @@ class LobbyMenu(
                     addView(LinearLayout(context).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
-                        contentDescription = "로비로"
+                        contentDescription = context.getString(R.string.lobby_back_desc)
                         setPadding(0, dp(6), dp(20), dp(10))
                         setOnClickListener { onBack() }
                         addView(ImageView(context).apply { setImageResource(R.drawable.ic_back); setColorFilter(Color.WHITE) }, LinearLayout.LayoutParams(dp(20), dp(20)))
-                        addView(text("로비", 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
+                        addView(text(context.getString(R.string.lobby_back), 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
                     }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
                     addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it }; setPadding(0, 0, 0, dp(4)) })
-                    addView(text("$who 와 함께", 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
+                    addView(text(context.getString(R.string.lobby_menu_with, who), 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
                 }, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
             }
         }
@@ -666,7 +673,7 @@ class LobbyMenu(
                         if (n == next) setStroke(dp(2), t.el)
                     }
                     cell.alpha = when { done -> 0.6f; n > reachable -> 0.35f; else -> 1f }
-                    cell.contentDescription = "${n}번째 출석, ${slot.name} ${slot.count}개" + if (done) ", 받음" else ""
+                    cell.contentDescription = context.getString(if (done) R.string.lobby_cell_desc_done else R.string.lobby_cell_desc, n, slot.name, slot.count)
                     cell.addView(LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER

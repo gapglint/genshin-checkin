@@ -49,7 +49,7 @@ object Events {
     fun refresh(context: Context, force: Boolean = false): Boolean {
         if (!force && isFresh(context)) return false
         val json = get(LIST_URL)
-        if (json.optInt("retcode", -1) != 0) throw IOException(json.optString("message", "이벤트 목록을 받지 못했어요"))
+        if (json.optInt("retcode", -1) != 0) throw IOException(json.optString("message", context.getString(R.string.events_list_failed)))
         parse(json)
         prefs(context).edit().putString("json", json.toString()).putLong("checked_at", System.currentTimeMillis()).apply()
         return true
@@ -123,7 +123,7 @@ object Events {
             if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
             return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
         } catch (e: org.json.JSONException) {
-            throw IOException("이벤트 목록을 읽지 못했어요")
+            throw IOException(Text.get(R.string.events_read_failed))
         } finally {
             conn.disconnect()
         }

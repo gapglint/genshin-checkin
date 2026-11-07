@@ -30,7 +30,7 @@ class RerunActivity : Activity() {
         super.onCreate(savedInstanceState)
         MainActivity.drawBehindSystemBars(window)
         val header = LayoutInflater.from(this).inflate(R.layout.header_bar, null)
-        header.findViewById<TextView>(R.id.headerTitle).text = "복각표"
+        header.findViewById<TextView>(R.id.headerTitle).text = getString(R.string.rerun_title)
         header.findViewById<View>(R.id.headerBack).setOnClickListener { finish() }
         status = header.findViewById(R.id.headerStatus)
         list = LinearLayout(this).apply {
@@ -43,7 +43,7 @@ class RerunActivity : Activity() {
             addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(ScrollView(this@RerunActivity).apply { addView(list) }, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         }
-        LobbyMenu.dress(this, header as LinearLayout, root, "복각표") { finish() }
+        LobbyMenu.dress(this, header as LinearLayout, root, getString(R.string.rerun_title)) { finish() }
         setContentView(root)
         MainActivity.applySystemBarInsets(root)
         render()
@@ -54,7 +54,7 @@ class RerunActivity : Activity() {
             val error = try {
                 Reruns.refresh(this, force = Reruns.cached(this) == null || needFours); null
             } catch (e: IOException) {
-                e.message ?: "네트워크 오류"
+                e.message ?: getString(R.string.rerun_network_error)
             }
             runOnUiThread { if (!isFinishing) render(error) }
         }.start()
@@ -65,11 +65,11 @@ class RerunActivity : Activity() {
         val data = Reruns.cached(this)
         val today = ServerClock.today()
         if (data == null) {
-            status.text = error?.let { "불러오지 못했어요: $it" } ?: "불러오는 중..."
+            status.text = error?.let { getString(R.string.rerun_load_failed, it) } ?: getString(R.string.rerun_loading)
             return
         }
         // 설명과 지금 버전은 판 위에 있어서 머리말 아래 안내는 짧게.
-        status.text = "오래 기다린 캐릭터일수록 복각이 가까울 수 있어요."
+        status.text = getString(R.string.rerun_status)
 
         val settings = AppSettings(this)
         prepareFaces(data)
@@ -78,7 +78,7 @@ class RerunActivity : Activity() {
             render()
             // 켰는데 저장된 자료에 4성이 없으면(4성이 생기기 전에 받은 것) 바로 새로 받는다.
             if (settings.rerunFours && Reruns.cached(this)?.fours.isNullOrEmpty()) Thread {
-                val error = try { Reruns.refresh(this, force = true); null } catch (e: IOException) { e.message ?: "네트워크 오류" }
+                val error = try { Reruns.refresh(this, force = true); null } catch (e: IOException) { e.message ?: getString(R.string.rerun_network_error) }
                 runOnUiThread { if (!isFinishing) render(error) }
             }.start()
         }.fill(list, data, today)
@@ -128,7 +128,7 @@ class RerunActivity : Activity() {
         PublicCodes.schedule(this)
         android.widget.Toast.makeText(
             this,
-            if (on) "${c.ko} 픽업이 뜨면 알려 드릴게요" else "${c.ko} 픽업 알림을 껐어요",
+            getString(if (on) R.string.rerun_watch_on else R.string.rerun_watch_off, c.ko),
             android.widget.Toast.LENGTH_SHORT,
         ).show()
         if (on) Reruns.checkWatch(this)
@@ -175,14 +175,14 @@ class RerunActivity : Activity() {
             return (0xFF shl 24) or (mix(c shr 16 and 0xFF) shl 16) or (mix(c shr 8 and 0xFF) shl 8) or mix(c and 0xFF)
         }
 
-        fun elementName(element: String) = when (element) {
-            "Anemo" -> "바람"
-            "Geo" -> "바위"
-            "Electro" -> "번개"
-            "Dendro" -> "풀"
-            "Hydro" -> "물"
-            "Pyro" -> "불"
-            "Cryo" -> "얼음"
+        fun elementName(context: Context, element: String) = when (element) {
+            "Anemo" -> context.getString(R.string.rerun_element_anemo)
+            "Geo" -> context.getString(R.string.rerun_element_geo)
+            "Electro" -> context.getString(R.string.rerun_element_electro)
+            "Dendro" -> context.getString(R.string.rerun_element_dendro)
+            "Hydro" -> context.getString(R.string.rerun_element_hydro)
+            "Pyro" -> context.getString(R.string.rerun_element_pyro)
+            "Cryo" -> context.getString(R.string.rerun_element_cryo)
             else -> element
         }
     }
@@ -212,6 +212,7 @@ class RerunList(
     private val density = context.resources.displayMetrics.density
     private fun dp(v: Int) = (v * density).toInt()
     private fun color(id: Int) = context.getColor(id)
+    private fun str(id: Int, vararg args: Any) = context.getString(id, *args)
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
 
     private var current: String? = null
@@ -224,8 +225,8 @@ class RerunList(
         val live = data.live(today)
         this.data = data
         this.today = today
-        pickups(data, live, today, "지금 픽업 중")?.let { list.addView(it) }
-        pickups(data, data.upcoming(today), today, "다음 픽업")?.let {
+        pickups(data, live, today, str(R.string.rerun_live))?.let { list.addView(it) }
+        pickups(data, data.upcoming(today), today, str(R.string.rerun_next))?.let {
             list.addView(it, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(12) })
         }
         // '4성도 보기'는 찾기 쉽게 픽업 판 바로 아래(판들 위)에.
@@ -235,23 +236,22 @@ class RerunList(
             gravity = Gravity.END
             topMargin = if (list.childCount == 0) 0 else dp(12)
         })
-        list.addView(board(data, data.ranked(today, standard = false), "한정 캐릭터", legend = true, now = current?.let { data.label(it) }),
+        list.addView(board(data, data.ranked(today, standard = false), str(R.string.rerun_limited), legend = true, now = current?.let { data.label(it) }),
             LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = if (live.isEmpty() && !toggle) 0 else dp(16) })
         val standard = data.ranked(today, standard = true)
         if (standard.isNotEmpty()) {
-            list.addView(board(data, standard, "상시 캐릭터", legend = false, note = "상시 기원에서도 나와요").apply {
+            list.addView(board(data, standard, str(R.string.rerun_standard), legend = false, note = str(R.string.rerun_standard_note)).apply {
                 (layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(16)
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
         val fours = data.rankedFours(today)
         if (showFours && fours.isNotEmpty()) {
-            list.addView(board(data, fours, "4성 캐릭터", legend = false, note = "5성 픽업에 함께 나와요 · 누르면 4성도 픽업 알림"),
+            list.addView(board(data, fours, str(R.string.rerun_fours), legend = false, note = str(R.string.rerun_fours_note)),
                 LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(16) })
         }
 
         list.addView(text(
-            "자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요." +
-                if (faces.isNotEmpty()) "\n캐릭터 그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구" else "",
+            str(if (faces.isNotEmpty()) R.string.rerun_source_art else R.string.rerun_source),
             12f, R.color.ink_muted,
         ).apply { setPadding(dp(4), dp(20), dp(4), 0) })
     }
@@ -270,9 +270,9 @@ class RerunList(
         isClickable = true
         foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
         setOnClickListener { onFours?.invoke() }
-        contentDescription = "4성 캐릭터도 보기, " + if (showFours) "켜짐" else "꺼짐"
+        contentDescription = str(if (showFours) R.string.rerun_fours_toggle_on_desc else R.string.rerun_fours_toggle_off_desc)
         addView(text("★4", 12f, R.color.rarity4, bold = true).apply { setPadding(0, 0, dp(6), 0) })
-        addView(text("4성 캐릭터도 보기", 13f, R.color.hero_ink, bold = true).apply { setPadding(0, 0, dp(10), 0) })
+        addView(text(str(R.string.rerun_fours_toggle), 13f, R.color.hero_ink, bold = true).apply { setPadding(0, 0, dp(10), 0) })
         // 작은 스위치: 켜지면 보라색 길에 흰 손잡이가 오른쪽
         addView(android.widget.FrameLayout(context).apply {
             background = GradientDrawable().apply { cornerRadius = dp(99).toFloat(); setColor(if (showFours) color(R.color.rarity4) else 0x44FFFFFF) }
@@ -288,9 +288,8 @@ class RerunList(
         if (chars.isEmpty()) return null
         val start = banners.minOf { it.start }
         val end = banners.minOf { it.end }
-        fun day(d: java.time.LocalDate) = "${d.monthValue}월 ${d.dayOfMonth}일"
-        val period = if (start.isAfter(today)) "${day(start)} ~ ${day(end)}"
-            else "${day(end)}까지 · ${java.time.temporal.ChronoUnit.DAYS.between(today, end)}일 남음"
+        val period = if (start.isAfter(today)) str(R.string.rerun_period_range, rerunDay(start), rerunDay(end))
+            else rerunUntil(today, end)
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
@@ -330,7 +329,7 @@ class RerunList(
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), 0, dp(12), 0)
             addView(text(title, 18f, R.color.hero_ink, bold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            now?.let { addView(pill("지금 $it", R.color.hero_line, R.color.hero_ink, 12f)) }
+            now?.let { addView(pill(str(R.string.rerun_now_version, it), R.color.hero_line, R.color.hero_ink, 12f)) }
         })
         if (legend) {
             addView(LinearLayout(context).apply {
@@ -338,17 +337,17 @@ class RerunList(
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(12), dp(10), dp(12), 0)
                 addView(badge(12, small = true))
-                addView(text("마지막 픽업 뒤 지난 버전 수", 13f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) })
+                addView(text(str(R.string.rerun_legend), 13f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) })
             })
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(dp(12), dp(8), dp(12), 0)
-                addView(pill("신규", R.color.rerun_recent, R.color.on_action, 11f))
-                addView(pill("집록", R.color.gold, R.color.on_gold, 11f).apply { (layoutParams as? LinearLayout.LayoutParams) }, gap())
-                addView(pill("복각 없음", R.color.element_hydro, R.color.on_action, 11f), gap())
-                addView(text("표시가 붙어요", 12f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) }, gap())
+                addView(pill(str(R.string.rerun_tag_new), R.color.rerun_recent, R.color.on_action, 11f))
+                addView(pill(str(R.string.rerun_tag_chronicled), R.color.gold, R.color.on_gold, 11f).apply { (layoutParams as? LinearLayout.LayoutParams) }, gap())
+                addView(pill(str(R.string.rerun_tag_no_rerun), R.color.element_hydro, R.color.on_action, 11f), gap())
+                addView(text(str(R.string.rerun_legend_tags), 12f, R.color.hero_muted).apply { setPadding(dp(8), 0, 0, 0) }, gap())
             })
-            if (onToggle != null) addView(text("캐릭터를 누르면 그 캐릭터 픽업이 뜰 때 알려 드려요 🔔", 12f, R.color.hero_muted).apply {
+            if (onToggle != null) addView(text(str(R.string.rerun_tap_hint), 12f, R.color.hero_muted).apply {
                 setPadding(dp(12), dp(8), dp(12), 0)
             })
         }
@@ -383,9 +382,9 @@ class RerunList(
         val upcoming = phase == RerunPhase.SECOND_HALF || phase == RerunPhase.LATER
         text = when (phase) {
             RerunPhase.NOW -> "NOW"
-            RerunPhase.FIRST_HALF -> "전반"
-            RerunPhase.SECOND_HALF -> "후반"
-            RerunPhase.LATER -> "이후"
+            RerunPhase.FIRST_HALF -> str(R.string.rerun_badge_first_half)
+            RerunPhase.SECOND_HALF -> str(R.string.rerun_badge_second_half)
+            RerunPhase.LATER -> str(R.string.rerun_badge_later)
             RerunPhase.PAST -> "$since"
         }
         textSize = when {
@@ -459,10 +458,10 @@ class RerunList(
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         // 신규 > 집록 > 복각 없음 순으로 하나만 붙이고, 없으면 마지막 픽업 버전.
         val tag = when {
-            markFour && c.rarity == 4 -> pill("4성", R.color.rarity4, R.color.on_gold, 10f)
-            c.first != null && c.first == current -> pill("신규", R.color.rerun_recent, R.color.on_action, 10f)
-            c.chronicled -> pill("집록", R.color.gold, R.color.on_gold, 10f)
-            !c.standard && c.runs <= 1 -> pill("복각 없음", R.color.element_hydro, R.color.on_action, 10f)
+            markFour && c.rarity == 4 -> pill(str(R.string.rerun_tag_four), R.color.rarity4, R.color.on_gold, 10f)
+            c.first != null && c.first == current -> pill(str(R.string.rerun_tag_new), R.color.rerun_recent, R.color.on_action, 10f)
+            c.chronicled -> pill(str(R.string.rerun_tag_chronicled), R.color.gold, R.color.on_gold, 10f)
+            !c.standard && c.runs <= 1 -> pill(str(R.string.rerun_tag_no_rerun), R.color.element_hydro, R.color.on_action, 10f)
             else -> null
         }
         addView(tag ?: text(data.label(c.last), 10f, R.color.hero_muted).apply { gravity = Gravity.CENTER },
@@ -472,9 +471,11 @@ class RerunList(
             foreground = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground)).run { getDrawable(0).also { recycle() } }
             setOnClickListener { toggle(c) }
         }
-        contentDescription = (if (c.name in watched) "픽업 알림 받는 중, " else "") + "${c.ko}, ${RerunActivity.elementName(c.element)}, " +
-            (if (since == 0) "지금 픽업 중" else "${since}버전 전") + ", 마지막 ${data.label(c.last)}" +
-            (if (c.chronicled) ", 집록" else "")
+        val sinceText = if (since == 0) str(R.string.rerun_live) else context.resources.getQuantityString(R.plurals.rerun_versions_ago, since, since)
+        var description = str(R.string.rerun_tile_desc, c.ko, RerunActivity.elementName(context, c.element), sinceText, data.label(c.last))
+        if (c.name in watched) description = str(R.string.rerun_tile_desc_watched, description)
+        if (c.chronicled) description = str(R.string.rerun_tile_desc_chronicled, description)
+        contentDescription = description
     }
 
     /** '카에데하라 카즈하' → '카즈하'처럼 성을 뗀 이름. 한 단어면 그대로. */
