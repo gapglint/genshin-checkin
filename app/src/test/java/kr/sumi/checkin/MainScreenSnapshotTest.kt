@@ -8,6 +8,8 @@ import org.junit.Test
 
 /** 메인 화면을 상태별·테마별로 그려 본다. ./gradlew recordPaparazziDebug 로 PNG를 만든다. */
 class MainScreenSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(
         deviceConfig = DeviceConfig.PIXEL_6,

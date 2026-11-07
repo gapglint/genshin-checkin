@@ -23,6 +23,8 @@ import org.junit.Test
  * 아이콘 512×512, 대표 이미지 1024×500, 스크린샷 1080×1920(플레이는 9:16만 받는다).
  */
 class StoreAssetsTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(theme = "Theme.HoyoCheckin", useDeviceResolution = true)
 

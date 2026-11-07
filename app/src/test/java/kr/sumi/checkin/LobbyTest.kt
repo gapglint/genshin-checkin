@@ -7,6 +7,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LobbyTest {
+    init { TestText.install() }
+
     @Test fun parsesBattleChronicleCharacters() {
         val json = JSONObject("""{"retcode":0,"data":{"avatars":[
           {"id":10000073,"name":"나히다","element":"Dendro","rarity":5,"level":90,"fetter":10,"actived_constellation_num":2,"image":"https://example.com/n.png"},

@@ -13,6 +13,8 @@ import org.junit.Test
 
 /** 홈 화면 레진 위젯(작게·넓게, 밝게·어둡게). 위젯은 RemoteViews라 같은 레이아웃을 직접 채워 그린다. */
 class WidgetSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule val paparazzi = Paparazzi(
         deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin",
         renderingMode = SessionParams.RenderingMode.SHRINK, useDeviceResolution = true,

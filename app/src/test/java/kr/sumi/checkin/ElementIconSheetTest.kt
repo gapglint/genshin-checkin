@@ -10,6 +10,8 @@ import org.junit.Test
 
 /** 복각표 원소 아이콘 7개를 크게 그려 모양을 확인한다. */
 class ElementIconSheetTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(screenHeight = 700))
 

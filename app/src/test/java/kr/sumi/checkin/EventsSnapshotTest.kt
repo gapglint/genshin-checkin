@@ -8,6 +8,8 @@ import org.junit.Rule
 import org.junit.Test
 
 class EventsSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6)
 

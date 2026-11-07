@@ -10,6 +10,8 @@ import org.junit.Test
 import java.time.LocalDate
 
 class RerunSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6)
 

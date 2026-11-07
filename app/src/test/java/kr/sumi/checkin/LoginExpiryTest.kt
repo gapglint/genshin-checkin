@@ -5,6 +5,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LoginExpiryTest {
+    init { TestText.install() }
+
     private val day = 24L * 3600 * 1000
     private val loginAt = 1_760_000_000_000L
     private val warnFrom = loginAt + Store.LOGIN_LIFETIME_MS - Store.LOGIN_EXPIRY_WARN_MS

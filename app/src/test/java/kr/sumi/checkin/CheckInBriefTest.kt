@@ -6,6 +6,8 @@ import org.junit.Test
 
 /** 접힌 알림 한 줄용 짧은 문구. 오른쪽 그림 옆에 잘리지 않고 들어가야 한다. */
 class CheckInBriefTest {
+    init { TestText.install() }
+
     @Test fun signedShowsDayAndReward() {
         assertEquals("18일째 · 원석 ×20", CheckIn.brief(Outcome.Signed(18, "원석 ×20")))
         assertEquals("3일째", CheckIn.brief(Outcome.Signed(3, null)))

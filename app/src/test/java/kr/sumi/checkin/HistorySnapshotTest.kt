@@ -10,6 +10,8 @@ import java.time.ZoneId
 
 /** 보상 내역 화면(RewardHistoryScreen)을 예시 데이터로 그려 본다. */
 class HistorySnapshotTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin")
 

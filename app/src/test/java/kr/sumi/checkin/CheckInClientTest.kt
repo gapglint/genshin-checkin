@@ -8,6 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CheckInClientTest {
+    init { TestText.install() }
+
     private fun sign(json: String, day: Int = 5) =
         CheckInClient.interpretSign(JSONObject(json), day) { "원석 x20" }
 

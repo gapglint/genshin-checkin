@@ -8,6 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NotesTest {
+    init { TestText.install() }
+
     private val at = 1_700_000_000_000L
     private fun note() = Notes.parse(JSONObject(javaClass.getResource("/daily_note.json")!!.readText()), at)!!
 
