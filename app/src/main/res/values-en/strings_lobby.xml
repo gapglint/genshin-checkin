@@ -187,4 +187,8 @@
     <string name="login_email_button">Log in with email</string>
     <string name="login_relogged">Logged in to %1$s again.</string>
     <string name="login_added">Account added. Check-ins are automatic from now on.</string>
+    <!-- One-time voice question after the first favourite pick -->
+    <string name="lobby_voice_ask_title">Hear the character\'s voice too?</string>
+    <string name="lobby_voice_ask_body">Tap the bubble or the character to hear the line. Only lines you play are downloaded and kept (about 0.1–0.4 MB each). You can change the language any time under Voice below.</string>
+    <string name="lobby_voice_ask_no">Not now</string>
 </resources>

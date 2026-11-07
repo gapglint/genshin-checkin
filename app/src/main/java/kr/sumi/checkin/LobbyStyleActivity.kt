@@ -188,6 +188,7 @@ class LobbyStyleActivity : Activity() {
                     // 공식 그림을 미리 받아 둔다(로비를 열 때 바로 보이게).
                     pool.execute { Lobby.background(this@LobbyStyleActivity, settings, resources.displayMetrics.widthPixels) }
                     render()
+                    askVoiceOnce()
                 }
             }
             val image = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
@@ -265,6 +266,27 @@ class LobbyStyleActivity : Activity() {
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { if (code != "ko") leftMargin = dp(6) })
         }
     }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(4) })
+
+    /**
+     * 최애를 처음 고르면 한 번: 음성도 켤지 묻는다(음성 설정은 화면 아래쪽이라 모르고 지나치기 쉽다).
+     * 음성은 누른 대사만 그때 받아 재생하고 저장해 둔다. 고른 언어는 아래 음성 칸에서 언제든 바꾼다.
+     */
+    private fun askVoiceOnce() {
+        if (settings.voiceAsked || settings.voiceLanguage != "off" || !Lobby.officialVoicesAllowed(this)) return
+        settings.voiceAsked = true
+        val codes = Lobby.VOICE_LANGUAGES.keys.toList()
+        val labels = codes.map { code ->
+            getString(when (code) { "ko" -> R.string.lobby_voice_ko; "ja" -> R.string.lobby_voice_ja; "zh" -> R.string.lobby_voice_zh; else -> R.string.lobby_voice_en })
+        } + getString(R.string.lobby_voice_ask_no)
+        AppDialog(this)
+            .setTitle(getString(R.string.lobby_voice_ask_title))
+            .setMessage(getString(R.string.lobby_voice_ask_body))
+            .setSingleChoiceItems(labels.toTypedArray(), -1) { dialog, which ->
+                dialog.dismiss()
+                if (which < codes.size) { settings.voiceLanguage = codes[which]; render() }
+            }
+            .show()
+    }
 
     private fun section(title: String) = list.addView(TextView(this).apply {
         text = title

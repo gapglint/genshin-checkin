@@ -422,6 +422,10 @@ class AppSettings(private val context: Context) {
     var voiceLanguage: String
         get() = prefs.getString("voice_language", "off") ?: "off"
         set(value) = prefs.edit { putString("voice_language", value) }
+    /** 최애를 처음 고른 뒤 음성을 켤지 한 번 물어봤는지(아래쪽 설정을 모르고 지나치지 않게). */
+    var voiceAsked: Boolean
+        get() = prefs.getBoolean("voice_asked", false)
+        set(value) = prefs.edit { putBoolean("voice_asked", value) }
     /** 복각표에 4성도 보일지(기본은 5성만). */
     var rerunFours: Boolean
         get() = prefs.getBoolean("rerun_fours", false)
