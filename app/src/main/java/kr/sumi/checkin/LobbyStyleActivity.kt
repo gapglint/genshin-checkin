@@ -229,7 +229,8 @@ class LobbyStyleActivity : Activity() {
             addView(TextView(this@LobbyStyleActivity).apply {
                 text = getString(R.string.lobby_fav_badge); textSize = 10.5f; setTextColor(Color.WHITE)
                 setPadding(dp(8), dp(2), dp(8), dp(2))
-                background = GradientDrawable().apply { setColor(0x33FFFFFF); cornerRadius = dp(99).toFloat() }
+                // 밝은 그림 위에서도 보이게 어두운 바탕
+                background = GradientDrawable().apply { setColor(0x66000000); cornerRadius = dp(99).toFloat() }
             }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
             addView(TextView(this@LobbyStyleActivity).apply {
                 text = CharNames.of(fav.name); textSize = 30f; setTextColor(Color.WHITE)
