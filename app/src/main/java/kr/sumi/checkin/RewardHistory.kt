@@ -39,8 +39,8 @@ object RewardHistory {
     fun totals(items: List<Pair<String, Int>>): List<Pair<String, Int>> {
         val sums = linkedMapOf<String, Int>()
         for ((name, count) in items) sums[name] = (sums[name] ?: 0) + count
-        val order = listOf("원석", "모라")
-        return sums.entries.sortedBy { order.indexOf(it.key).let { i -> if (i < 0) order.size else i } }.map { it.key to it.value }
+        fun rank(name: String) = when { ItemIcons.isPrimogem(name) -> 0; ItemIcons.isMora(name) -> 1; else -> 2 }
+        return sums.entries.sortedBy { rank(it.key) }.map { it.key to it.value }
     }
 
     /** '원석 ×140 · 모라 ×20,000 외 3종'. 비어 있으면 null. */

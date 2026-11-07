@@ -197,11 +197,12 @@ object Notes {
         repeat(6) { append(letters[ThreadLocalRandom.current().nextInt(letters.length)]) }
     }
 
-    internal fun headers() = mapOf(
+    /** 전적 API 머리글. [lang]은 응답 언어(기본은 앱 언어). 내 캐릭터 목록처럼 이름을 열쇠로 쓰는 곳은 한국어로 받는다. */
+    internal fun headers(lang: String = DataLang.code()) = mapOf(
         "DS" to ds(),
         "x-rpc-app_version" to "1.5.0",
         "x-rpc-client_type" to "5",
-        "x-rpc-language" to CheckInClient.LANG,
+        "x-rpc-language" to lang,
     )
 
     internal fun parse(json: JSONObject, at: Long): DailyNote? {

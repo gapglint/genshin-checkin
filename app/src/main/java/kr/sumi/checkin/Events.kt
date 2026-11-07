@@ -19,7 +19,7 @@ object Events {
     private const val BBS = "https://bbs-api-os.hoyolab.com"
     private const val PREFS = "events"
     private const val REFRESH_MS = 6 * 60 * 60_000L
-    private val HEADERS = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to "ko-kr")
+    private fun headers() = mapOf("x-rpc-client_type" to "4", "x-rpc-app_version" to "2.50.0", "x-rpc-language" to DataLang.code())
     /** 안내 글 안의 참여 링크. 공식 짧은 주소(hoyo.link)가 '이벤트 참여하기' 링크라 먼저 보고(실제 주소로 풀어서), 없으면 웹이벤트 주소. */
     private val SHORT_LINK = Regex("""https://hoyo\.link/[A-Za-z0-9]+""")
     private val EVENT_LINK = Regex("""https://act\.hoyo(?:lab|verse)\.com/[^\s"'<>\\]+""")
@@ -27,7 +27,9 @@ object Events {
     fun cached(context: Context): List<GameEvent> =
         prefs(context).getString("json", null)?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }.orEmpty()
 
-    fun isFresh(context: Context) = System.currentTimeMillis() - prefs(context).getLong("checked_at", 0) < REFRESH_MS
+    /** 6시간 안에 지금 자료 언어로 받았는지(앱 언어가 바뀌면 새로 받는다. 받기 전까지는 받아 둔 목록을 그대로 보여 준다). */
+    fun isFresh(context: Context) = System.currentTimeMillis() - prefs(context).getLong("checked_at", 0) < REFRESH_MS &&
+        prefs(context).getString("lang", DataLang.KO) == DataLang.code()
 
     /** 진행 중인 이벤트(호요랩이 진행 중으로 표시했거나 기간 안). 끝나는 날이 가까운 순. */
     fun live(context: Context, nowSec: Long = ServerClock.now() / 1000): List<GameEvent> =
@@ -51,7 +53,8 @@ object Events {
         val json = get(LIST_URL)
         if (json.optInt("retcode", -1) != 0) throw IOException(json.optString("message", context.getString(R.string.events_list_failed)))
         parse(json)
-        prefs(context).edit().putString("json", json.toString()).putLong("checked_at", System.currentTimeMillis()).apply()
+        prefs(context).edit().putString("json", json.toString()).putLong("checked_at", System.currentTimeMillis())
+            .putString("lang", DataLang.code()).apply()
         return true
     }
 
@@ -78,6 +81,18 @@ object Events {
     }
 
     internal fun isEventPage(url: String) = EVENT_LINK.find(url)?.range?.first == 0
+
+    /**
+     * 웹이벤트인지: 웹이벤트 주소로 바로 가거나, 안내 글 제목에 웹이벤트라고 적혀 있으면.
+     * 제목은 앱 언어로 온다(한국어 "웹이벤트", 일본어 "Webイベント", 영어 "Web Event"). 언어를 바꾸기 전에 받은 제목도 있어 모두 본다.
+     */
+    internal fun isWebEvent(e: GameEvent) = e.path.startsWith("http") || WEB_EVENT.any { e.name.contains(it, ignoreCase = true) }
+
+    /** 제목에 원석 보상이 적혀 있는지(원석·原石·Primogem). */
+    internal fun hasPrimogems(e: GameEvent) = PRIMOGEM.any { e.name.contains(it, ignoreCase = true) }
+
+    private val WEB_EVENT = listOf("웹이벤트", "웹 이벤트", "Webイベント", "Web Event")
+    private val PRIMOGEM = listOf("원석", "原石", "Primogem")
 
     /** 짧은 주소(hoyo.link)가 가리키는 실제 주소. 몇 번 넘겨주기를 따라간다. */
     private fun resolve(url: String): String {
@@ -119,7 +134,7 @@ object Events {
             conn.connectTimeout = 15_000
             conn.readTimeout = 15_000
             conn.setRequestProperty("User-Agent", CheckInClient.USER_AGENT)
-            HEADERS.forEach { (k, v) -> conn.setRequestProperty(k, v) }
+            headers().forEach { (k, v) -> conn.setRequestProperty(k, v) }
             if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
             return JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
         } catch (e: org.json.JSONException) {

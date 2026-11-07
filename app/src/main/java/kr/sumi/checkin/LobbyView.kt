@@ -598,7 +598,7 @@ class LobbyMenu(
                         addView(text(context.getString(R.string.lobby_back), 14f, 0xDDFFFFFF.toInt(), bold = true).apply { setPadding(dp(4), 0, 0, 0) })
                     }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
                     addView(text(title, 28f, Color.WHITE, bold = true).apply { LobbyFont.title?.let { typeface = it }; setPadding(0, 0, 0, dp(4)) })
-                    addView(text(context.getString(R.string.lobby_menu_with, who), 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
+                    addView(text(context.getString(R.string.lobby_menu_with, CharNames.of(who)), 12.5f, t.light).apply { setPadding(0, dp(4), 0, 0) })
                 }, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
             }
         }

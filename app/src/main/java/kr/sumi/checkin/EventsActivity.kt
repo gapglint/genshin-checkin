@@ -192,11 +192,10 @@ class EventsList(
         })
     }
 
-    /** 제목으로 고른 표시: 웹이벤트, 원석 보상. */
+    /** 주소와 제목으로 고른 표시: 웹이벤트, 원석 보상. */
     private fun tags(e: GameEvent) = listOfNotNull(
-        // 제목 비교("웹이벤트"·"원석")는 호요랩 한국어 제목과 맞춰 보는 것이라 그대로 둔다.
-        Triple(context.getString(R.string.events_tag_web), R.color.hero, R.color.hero_ink).takeIf { e.path.startsWith("http") || "웹이벤트" in e.name || "웹 이벤트" in e.name },
-        Triple(context.getString(R.string.events_tag_primogem), R.color.gold, R.color.on_gold).takeIf { "원석" in e.name },
+        Triple(context.getString(R.string.events_tag_web), R.color.hero, R.color.hero_ink).takeIf { Events.isWebEvent(e) },
+        Triple(context.getString(R.string.events_tag_primogem), R.color.gold, R.color.on_gold).takeIf { Events.hasPrimogems(e) },
     )
 
     private fun daysLeft(e: GameEvent): Long? =

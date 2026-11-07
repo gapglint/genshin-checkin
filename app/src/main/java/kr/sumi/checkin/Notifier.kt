@@ -220,12 +220,13 @@ object Notifier {
     fun notifyRerun(context: Context, c: RerunCharacter, b: Banner, today: java.time.LocalDate) {
         if (!canNotify(context)) return
         fun day(d: java.time.LocalDate) = Notes.monthDay(d)
-        // 한국어 문구는 한국어 이름(ko), 영어 문구는 영어 이름(name)을 쓴다.
+        // 문구에는 앱 언어 이름(%1$s, 한국어면 ko)과 영어 이름(%2$s, name)을 넘긴다.
+        val shown = CharNames.of(c.ko, c.name)
         val (title, period) = if (b.start.isAfter(today)) {
-            context.getString(R.string.core_notif_rerun_soon_title, c.ko, c.name) to
+            context.getString(R.string.core_notif_rerun_soon_title, shown, c.name) to
                 context.getString(R.string.core_notif_rerun_soon_text, day(b.start), day(b.end))
         } else {
-            context.getString(R.string.core_notif_rerun_now_title, c.ko, c.name) to context.getString(R.string.core_notif_rerun_now_text, day(b.end))
+            context.getString(R.string.core_notif_rerun_now_title, shown, c.name) to context.getString(R.string.core_notif_rerun_now_text, day(b.end))
         }
         val text = if (b.chronicled) context.getString(R.string.core_notif_rerun_chronicled, period) else period
         val id = ID_RERUN * 10_000 + (c.name.hashCode() and 0x1FFF)
@@ -288,7 +289,7 @@ object Notifier {
                 Mood.CHEER -> Lobby.pick(voices, "파티 가입").filter { it.text.length <= 70 }.randomOrNull()
             }
         }
-        val quote = if (line != null) "${fav!!.name} 「${line.text}」" else null
+        val quote = if (line != null) "${CharNames.of(fav!!.name)} 「${line.text}」" else null
         val art = if (look != null && fav != null) Lobby.cachedNotifArt(context, fav.name) else null
         if (art != null) {
             setStyle(Notification.DecoratedCustomViewStyle())

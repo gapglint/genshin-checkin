@@ -147,7 +147,7 @@ class PickupWidget : AppWidgetProvider() {
                 val color = context.getColor(RerunActivity.elementColor(c.second))
                 setInt(circle, "setColorFilter", color)
                 RerunActivity.elementIcon(c.second)?.let { setImageViewResource(icon, it) }
-                setTextViewText(name, c.first)
+                setTextViewText(name, card!!.label(c.first))
                 setTextColor(name, RerunActivity.light(color))
             }
             setTextViewText(R.id.pickOldest, card?.oldest ?: "")

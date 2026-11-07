@@ -103,9 +103,9 @@ class RewardHistoryScreen(private val context: Context) {
         val codes = s.codes.filter { ServerClock.dayOf(it.at).toString().startsWith(s.month) }
         val items = attendance.map { it.name to it.count } + codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) }
         val totals = RewardHistory.totals(items)
-        val primo = totals.firstOrNull { (it.first == "원석" || it.first == "Primogem") }?.second ?: 0
-        val mora = totals.firstOrNull { (it.first == "모라" || it.first == "Mora") }?.second ?: 0
-        val others = totals.count { it.first != "원석" && it.first != "모라" }
+        val primo = totals.filter { ItemIcons.isPrimogem(it.first) }.sumOf { it.second }
+        val mora = totals.filter { ItemIcons.isMora(it.first) }.sumOf { it.second }
+        val others = totals.count { !ItemIcons.isPrimogem(it.first) && !ItemIcons.isMora(it.first) }
 
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -149,7 +149,7 @@ class RewardHistoryScreen(private val context: Context) {
     /** 이 앱으로 받은 리딤 보상 합계: 원석·모라·코드 수를 아이콘과 큰 숫자로. */
     private fun redeemTotals(codes: List<RedeemedCode>): View {
         val totals = RewardHistory.totals(codes.mapNotNull { it.reward }.flatMap { Redeem.rewardItems(it) })
-        fun amount(name: String) = "%,d".format(totals.firstOrNull { it.first == name }?.second ?: 0)
+        fun amount(kind: (String) -> Boolean) = "%,d".format(totals.filter { kind(it.first) }.sumOf { it.second })
         val unknown = codes.count { it.reward == null }
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -161,8 +161,8 @@ class RewardHistoryScreen(private val context: Context) {
             })
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                addView(total(R.drawable.ic_item_primogem, amount("원석"), context.getString(R.string.home_history_primogems)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(total(R.drawable.ic_item_mora, amount("모라"), context.getString(R.string.home_history_mora)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_primogem, amount(ItemIcons::isPrimogem), context.getString(R.string.home_history_primogems)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(total(R.drawable.ic_item_mora, amount(ItemIcons::isMora), context.getString(R.string.home_history_mora)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
                 addView(total(R.drawable.ic_item_gift, "${codes.size}", context.getString(R.string.home_history_codes_label)), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(10) })
             if (unknown > 0) addView(TextView(context).apply {
@@ -217,13 +217,7 @@ class RewardHistoryScreen(private val context: Context) {
         })
     }
 
-    private fun iconFor(name: String) = when {
-        (name.contains("원석") || name.contains("Primogem")) -> R.drawable.ic_item_primogem
-        (name.contains("모라") || name.contains("Mora")) -> R.drawable.ic_item_mora
-        (name.contains("경험") || name.contains("Experience")) -> R.drawable.ic_item_book
-        (name.contains("광석") || name.contains("Ore")) -> R.drawable.ic_item_ore
-        else -> R.drawable.ic_item_gift
-    }
+    private fun iconFor(name: String) = ItemIcons.of(name)
 
     private fun sectionLabel(text: String, trailing: String? = null) = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL

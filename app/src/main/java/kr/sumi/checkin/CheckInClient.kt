@@ -168,9 +168,10 @@ class CheckInClient(private val cookie: String) {
 
     companion object {
         const val ACT_ID = "e202102251931481"
-        const val LANG = "ko-kr"
+        /** 응답(보상 이름·오류 문구)의 언어. 앱 언어를 따른다. */
+        val LANG: String get() = DataLang.code()
         private const val API = "https://sg-hk4e-api.hoyolab.com/event/sol"
-        const val CHECK_IN_PAGE =
+        val CHECK_IN_PAGE: String get() =
             "https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=$ACT_ID&lang=$LANG"
         const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"

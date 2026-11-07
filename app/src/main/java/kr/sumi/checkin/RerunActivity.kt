@@ -128,7 +128,7 @@ class RerunActivity : Activity() {
         PublicCodes.schedule(this)
         android.widget.Toast.makeText(
             this,
-            getString(if (on) R.string.rerun_watch_on else R.string.rerun_watch_off, c.ko),
+            getString(if (on) R.string.rerun_watch_on else R.string.rerun_watch_off, CharNames.of(c.ko, c.name)),
             android.widget.Toast.LENGTH_SHORT,
         ).show()
         if (on) Reruns.checkWatch(this)
@@ -449,7 +449,7 @@ class RerunList(
                 background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color(R.color.gold)); setStroke(dp(2), color(R.color.hero)) }
             }, android.widget.FrameLayout.LayoutParams(dp(24), dp(24), Gravity.TOP or Gravity.START))
         }, LinearLayout.LayoutParams(dp(62), dp(58)))
-        addView(text(shortName(c.ko), if (strong) 13f else 12f, 0, bold = strong).apply {
+        addView(text(shortName(CharNames.of(c.ko, c.name)), if (strong) 13f else 12f, 0, bold = strong).apply {
             setTextColor(lighten(base, 0.45f))
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
@@ -472,14 +472,14 @@ class RerunList(
             setOnClickListener { toggle(c) }
         }
         val sinceText = if (since == 0) str(R.string.rerun_live) else context.resources.getQuantityString(R.plurals.rerun_versions_ago, since, since)
-        var description = str(R.string.rerun_tile_desc, c.ko, RerunActivity.elementName(context, c.element), sinceText, data.label(c.last))
+        var description = str(R.string.rerun_tile_desc, CharNames.of(c.ko, c.name), RerunActivity.elementName(context, c.element), sinceText, data.label(c.last))
         if (c.name in watched) description = str(R.string.rerun_tile_desc_watched, description)
         if (c.chronicled) description = str(R.string.rerun_tile_desc_chronicled, description)
         contentDescription = description
     }
 
     /** '카에데하라 카즈하' → '카즈하'처럼 성을 뗀 이름. 한 단어면 그대로. */
-    private fun shortName(ko: String) = ko.trim().split(" ").last()
+    private fun shortName(name: String) = name.trim().split(" ").last()
 
     private fun lighten(c: Int, amount: Float): Int {
         fun mix(v: Int) = v + ((255 - v) * amount).toInt()
