@@ -85,12 +85,32 @@ class MainScreenSnapshotTest {
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 
-    @Test fun settingsLight() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 4200))
+    private fun settings(state: MainUiState, night: Boolean = false, page: (MainScreen.() -> Unit)? = null) {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
-        MainScreen(view).apply { render(waiting.copy(redeemRole = signed.redeemRole, redeemSummary = signed.redeemSummary, loginExpiry = "2027년 10월 18일")) }
-            .settingsPanel.visibility = android.view.View.VISIBLE
+        MainScreen(view).apply {
+            render(state)
+            page?.invoke(this)
+            settingsPanel.visibility = android.view.View.VISIBLE
+        }
         paparazzi.snapshot(view)
+    }
+
+    private val settingsState = signed.copy(loginExpiry = "2027년 10월 18일", needsBatteryExemption = true, needsHibernationExemption = true,
+        notifyOn = 5, quietNight = true, homeStyleLabel = "로비형 · 치치", language = "한국어", cardCount = 7, appVersion = "0.17.0")
+
+    /** 설정: 제때 출석하려면 할 일이 남았을 때(링 1/3, 남은 칩), 계정 카드, 타일. */
+    @Test fun settingsLight() = settings(settingsState)
+    /** 다 허용했으면 초록 카드 한 장. */
+    @Test fun settingsReady() = settings(settingsState.copy(needsBatteryExemption = false, needsHibernationExemption = false), night = true)
+    /** 설정 안의 알림 쪽: 묶음별 스위치. */
+    @Test fun settingsNotifications() = settings(settingsState) {
+        settingsOnNotifications = true
+        settingsView.showNotifications(listOf(
+            "출석·코드" to listOf(NotifyToggle("a", R.drawable.ic_check_badge, "매일 출석했을 때", true), NotifyToggle("b", R.drawable.ic_calendar, "보충 출석을 할 수 있을 때", true), NotifyToggle("c", R.drawable.ic_item_gift, "리딤 코드를 받았을 때", true)),
+            "게임" to listOf(NotifyToggle("d", R.drawable.ic_item_resin, "레진이 기준만큼 찼을 때", true), NotifyToggle("e", R.drawable.ic_note_expedition, "탐사 파견이 모두 끝났을 때", false), NotifyToggle("f", R.drawable.ic_note_teapot, "주전자 동전이 가득 찼을 때", false)),
+            "밤" to listOf(NotifyToggle("g", R.drawable.ic_moon, "밤(오후 10시~오전 8시)에는 소리·진동 없이", true)),
+        ), "로그인이 풀리거나 캡차가 필요할 때는 항상 알려 드려요.") { _, _ -> }
     }
 
     /** 그 자리에서 편집: 카드에 점선·−·≡, 달력은 서랍에. */

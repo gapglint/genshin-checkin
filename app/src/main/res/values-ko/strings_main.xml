@@ -296,4 +296,26 @@
     <string name="main_lobby_offer_no">지금은 괜찮아요</string>
     <string name="main_language">언어</string>
     <string name="main_language_sub">한국어 · 휴대전화 언어와 따로 고를 수 있어요</string>
+    <!-- 설정: 상태 카드·계정·타일·링크, 알림 쪽 -->
+    <string name="main_settings_login_sub">로그인하면 매일 새벽 1시 직후에 대신 출석하고 리딤 코드도 넣어요</string>
+    <string name="main_chip_exact">알람 허용</string>
+    <string name="main_chip_battery">배터리 최적화 제외</string>
+    <string name="main_chip_hibernation">앱 정리 끄기</string>
+    <string name="main_ready_todo">새벽 1시에 딱 맞춰 출석하려면</string>
+    <plurals name="main_ready_todo_sub"><item quantity="other">아래 %1$d가지만 허용해 주세요. 한 번만 하면 돼요.</item></plurals>
+    <string name="main_ready_done">매일 새벽 1시 직후에 출석해요</string>
+    <string name="main_ready_done_sub">필요한 허용은 다 됐어요</string>
+    <string name="main_ready_next">다음 출석 %1$s</string>
+    <string name="main_login_until">로그인 유지 %1$s까지</string>
+    <string name="main_account_more">계정 ›</string>
+    <plurals name="main_tile_notify"><item quantity="other">%1$d개 켜짐</item></plurals>
+    <string name="main_tile_quiet">밤엔 무음</string>
+    <string name="main_tile_main">메인 화면</string>
+    <plurals name="main_tile_cards"><item quantity="other">카드 %1$d개 · 순서 바꾸기</item></plurals>
+    <string name="main_tile_home_lobby">로비형 · %1$s</string>
+    <string name="main_game_app_short">원신 켜기: %1$s</string>
+    <string name="main_how_it_works">어떻게 출석하나요</string>
+    <string name="main_notify_group_check_in">출석·코드</string>
+    <string name="main_notify_group_game">게임</string>
+    <string name="main_notify_group_night">밤</string>
 </resources>

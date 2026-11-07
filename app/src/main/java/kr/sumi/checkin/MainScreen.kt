@@ -134,6 +134,14 @@ data class MainUiState(
     val editing: Boolean = false,
     /** 로비형 소개 카드를 보일 때(로그인하고 며칠 뒤 한 번만, 다른 안내가 없을 때). */
     val lobbyIntro: Boolean = false,
+    /** 설정 타일에 보일 것: 켜 둔 알림 수, 밤 무음, 홈 스타일 한 줄, 앱 언어(Android 13부터), 버전. */
+    val notifyOn: Int = 0,
+    val quietNight: Boolean = false,
+    val homeStyleLabel: String = "",
+    val language: String? = null,
+    val appVersion: String = "",
+    /** 메인 화면에 보이는 카드 수. */
+    val cardCount: Int = 0,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -196,19 +204,32 @@ class MainScreen(val root: View) {
     private val heroRewardIcon: android.widget.ImageView = root.findViewById(R.id.heroRewardIcon)
     private val heroNote: TextView = root.findViewById(R.id.heroNote)
     private val heroNext: TextView = root.findViewById(R.id.heroNext)
-    private val timingSection: View = root.findViewById(R.id.timingSection)
-    val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
-    val rowBattery: View = root.findViewById(R.id.rowBattery)
-    val rowHibernation: View = root.findViewById(R.id.rowHibernation)
     val primaryButton: Button = root.findViewById(R.id.primaryButton)
     val busyBar: View = root.findViewById(R.id.busyBar)
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
     private val makeUpText: TextView = root.findViewById(R.id.makeUpText)
     val makeUpButton: Button = root.findViewById(R.id.makeUpButton)
-    val rowNotifications: View = root.findViewById(R.id.rowNotifications)
-    private val notificationsSub: TextView = root.findViewById(R.id.notificationsSub)
     val settingsButton: View = root.findViewById(R.id.settingsButton)
     val settingsPanel: View = root.findViewById(R.id.settingsPanel)
+    /** 설정 내용(상태 카드·계정·타일·링크). 알림 쪽도 같은 자리에 그린다. */
+    val settingsView = SettingsView(context).also { root.findViewById<android.view.ViewGroup>(R.id.settingsContent).addView(it) }
+    var settingsActions: SettingsView.Actions = object : SettingsView.Actions {
+        override fun onExactAlarm() {}
+        override fun onBattery() {}
+        override fun onHibernation() {}
+        override fun onAccount() {}
+        override fun onLogin() {}
+        override fun onNotifications() {}
+        override fun onDecorate() {}
+        override fun onMainDisplay() {}
+        override fun onLanguage() {}
+        override fun onGameApp() {}
+        override fun onAbout() {}
+        override fun onPrivacy() {}
+        override fun onSource() {}
+    }
+    /** 설정의 알림 쪽을 보는 중이면 true(그동안은 설정 첫 쪽을 다시 그리지 않는다). */
+    var settingsOnNotifications = false
     val settingsBack: View = settingsPanel.findViewById(R.id.headerBack)
     val setupBanner: View = root.findViewById(R.id.setupBanner)
     private val setupText: TextView = root.findViewById(R.id.setupText)
@@ -241,7 +262,6 @@ class MainScreen(val root: View) {
     private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
     private val notesFooter: View = root.findViewById(R.id.notesFooter)
     val notesPlay: View = root.findViewById(R.id.notesPlay)
-    val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
     val eventsButton: View = root.findViewById(R.id.eventsButton)
     val decorateButton: View = root.findViewById(R.id.decorateButton)
@@ -262,14 +282,6 @@ class MainScreen(val root: View) {
         CARD_RERUNS -> listOf(rerunCard)
         else -> listOf(root.findViewById(R.id.heroCard))
     }
-    val rowGameApp: View = root.findViewById(R.id.rowGameApp)
-    private val gameAppSub: TextView = root.findViewById(R.id.gameAppSub)
-    val rowAccount: View = root.findViewById(R.id.rowAccount)
-    private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
-    private val accountSub: TextView = root.findViewById(R.id.accountSub)
-    val rowLogout: View = root.findViewById(R.id.rowLogout)
-    val privacyLink: TextView = root.findViewById(R.id.privacyLink)
-    val sourceLink: TextView = root.findViewById(R.id.sourceLink)
 
     init {
         wrap(MainEditor.CARD_CHECK_IN, root.findViewById(R.id.heroCard))
@@ -279,10 +291,7 @@ class MainScreen(val root: View) {
         wrap(CARD_RERUNS, rerunCard)
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
-        root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
-        root.findViewById<View>(R.id.timingGroup).clipToOutline = true
         notesCard.clipToOutline = true
-        root.findViewById<View>(R.id.notesGroup).clipToOutline = true
         tileRedeem.clipToOutline = true
         tileHistory.clipToOutline = true
         rerunCard.clipToOutline = true
@@ -324,11 +333,7 @@ class MainScreen(val root: View) {
             }
         } ?: context.getString(R.string.main_next_run, s.nextRun)
 
-        rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
-        rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE
-        rowHibernation.visibility = if (s.loggedIn && s.needsHibernationExemption) View.VISIBLE else View.GONE
         val setupNeeded = if (!s.loggedIn) 0 else listOf(s.needsExactAlarm, s.needsBatteryExemption, s.needsHibernationExemption).count { it }
-        timingSection.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
         // 메인에는 한 줄 안내만 두고, 자세한 항목은 설정 안에서 보여 준다.
         setupBanner.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
         setupText.text = context.resources.getQuantityString(R.plurals.main_setup_needed, setupNeeded, setupNeeded)
@@ -356,17 +361,8 @@ class MainScreen(val root: View) {
         makeUpText.text = (s.makeUpMissed ?: 0).let { context.resources.getQuantityString(R.plurals.main_make_up_missed, it, it) }
         makeUpButton.isEnabled = s.busy == null
 
-        notificationsSub.text = s.notificationsSummary
 
         heroEyebrow.text = if (s.loggedIn && s.nickname != null) context.getString(R.string.main_hero_eyebrow_named, s.nickname) else context.getString(R.string.main_hero_eyebrow)
-        // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
-        accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else context.getString(R.string.main_account_check)
-        accountSub.text = context.getString(R.string.main_account_sub, s.uid ?: context.getString(R.string.main_uid_unknown),
-            s.lastChecked ?: context.getString(R.string.main_not_yet)) +
-            (s.loginExpiry?.let { "\n" + context.getString(R.string.main_login_expiry, it) } ?: "")
-        // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
-        rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
-        rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         applyOrder(s.cardOrder)
         renderTiles(s)
         renderCalendar(s)
@@ -382,6 +378,13 @@ class MainScreen(val root: View) {
             setupBanner.visibility = View.GONE
         }
         for (card in CARDS) slot(card).visibility = slot(card).getChildAt(0).visibility
+        if (!settingsOnNotifications) settingsView.bind(SettingsUi(
+            loggedIn = s.loggedIn, nickname = s.nickname, server = s.server, uid = s.uid, loginExpiry = s.loginExpiry,
+            needsExactAlarm = s.needsExactAlarm, needsBattery = s.needsBatteryExemption, needsHibernation = s.needsHibernationExemption,
+            nextRun = s.nextRun, notifyOn = s.notifyOn, notifyTotal = 6, quietNight = s.quietNight, homeStyle = s.homeStyleLabel,
+            cardCount = s.cardCount, language = s.language, gameApp = s.gameApp, gameAppCount = s.gameAppCount,
+            version = s.appVersion,
+        ), settingsActions)
     }
 
     private fun wrap(card: String, view: View) {
@@ -415,9 +418,6 @@ class MainScreen(val root: View) {
     private fun renderNotes(s: MainUiState) {
         val n = s.notes
         notesCard.visibility = if (s.loggedIn && s.showNotes && (n != null || s.notesProblem != null || s.notesLoading || s.editing)) View.VISIBLE else View.GONE
-        // 원신이 둘 이상 깔렸을 때만 어느 걸 켤지 고르게 한다.
-        rowGameApp.visibility = if (s.gameApp != null && s.gameAppCount > 1) View.VISIBLE else View.GONE
-        gameAppSub.text = s.gameApp
 
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()

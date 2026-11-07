@@ -68,7 +68,7 @@ class MainActivity : Activity() {
             },
         )
         screen.settingsButton.setOnClickListener { showSettings(true) }
-        screen.settingsBack.setOnClickListener { showSettings(false) }
+        screen.settingsBack.setOnClickListener { if (screen.settingsOnNotifications) showSettingsMain() else showSettings(false) }
         screen.setupBanner.setOnClickListener { showSettings(true) }
         screen.rerunCard.setOnClickListener { startActivity(RerunActivity.intent(this)) }
         screen.faceFor = { ko -> Lobby.cachedFace(this, ko) }
@@ -123,15 +123,21 @@ class MainActivity : Activity() {
         }
         screen.makeUpButton.setOnClickListener { makeUpNow() }
         screen.makeUpCard.setOnClickListener { explainMakeUp() }
-        screen.rowNotifications.setOnClickListener { chooseNotifications() }
-        screen.rowAccount.setOnClickListener { checkLogin() }
-        screen.rowLogout.setOnClickListener { confirmLogout() }
-        for (link in listOf(screen.privacyLink, screen.sourceLink)) link.paintFlags = link.paintFlags or Paint.UNDERLINE_TEXT_FLAG
-        screen.privacyLink.setOnClickListener { openWeb(PRIVACY_URL) }
-        screen.sourceLink.setOnClickListener { openWeb(SOURCE_URL) }
-        screen.rowExactAlarm.setOnClickListener { openExactAlarmSettings() }
-        screen.rowBattery.setOnClickListener { requestBatteryExemption() }
-        screen.rowHibernation.setOnClickListener { openHibernationSettings() }
+        screen.settingsActions = object : SettingsView.Actions {
+            override fun onExactAlarm() = openExactAlarmSettings()
+            override fun onBattery() = requestBatteryExemption()
+            override fun onHibernation() = openHibernationSettings()
+            override fun onAccount() = accountMenu()
+            override fun onLogin() { startActivity(LoginActivity.loginIntent(this@MainActivity)) }
+            override fun onNotifications() = showNotificationsPage()
+            override fun onDecorate() { startActivity(LobbyStyleActivity.intent(this@MainActivity)) }
+            override fun onMainDisplay() { showSettings(false); setEditing(true) }
+            override fun onLanguage() = openLanguageSettings()
+            override fun onGameApp() = chooseGameApp()
+            override fun onAbout() { AppDialog(this@MainActivity).setTitle(getString(R.string.main_how_it_works)).setMessage(getString(R.string.main_about_timing)).setPositiveButton(getString(R.string.main_ok)).show() }
+            override fun onPrivacy() = openWeb(PRIVACY_URL)
+            override fun onSource() = openWeb(SOURCE_URL)
+        }
         screen.notesCard.setOnClickListener {
             if (store?.noteProblem == Notes.NOTES_OFF) return@setOnClickListener askEnableNotes()
             // 못 받았으면 다시 받고, 받았으면 펼치거나 접는다(펼칠 때 오래된 값이면 새로 받는다).
@@ -142,25 +148,11 @@ class MainActivity : Activity() {
             }
         }
         screen.notesPlay.setOnClickListener { Game.launchIntent(this)?.let { startActivity(it) } }
-        screen.rowMainDisplay.setOnClickListener { showSettings(false); setEditing(true) }
-        screen.root.findViewById<View>(R.id.rowHomeStyle).setOnClickListener { startActivity(LobbyStyleActivity.intent(this)) }
-        // 앱 언어: Android 13부터는 휴대전화 언어와 따로 고를 수 있다(시스템의 앱 언어 화면). 그 전에는 휴대전화 언어를 따른다.
-        if (Build.VERSION.SDK_INT >= 33) screen.root.findViewById<View>(R.id.rowLanguage).apply {
-            visibility = View.VISIBLE
-            setOnClickListener {
-                try {
-                    startActivity(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", packageName, null)))
-                } catch (e: ActivityNotFoundException) {
-                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
-                }
-            }
-        }
         screen.decorateButton.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
         screen.lobbyIntro.setOnClickListener { settings.lobbyIntroDone = true; startActivity(LobbyStyleActivity.intent(this)) }
         screen.lobbyIntroClose.setOnClickListener { settings.lobbyIntroDone = true; refresh() }
         screen.editButton.setOnClickListener { setEditing(true) }
         screen.editDone.setOnClickListener { setEditing(false) }
-        screen.rowGameApp.setOnClickListener { chooseGameApp() }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -329,6 +321,7 @@ class MainActivity : Activity() {
 
     /** 설정은 같은 화면 위에 연다. 열려 있으면 뒤로 가기로 닫는다. */
     private fun showSettings(show: Boolean) {
+        if (screen.settingsOnNotifications) showSettingsMain()
         screen.settingsPanel.visibility = if (show) View.VISIBLE else View.GONE
         if (show) screen.settingsPanel.findViewById<View>(R.id.settingsScroll).scrollTo(0, 0)
         updateBackCallback()
@@ -346,7 +339,7 @@ class MainActivity : Activity() {
 
     /** 위에 열린 것부터 닫는다. 닫을 게 있었으면 true. */
     private fun closeTopPanel(): Boolean = when {
-        screen.settingsPanel.visibility == View.VISIBLE -> { showSettings(false); true }
+        screen.settingsPanel.visibility == View.VISIBLE -> { if (screen.settingsOnNotifications) showSettingsMain() else showSettings(false); true }
         lobbyMenus.isNotEmpty() -> { closeLobbyMenu(); true }
         editing -> { setEditing(false); true }
         // 로비에서 '카드'로 카드 화면을 보던 중이면 로비로 돌아간다.
@@ -729,6 +722,13 @@ class MainActivity : Activity() {
                 cardOrder = settings.cardOrder,
                 editing = editing,
                 lobbyIntro = lobbyIntroDue(),
+                notifyOn = listOf(settings.notifyCheckIn, settings.makeUpAlerts, settings.notifyRedeem, settings.resinAlert, settings.expeditionAlert, settings.coinAlert).count { it },
+                quietNight = settings.quietNight,
+                homeStyleLabel = if (settings.homeStyle == Lobby.STYLE_LOBBY && settings.favorite != null)
+                    getString(R.string.main_tile_home_lobby, CharNames.of(settings.favorite!!.name)) else getString(R.string.lobby_style_card),
+                language = if (Build.VERSION.SDK_INT >= 33) resources.configuration.locales[0].let { it.getDisplayLanguage(it).replaceFirstChar { c -> c.uppercase() } } else null,
+                appVersion = appVersion,
+                cardCount = settings.cardOrder.count { settings.isShown(it) },
             )
         screen.render(state)
         renderLobby(state)
@@ -1000,36 +1000,81 @@ class MainActivity : Activity() {
     }
 
     /** 알림 종류를 고른다. 로그인·캡차 같은 문제는 항상 알린다. */
-    private fun chooseNotifications() {
-        val checked = booleanArrayOf(
-            settings.notifyCheckIn, settings.makeUpAlerts, settings.notifyRedeem,
-            settings.resinAlert, settings.expeditionAlert, settings.coinAlert, settings.quietNight,
-        )
+    /** 설정 안의 알림 쪽: 묶음별 스위치(바꾸면 바로 저장). 뒤로 가기는 설정 첫 쪽으로. */
+    private fun showNotificationsPage() {
+        screen.settingsOnNotifications = true
+        screen.settingsPanel.findViewById<TextView>(R.id.headerTitle).text = getString(R.string.main_notifications)
+        screen.settingsPanel.findViewById<View>(R.id.settingsScroll).scrollTo(0, 0)
+        renderNotificationsPage()
+        updateBackCallback()
+    }
+
+    private fun renderNotificationsPage() {
+        fun t(key: String, icon: Int, title: Int, on: Boolean) = NotifyToggle(key, icon, getString(title), on)
+        screen.settingsView.showNotifications(listOf(
+            getString(R.string.main_notify_group_check_in) to listOf(
+                t("checkIn", R.drawable.ic_check_badge, R.string.main_notify_item_check_in, settings.notifyCheckIn),
+                t("makeUp", R.drawable.ic_calendar, R.string.main_notify_item_make_up, settings.makeUpAlerts),
+                t("redeem", R.drawable.ic_item_gift, R.string.main_notify_item_redeem, settings.notifyRedeem),
+            ),
+            getString(R.string.main_notify_group_game) to listOf(
+                t("resin", R.drawable.ic_item_resin, R.string.main_notify_item_resin, settings.resinAlert),
+                t("expedition", R.drawable.ic_note_expedition, R.string.main_notify_item_expedition, settings.expeditionAlert),
+                t("coin", R.drawable.ic_note_teapot, R.string.main_notify_item_coin, settings.coinAlert),
+            ),
+            getString(R.string.main_notify_group_night) to listOf(
+                t("quiet", R.drawable.ic_moon, R.string.main_notify_item_quiet, settings.quietNight),
+            ),
+        ), getString(R.string.main_notify_footer)) { key, on ->
+            when (key) {
+                "checkIn" -> settings.notifyCheckIn = on
+                "makeUp" -> settings.makeUpAlerts = on
+                "redeem" -> settings.notifyRedeem = on
+                "resin" -> settings.resinAlert = on
+                "expedition" -> settings.expeditionAlert = on
+                "coin" -> settings.coinAlert = on
+                "quiet" -> settings.quietNight = on
+            }
+            Notes.schedule(this)
+            if (key in listOf("resin", "expedition", "coin") && on && store?.note == null) loadNotes(force = true)
+        }
+    }
+
+    /** 알림 쪽에서 설정 첫 쪽으로. */
+    private fun showSettingsMain() {
+        screen.settingsOnNotifications = false
+        screen.settingsPanel.findViewById<TextView>(R.id.headerTitle).text = getString(R.string.main_settings)
+        refresh()
+        updateBackCallback()
+    }
+
+    /** 계정 카드를 누르면: 로그인 상태 확인, 계정 추가, 이 계정 로그아웃. */
+    private fun accountMenu() {
+        val items = arrayOf(getString(R.string.main_account_check), getString(R.string.main_add_account), getString(R.string.main_logout_this))
         AppDialog(this)
-            .setTitle(getString(R.string.main_notifications))
-            .setMultiChoiceItems(arrayOf(
-                getString(R.string.main_notify_item_check_in),
-                getString(R.string.main_notify_item_make_up),
-                getString(R.string.main_notify_item_redeem),
-                getString(R.string.main_notify_item_resin),
-                getString(R.string.main_notify_item_expedition),
-                getString(R.string.main_notify_item_coin),
-                getString(R.string.main_notify_item_quiet),
-            ), checked)
-            .setFooter(getString(R.string.main_notify_footer))
-            .setNegativeButton(getString(R.string.main_cancel))
-            .setPositiveButton(getString(R.string.main_save)) {
-                settings.notifyCheckIn = checked[0]
-                settings.makeUpAlerts = checked[1]
-                settings.notifyRedeem = checked[2]
-                settings.resinAlert = checked[3]
-                settings.expeditionAlert = checked[4]
-                settings.coinAlert = checked[5]
-                settings.quietNight = checked[6]
-                notesSettingsChanged()
+            .setTitle(store?.displayName ?: getString(R.string.main_account))
+            .setSingleChoiceItems(items, -1) { dialog, which ->
+                dialog.dismiss()
+                when (which) {
+                    0 -> checkLogin()
+                    1 -> startActivity(LoginActivity.loginIntent(this))
+                    else -> confirmLogout()
+                }
             }
             .show()
     }
+
+    /** 앱 언어: Android 13부터 시스템의 '앱 언어' 화면(휴대전화 언어와 따로). */
+    private fun openLanguageSettings() {
+        if (Build.VERSION.SDK_INT < 33) return
+        try {
+            startActivity(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", packageName, null)))
+        } catch (e: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        }
+    }
+
+    private val appVersion by lazy { try { packageManager.getPackageInfo(packageName, 0).versionName ?: "" } catch (e: Exception) { "" } }
 
     private fun notificationsSummary(): String {
         val kinds = listOfNotNull(

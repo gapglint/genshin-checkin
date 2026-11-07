@@ -296,4 +296,26 @@
     <string name="main_lobby_offer_no">今はいい</string>
     <string name="main_language">言語</string>
     <string name="main_language_sub">日本語 · スマホの言語とは別に選べます</string>
+    <!-- 設定: 状態カード・アカウント・タイル・リンク、通知ページ -->
+    <string name="main_settings_login_sub">ログインすると毎日午前1時すぎに代わりにチェックインし、交換コードも入力します</string>
+    <string name="main_chip_exact">アラームを許可</string>
+    <string name="main_chip_battery">電池の最適化を除外</string>
+    <string name="main_chip_hibernation">アプリの整理をオフ</string>
+    <string name="main_ready_todo">午前1時ちょうどにチェックインするには</string>
+    <plurals name="main_ready_todo_sub"><item quantity="other">下の%1$dつを許可してください。一度だけで大丈夫です。</item></plurals>
+    <string name="main_ready_done">毎日午前1時すぎにチェックインします</string>
+    <string name="main_ready_done_sub">必要な許可はすべて完了</string>
+    <string name="main_ready_next">次回 %1$s</string>
+    <string name="main_login_until">%1$sまでログイン</string>
+    <string name="main_account_more">アカウント ›</string>
+    <plurals name="main_tile_notify"><item quantity="other">%1$d件オン</item></plurals>
+    <string name="main_tile_quiet">夜は無音</string>
+    <string name="main_tile_main">メイン画面</string>
+    <plurals name="main_tile_cards"><item quantity="other">カード%1$d枚・並べ替え</item></plurals>
+    <string name="main_tile_home_lobby">ロビー型・%1$s</string>
+    <string name="main_game_app_short">起動: %1$s</string>
+    <string name="main_how_it_works">チェックインのしくみ</string>
+    <string name="main_notify_group_check_in">チェックイン・コード</string>
+    <string name="main_notify_group_game">ゲーム</string>
+    <string name="main_notify_group_night">夜</string>
 </resources>

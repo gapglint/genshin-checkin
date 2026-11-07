@@ -305,4 +305,26 @@
     <string name="main_lobby_offer_no">Not now</string>
     <string name="main_language">Language</string>
     <string name="main_language_sub">English · can differ from your phone\'s language</string>
+    <!-- Settings: status card, account, tiles, links; notifications page -->
+    <string name="main_settings_login_sub">Sign in and the app checks in right after 1 AM KST every day and redeems codes</string>
+    <string name="main_chip_exact">Allow alarms</string>
+    <string name="main_chip_battery">Battery: unrestricted</string>
+    <string name="main_chip_hibernation">Keep app active</string>
+    <string name="main_ready_todo">To check in right on time</string>
+    <plurals name="main_ready_todo_sub"><item quantity="one">Just allow %1$d thing below. Only once.</item><item quantity="other">Just allow %1$d things below. Only once.</item></plurals>
+    <string name="main_ready_done">Checks in right after the daily reset</string>
+    <string name="main_ready_done_sub">Everything needed is allowed</string>
+    <string name="main_ready_next">next %1$s</string>
+    <string name="main_login_until">Signed in until %1$s</string>
+    <string name="main_account_more">Account ›</string>
+    <plurals name="main_tile_notify"><item quantity="one">%1$d on</item><item quantity="other">%1$d on</item></plurals>
+    <string name="main_tile_quiet">quiet at night</string>
+    <string name="main_tile_main">Home cards</string>
+    <plurals name="main_tile_cards"><item quantity="one">%1$d card · reorder</item><item quantity="other">%1$d cards · reorder</item></plurals>
+    <string name="main_tile_home_lobby">Lobby · %1$s</string>
+    <string name="main_game_app_short">Launch: %1$s</string>
+    <string name="main_how_it_works">How check-in works</string>
+    <string name="main_notify_group_check_in">Check-in &amp; codes</string>
+    <string name="main_notify_group_game">In game</string>
+    <string name="main_notify_group_night">Night</string>
 </resources>
