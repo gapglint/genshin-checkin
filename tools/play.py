@@ -90,7 +90,9 @@ def upload(aab, track, status):
                                     media_body=MediaFileUpload(aab, mimetype="application/octet-stream", resumable=True)).execute()
     code = bundle["versionCode"]
     release = {"versionCodes": [str(code)], "status": status, "releaseNotes": notes()}
-    edits.tracks().update(packageName=PACKAGE, editId=edit["id"], track=track, body={"track": track, "releases": [release]}).execute()
+    # 여러 트랙(예: alpha,beta)에 한 번에: 번들은 한 번만 올리고 트랙마다 같은 버전을 건다.
+    for name in [t.strip() for t in track.split(",") if t.strip()]:
+        edits.tracks().update(packageName=PACKAGE, editId=edit["id"], track=name, body={"track": name, "releases": [release]}).execute()
     edits.commit(packageName=PACKAGE, editId=edit["id"]).execute()
     print(f"{track} 트랙에 {code}를 올렸어요({'초안: 콘솔에서 출시를 눌러 주세요' if status == 'draft' else '출시'}).")
 

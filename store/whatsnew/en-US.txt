@@ -1,7 +1,8 @@
-Now on Google Play!
-• Redeems new codes automatically for your chosen character
-• Daily HoYoLAB check-in right after the 1 AM KST reset
-• Resin, expedition and realm currency alerts, plus home widgets
-• Rerun table with banner alerts for characters you wait for (4-stars too)
-• Optional lobby home with your favourite character, greetings and voices (off by default)
-• No ads, no stored password, open source
+0.17 preview (testers)
+• English and Japanese; pick the app language in Settings > Language
+• New settings: setup ring, account card, notification switches
+• New style screen: big preview with Character, Background and Voice tabs
+• Home: big numbers for codes and this month's Primogems, game item art in the calendar and history
+• Reward history: month buttons
+• Lobby: the bubble avoids the face; check-in menu and make-up section
+• Fixed a crash when the screen is rebuilt (dark mode switch)
