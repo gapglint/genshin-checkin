@@ -82,6 +82,9 @@ GitHub 릴리스에는 APK와 함께 플레이 스토어용 `genshin-checkin.aab
   | `KEYSTORE_PASSWORD` | 키스토어 비밀번호 |
   | `KEY_ALIAS` | `genshin-checkin` |
   | `KEY_PASSWORD` | 키 비밀번호 |
+  | `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD` | Play 업로드 키(gapglint 공용 업로드 키) |
+
+  APK는 위 앱 서명 키로, 플레이 스토어용 AAB는 업로드 키로 서명한다. 앱 서명 키는 이 저장소에만 둔다(다른 저장소로 복사하지 않는다).
 
   main에 푸시하면 Actions 아티팩트로 APK가 올라간다. 릴리스는 `v0.1.0` 같은 태그를 푸시하거나, Actions → Build APK → Run workflow에서 release 칸에 태그 이름을 넣으면 Releases에 APK가 올라간다.
 
