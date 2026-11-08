@@ -256,11 +256,16 @@ class MainScreen(val root: View) {
     val sourceLink: TextView = root.findViewById(R.id.sourceLink)
 
     init {
+        // 화면을 다시 만들 때(다크 모드를 바꿔 창을 그대로 두고 다시 열 때) 창이 이미 붙어 있어 카드 목록의
+        // 움직임 효과가 바로 돌고, 빼낸 카드가 효과가 끝날 때까지 목록에 남아 다시 넣을 수 없다. 옮기는 동안은 효과를 끈다.
+        val transition = cards.layoutTransition
+        cards.layoutTransition = null
         wrap(MainEditor.CARD_CHECK_IN, root.findViewById(R.id.heroCard))
         wrap(CARD_NOTES, notesCard)
         wrap(CARD_TILES, tiles)
         wrap(CARD_CALENDAR, calendarCard)
         wrap(CARD_RERUNS, rerunCard)
+        cards.layoutTransition = transition
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
         root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
