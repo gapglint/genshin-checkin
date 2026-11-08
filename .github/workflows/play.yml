@@ -14,9 +14,9 @@ on:
         required: false
         default: ""
       track:
-        description: "트랙: alpha(비공개 테스트) · beta(공개 테스트) · internal · production"
+        description: "트랙: beta(공개 테스트, 기본) · alpha(비공개 테스트) · internal · production"
         required: false
-        default: "alpha"
+        default: "beta"
       status:
         description: "draft(콘솔에서 직접 출시 누르기) 또는 completed(바로 출시)"
         required: false
