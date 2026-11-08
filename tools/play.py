@@ -24,7 +24,18 @@ def service():
     raw = os.environ.get("PLAY_SERVICE_ACCOUNT_JSON", "")
     if not raw.strip():
         sys.exit("PLAY_SERVICE_ACCOUNT_JSON 시크릿이 없어요.")
-    creds = service_account.Credentials.from_service_account_info(json.loads(raw), scopes=["https://www.googleapis.com/auth/androidpublisher"])
+    # 키 내용은 절대 출력하지 않는다. 잘못 넣었을 때는 길이·항목 이름·형식만 알려 준다.
+    try:
+        info = json.loads(raw)
+    except json.JSONDecodeError as e:
+        first = json.JSONDecoder().raw_decode(raw.strip())[0] if raw.strip().startswith("{") else None
+        names = sorted(first.keys()) if isinstance(first, dict) else []
+        sys.exit(f"시크릿이 JSON 하나가 아니에요({len(raw)}자, {e.msg} @ {e.pos}). 첫 부분의 항목 이름: {names}. "
+                 "Google Cloud에서 받은 서비스 계정 키 파일(.json) 내용 전체를 그대로 붙여 넣어 주세요.")
+    if not isinstance(info, dict) or info.get("type") != "service_account" or "private_key" not in info:
+        names = sorted(info.keys()) if isinstance(info, dict) else []
+        sys.exit(f"서비스 계정 키가 아니에요(항목 이름: {names}). type이 service_account이고 private_key가 있는 파일이어야 해요.")
+    creds = service_account.Credentials.from_service_account_info(info, scopes=["https://www.googleapis.com/auth/androidpublisher"])
     return build("androidpublisher", "v3", credentials=creds, cache_discovery=False).edits()
 
 
