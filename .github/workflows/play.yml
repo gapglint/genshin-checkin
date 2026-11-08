@@ -1,0 +1,59 @@
+name: Google Play
+
+# 수동 실행만. GitHub 릴리스(v0.16.1 등)의 AAB를 Play의 트랙에 올리거나, 연결만 확인한다.
+# 서비스 계정 키는 저장소 Secrets의 PLAY_SERVICE_ACCOUNT_JSON.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "check(연결 확인만) 또는 upload"
+        required: true
+        default: "check"
+      release:
+        description: "올릴 GitHub 릴리스 태그 (예: v0.17.0). upload일 때만"
+        required: false
+        default: ""
+      track:
+        description: "트랙: alpha(비공개 테스트) · internal · production"
+        required: false
+        default: "alpha"
+      status:
+        description: "draft(콘솔에서 직접 출시 누르기) 또는 completed(바로 출시)"
+        required: false
+        default: "draft"
+
+permissions:
+  contents: read
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Play API client
+        run: pip install google-api-python-client==2.151.0 google-auth==2.36.0
+
+      - name: Check connection
+        if: inputs.action == 'check'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 tools/play.py check
+
+      - name: Download AAB from the release
+        if: inputs.action == 'upload'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -n "${{ inputs.release }}" || { echo "::error::release 태그를 넣어 주세요"; exit 1; }
+          gh release download "${{ inputs.release }}" --pattern genshin-checkin.aab
+
+      - name: Upload to Google Play
+        if: inputs.action == 'upload'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 tools/play.py upload genshin-checkin.aab "${{ inputs.track }}" "${{ inputs.status }}"
