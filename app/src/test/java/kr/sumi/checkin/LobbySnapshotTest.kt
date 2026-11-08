@@ -13,7 +13,9 @@ import org.junit.Test
 
 /** 로비형 홈과 메뉴 화면. 그림은 게임 그림 대신 만든 그라데이션(실제로는 공식 그림·내 사진이 들어간다). */
 class LobbySnapshotTest {
-    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin")
+    init { TestText.install() }
+
+    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"), theme = "Theme.HoyoCheckin")
 
     private val actions = object : LobbyView.Actions {
         override fun onResin() {}

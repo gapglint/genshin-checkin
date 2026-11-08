@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 로비형 홈·홈 꾸미기·복각표·이벤트·로그인 화면 문구(한국어, 기본). 영어는 values-en/strings_lobby.xml. -->
+<resources>
+    <!-- Lobby: 아직 없는 최애 한 줄 -->
+    <string name="lobby_waiting_unmet">아직 만나지 못했어요</string>
+    <string name="lobby_waiting_now">아직 만나지 못했어요 · 지금 픽업 중!</string>
+    <string name="lobby_waiting_soon">아직 만나지 못했어요 · 곧 픽업이 열려요</string>
+    <string name="lobby_waiting_this_version">아직 만나지 못했어요 · 이번 버전 전반에 픽업했어요</string>
+    <plurals name="lobby_waiting_since">
+        <item quantity="other">아직 만나지 못했어요 · 마지막 픽업 %1$d버전 전</item>
+    </plurals>
+
+    <!-- LobbyView -->
+    <string name="lobby_resin_desc">레진 %1$d개, 자세히</string>
+    <plurals name="lobby_days_unit">
+        <item quantity="other">일째</item>
+    </plurals>
+    <plurals name="lobby_checkin_desc">
+        <item quantity="other">이번 달 %1$d일 출석, 달력 보기</item>
+    </plurals>
+    <string name="lobby_account_desc">지금 계정 %1$s, 바꾸기</string>
+    <string name="lobby_settings">설정</string>
+    <string name="lobby_bubble_desc_more">%1$s, 눌러서 다른 대사</string>
+    <string name="lobby_quote_less">접기 ▴</string>
+    <string name="lobby_quote_more">전체 보기 ▾</string>
+    <string name="lobby_quote_less_desc">대사 접기</string>
+    <string name="lobby_quote_more_desc">대사 전체 보기</string>
+    <string name="lobby_quote_replay_desc">대사 다시 듣기</string>
+    <string name="lobby_menu_rewards">보상</string>
+    <string name="lobby_menu_pickup">픽업</string>
+    <string name="lobby_menu_events">이벤트</string>
+    <string name="lobby_menu_cards">카드</string>
+    <string name="lobby_menu_checkin">출석</string>
+    <string name="lobby_menu_decorate">꾸미기</string>
+    <string name="lobby_fav_badge">★ 최애</string>
+    <string name="lobby_credit_art">그림</string>
+    <string name="lobby_credit_lines">대사</string>
+    <string name="lobby_credit_voice">음성</string>
+    <string name="lobby_credit_fan">비공식 팬 도구</string>
+    <string name="lobby_credit_full">%1$s © HoYoverse · 호요랩 위키 · 비공식 팬 도구</string>
+    <string name="lobby_bubble_close_desc">말풍선 닫기, 캐릭터를 누르면 다시 나와요</string>
+    <string name="lobby_back_desc">로비로</string>
+    <string name="lobby_back">로비</string>
+    <string name="lobby_menu_with">%1$s 와 함께</string>
+    <string name="lobby_cell_desc">%1$d번째 출석, %2$s %3$d개</string>
+    <string name="lobby_cell_desc_done">%1$d번째 출석, %2$s %3$d개, 받음</string>
+
+    <!-- LobbyStyleActivity: 홈 꾸미기 -->
+    <string name="lobby_style_title">홈 꾸미기</string>
+    <string name="lobby_style_intro">로비형은 최애 캐릭터가 홈의 주인공이 되는 화면이에요. 언제든 카드형으로 돌아갈 수 있어요.</string>
+    <string name="lobby_chars_load_failed">캐릭터를 불러오지 못했어요</string>
+    <string name="lobby_photo_failed">사진을 불러오지 못했어요</string>
+    <string name="lobby_section_style">홈 스타일</string>
+    <string name="lobby_style_card">카드형</string>
+    <string name="lobby_style_card_sub">출석·레진·달력을 카드로 한눈에 (기본)</string>
+    <string name="lobby_style_lobby">로비형</string>
+    <string name="lobby_style_lobby_pick">아래에서 최애 캐릭터를 먼저 골라 주세요</string>
+    <string name="lobby_style_lobby_sub">%1$s이(가) 홈의 주인공이 돼요</string>
+    <string name="lobby_need_login">로그인하면 쓸 수 있어요</string>
+    <string name="lobby_pick_fav_first">최애 캐릭터를 먼저 골라 주세요</string>
+    <string name="lobby_section_fav">최애 캐릭터</string>
+    <string name="lobby_login_to_pick">로그인하면 내 캐릭터 중에서 고를 수 있어요.</string>
+    <string name="lobby_chars_loading">내 캐릭터를 불러오는 중이에요...</string>
+    <string name="lobby_chars_none">호요랩 전적에서 캐릭터를 찾지 못했어요.</string>
+    <string name="lobby_section_voice">캐릭터 음성</string>
+    <string name="lobby_voice_unavailable">지금은 캐릭터 음성을 쓸 수 없어요. 대사 글은 그대로 보여요.</string>
+    <string name="lobby_voice_note">음성·대사 © HoYoverse(호요랩 위키). 기본은 꺼져 있어요. 대사 글은 한국어로 보여요. 음성은 말풍선이나 캐릭터를 눌렀을 때 그 대사만 받고, 받은 건 폰에 두고 다시 써요. 최애나 언어를 바꾸면 이전 음성은 지워져요.</string>
+    <string name="lobby_voice_clear">저장된 음성 지우기</string>
+    <string name="lobby_voice_clear_sub">지금 %1$sMB · 다시 들으면 다시 받아요</string>
+    <string name="lobby_section_bg">로비 배경</string>
+    <string name="lobby_bg_official">공식 그림</string>
+    <string name="lobby_bg_official_sub">호요랩 위키의 캐릭터 그림을 받아 이 폰에만 저장해요</string>
+    <string name="lobby_bg_photo">내 사진</string>
+    <string name="lobby_bg_photo_set">고른 사진을 써요 · 눌러서 바꾸기</string>
+    <string name="lobby_bg_photo_pick">갤러리에서 사진 고르기</string>
+    <string name="lobby_bg_pattern">원소 무늬</string>
+    <string name="lobby_bg_pattern_sub">최애 원소 색과 무늬만</string>
+    <string name="lobby_bg_note_official">공식 그림의 저작권은 HoYoverse에 있어요. 앱에 넣지 않고 호요랩 위키에서 받아 이 폰에서만 보여 줘요.\n고른 사진은 줄여서 앱 안에만 저장하고, 어디에도 보내지 않아요.</string>
+    <string name="lobby_bg_note_off">지금은 공식 그림을 쓸 수 없어요. 내 사진이나 원소 무늬를 써 주세요.\n고른 사진은 줄여서 앱 안에만 저장하고, 어디에도 보내지 않아요.</string>
+    <string name="lobby_waiting_choice">아직 없는 캐릭터 중에서</string>
+    <string name="lobby_waiting_choice_fav">%1$s을(를) 기다리는 중이에요 · 픽업이 열리면 알려 드려요</string>
+    <string name="lobby_waiting_choice_sub">기다리는 캐릭터를 최애로 · 픽업이 열리면 알려 드려요</string>
+    <string name="lobby_wiki_loading">캐릭터 목록을 불러오는 중이에요...</string>
+    <string name="lobby_wiki_failed">캐릭터 목록을 불러오지 못했어요.</string>
+    <string name="lobby_cell_fav_desc">%1$s, 최애</string>
+    <string name="lobby_voice_ko">한국어</string>
+    <string name="lobby_voice_ja">일본어</string>
+    <string name="lobby_voice_zh">중국어</string>
+    <string name="lobby_voice_en">영어</string>
+    <string name="lobby_voice_off">끄기</string>
+    <string name="lobby_voice_chip_desc">음성 %1$s</string>
+    <string name="lobby_voice_chip_desc_selected">음성 %1$s, 선택됨</string>
+
+    <!-- 복각표 -->
+    <string name="rerun_title">복각표</string>
+    <string name="rerun_network_error">네트워크 오류</string>
+    <string name="rerun_load_failed">불러오지 못했어요: %1$s</string>
+    <string name="rerun_loading">불러오는 중...</string>
+    <string name="rerun_status">오래 기다린 캐릭터일수록 복각이 가까울 수 있어요.</string>
+    <string name="rerun_watch_on">%1$s 픽업이 뜨면 알려 드릴게요</string>
+    <string name="rerun_watch_off">%1$s 픽업 알림을 껐어요</string>
+    <string name="rerun_read_failed">복각표 자료를 읽지 못했어요</string>
+    <string name="rerun_element_anemo">바람</string>
+    <string name="rerun_element_geo">바위</string>
+    <string name="rerun_element_electro">번개</string>
+    <string name="rerun_element_dendro">풀</string>
+    <string name="rerun_element_hydro">물</string>
+    <string name="rerun_element_pyro">불</string>
+    <string name="rerun_element_cryo">얼음</string>
+    <string name="rerun_live">지금 픽업 중</string>
+    <string name="rerun_next">다음 픽업</string>
+    <string name="rerun_limited">한정 캐릭터</string>
+    <string name="rerun_standard">상시 캐릭터</string>
+    <string name="rerun_standard_note">상시 기원에서도 나와요</string>
+    <string name="rerun_fours">4성 캐릭터</string>
+    <string name="rerun_fours_note">5성 픽업에 함께 나와요 · 누르면 4성도 픽업 알림</string>
+    <string name="rerun_source">자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.</string>
+    <string name="rerun_source_art">자료: Genshin Impact Wiki의 기원 기록(CC BY-SA)을 하루 한 번 정리해요. 비공식 정보라 실제 복각 일정은 다를 수 있어요.\n캐릭터 그림 © HoYoverse · 호요랩 위키 · 비공식 팬 도구</string>
+    <string name="rerun_fours_toggle">4성 캐릭터도 보기</string>
+    <string name="rerun_fours_toggle_on_desc">4성 캐릭터도 보기, 켜짐</string>
+    <string name="rerun_fours_toggle_off_desc">4성 캐릭터도 보기, 꺼짐</string>
+    <!-- 날짜: %1$d 월, %2$d 일, %3$s 영어 달 이름(짧게, 영어 문구만 쓴다) -->
+    <string name="rerun_day">%1$d월 %2$d일</string>
+    <string name="rerun_period_range">%1$s ~ %2$s</string>
+    <plurals name="rerun_period_until">
+        <item quantity="other">%1$s까지 · %2$d일 남음</item>
+    </plurals>
+    <string name="rerun_from">%1$s부터</string>
+    <plurals name="rerun_oldest">
+        <item quantity="other">가장 오래 기다린 캐릭터 · %1$s %2$d버전째</item>
+    </plurals>
+    <string name="rerun_card_live">지금 픽업</string>
+    <string name="rerun_now_version">지금 %1$s</string>
+    <string name="rerun_legend">마지막 픽업 뒤 지난 버전 수</string>
+    <string name="rerun_tag_new">신규</string>
+    <string name="rerun_tag_chronicled">집록</string>
+    <string name="rerun_tag_no_rerun">복각 없음</string>
+    <string name="rerun_tag_four">4성</string>
+    <string name="rerun_legend_tags">표시가 붙어요</string>
+    <string name="rerun_tap_hint">캐릭터를 누르면 그 캐릭터 픽업이 뜰 때 알려 드려요 🔔</string>
+    <string name="rerun_badge_first_half">전반</string>
+    <string name="rerun_badge_second_half">후반</string>
+    <string name="rerun_badge_later">이후</string>
+    <string name="rerun_tile_desc">%1$s, %2$s, %3$s, 마지막 %4$s</string>
+    <string name="rerun_tile_desc_watched">픽업 알림 받는 중, %1$s</string>
+    <string name="rerun_tile_desc_chronicled">%1$s, 집록</string>
+    <plurals name="rerun_versions_ago">
+        <item quantity="other">%1$d버전 전</item>
+    </plurals>
+
+    <!-- 이벤트 -->
+    <string name="events_title">이벤트</string>
+    <string name="events_network_error">네트워크 오류</string>
+    <string name="events_status">호요랩의 원신 이벤트예요. 누르면 로그인된 상태로 열려요. 보상 받기는 직접 눌러 주세요.</string>
+    <string name="events_load_failed">불러오지 못했어요: %1$s</string>
+    <string name="events_loading">불러오는 중...</string>
+    <string name="events_none">지금 진행 중인 이벤트가 없어요.</string>
+    <string name="events_ends_today">오늘 끝나요</string>
+    <plurals name="events_days_left">
+        <item quantity="other">%1$d일 남음</item>
+    </plurals>
+    <string name="events_tag_web">웹이벤트</string>
+    <string name="events_tag_primogem">원석</string>
+    <string name="events_permanent">상시 이벤트</string>
+    <!-- %1$d 월, %2$d 일, %3$s 영어 달 이름(짧게, 영어 문구만 쓴다) -->
+    <string name="events_until">%1$d월 %2$d일까지</string>
+    <string name="events_list_failed">이벤트 목록을 받지 못했어요</string>
+    <string name="events_read_failed">이벤트 목록을 읽지 못했어요</string>
+
+    <!-- 로그인·호요랩 페이지 -->
+    <string name="login_title_login">호요랩 로그인</string>
+    <string name="login_title_event">이벤트</string>
+    <string name="login_title_checkin">원신 출석체크 · %1$s</string>
+    <string name="login_hint_head">호요버스 계정 이메일과 비밀번호로 로그인해 주세요</string>
+    <string name="login_hint_tail">\n구글 로그인은 구글이 막아서 안 될 수 있어요. 로그인되면 자동으로 닫히고, 1년 동안 유지돼요.</string>
+    <string name="login_page_status">%1$s 계정으로 로그인해서 열었어요. 페이지에서 보상 받기까지 눌러 주세요.</string>
+    <string name="login_checkin_status">오늘 출석 칸을 눌러 직접 출석해 주세요. 캡차가 나오면 풀면 돼요.</string>
+    <string name="login_engine_gone">로그인 화면이 멈췄어요.\n뒤로 갔다가 다시 시도해 주세요.</string>
+    <string name="login_google_blocked">구글 로그인이 막혔어요</string>
+    <string name="login_not_finished">로그인이 끝나지 않았어요</string>
+    <string name="login_google_message">구글은 다른 앱 안에서 하는 구글 로그인을 막기도 해요. 이 로그인 창에서 구글 이메일 주소와 호요버스 비밀번호로 로그인해 주세요.\n\n비밀번호가 없다면 로그인 창의 「문제 발생」에서 새로 만들 수 있어요. 같은 계정이라 게임 데이터는 그대로예요.</string>
+    <string name="login_email_button">이메일로 로그인</string>
+    <string name="login_relogged">%1$s 계정을 다시 로그인했어요.</string>
+    <string name="login_added">계정을 추가했어요. 이제 자동으로 출석해요.</string>
+    <!-- 최애를 처음 고른 뒤 한 번 묻는 음성 안내 -->
+    <string name="lobby_voice_ask_title">캐릭터 음성도 들을까요?</string>
+    <string name="lobby_voice_ask_body">말풍선이나 캐릭터를 누르면 그 대사의 음성을 들려줘요. 들은 대사만 그때 받아 저장해요(대사 하나에 약 0.1~0.4MB). 언어는 아래 음성 칸에서 언제든 바꿀 수 있어요.</string>
+    <string name="lobby_voice_ask_no">지금은 안 들을래요</string>
+    <string name="lobby_quote_follows_voice">대사도 %1$s로 보기</string>
+    <string name="lobby_quote_follows_voice_sub">말풍선 글을 음성과 같은 언어로 보여 줘요. 끄면 앱 언어로 봐요.</string>
+    <!-- 꾸미기: 미리보기·탭 -->
+    <string name="lobby_tab_character">캐릭터</string>
+    <string name="lobby_tab_bg">배경</string>
+    <string name="lobby_tab_voice">음성</string>
+    <string name="lobby_owned_tab">내 캐릭터 %1$d</string>
+    <string name="lobby_waiting_tab">기다리는 캐릭터</string>
+    <string name="lobby_preview_pick">아래에서 최애 캐릭터를 골라 주세요</string>
+    <string name="lobby_preview_card">지금은 카드형 홈이에요</string>
+    <string name="lobby_listen">들어보기</string>
+    <string name="lobby_listen_loading">대사를 받는 중이에요</string>
+    <string name="lobby_voice_fine">음성·대사 © HoYoverse(호요랩 위키) · 들은 대사만 저장해요</string>
+    <string name="lobby_voice_stored">저장된 음성 %1$sMB</string>
+</resources>

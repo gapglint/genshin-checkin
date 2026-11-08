@@ -7,6 +7,8 @@ import org.junit.Test
 import java.time.LocalDate
 
 class RerunsTest {
+    init { TestText.install() }
+
     private val data = Reruns.parse(JSONObject(javaClass.getResource("/reruns.json")!!.readText()))
     private val day = LocalDate.of(2026, 10, 22) // 7.1 기간
 

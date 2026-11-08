@@ -9,6 +9,8 @@ import java.time.Instant
 import java.time.LocalDate
 
 class ServerClockTest {
+    init { TestText.install() }
+
     @After fun reset() { ServerClock.offsetMs = 0 }
 
     private fun ms(iso: String) = Instant.parse(iso).toEpochMilli()

@@ -93,7 +93,9 @@ https://github.com/lesumein/genshin-checkin
 | 7인치·10인치 태블릿 스크린샷 | `tablet1Redeem.png` ~ `tablet7Trust.png` (휴대전화와 같은 순서, 두 칸에 같은 파일) | 1440×2560, 폭 576dp |
 
 그래픽 이미지와 스크린샷은 알파 채널 없는 24비트 PNG여야 한다(복사 후 RGB로 변환). 이미지는 실제 화면 레이아웃을 그린 것이다(`app/src/test/.../StoreAssetsTest.kt`). 화면이 바뀌면
-`./gradlew recordPaparazziDebug` 후 `app/src/test/snapshots/images/*StoreAssetsTest_*`를 이 폴더로 복사한다.
+`python3 store/fetch_item_art.py`로 게임 아이템 그림(원석·모라·경험책·광석)을 받은 뒤 `./gradlew recordPaparazziDebug` 하고 `app/src/test/snapshots/images/*StoreAssetsTest_*`를 이 폴더로 복사한다.
+아이템 그림은 HoYoverse 저작물이라 저장소에는 올리지 않는다(`store/item-art/`는 .gitignore). 받지 않고 만들면 앱이 직접 그린 아이콘으로 나온다.
+스토어 이미지에는 아이템 아이콘만 쓰고 캐릭터 그림·로비 배경은 쓰지 않는다.
 
 ## 데이터 보안 양식 답변
 - 사용자 데이터를 수집하거나 공유하나요? **아니요**

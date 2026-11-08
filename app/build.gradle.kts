@@ -51,9 +51,9 @@ android {
         }
     }
 
-    // 앱은 한국어뿐이라 라이브러리에 딸린 다른 언어 번역은 넣지 않는다.
+    // 앱이 쓰는 언어(한국어·영어)만 넣는다. 라이브러리에 딸린 다른 언어 번역은 뺀다.
     androidResources {
-        localeFilters += listOf("ko")
+        localeFilters += listOf("ko", "en", "ja")
     }
 
     packaging {

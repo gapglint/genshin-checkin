@@ -120,10 +120,10 @@ object Notes {
         val hours = minutes / 60 % 24
         val mins = minutes % 60
         return when {
-            days > 0 -> "${days}일 ${hours}시간"
-            hours > 0 && mins > 0 -> "${hours}시간 ${mins}분"
-            hours > 0 -> "${hours}시간"
-            else -> "${mins}분"
+            days > 0 -> Text.get(R.string.core_duration_days_hours, days, hours)
+            hours > 0 && mins > 0 -> Text.get(R.string.core_duration_hours_mins, hours, mins)
+            hours > 0 -> Text.get(R.string.core_duration_hours, hours)
+            else -> Text.get(R.string.core_duration_mins, mins)
         }
     }
 
@@ -132,15 +132,21 @@ object Notes {
         val zone = java.time.ZoneId.systemDefault()
         val at = java.time.Instant.ofEpochMilli(serverMs).atZone(zone)
         val today = java.time.Instant.ofEpochMilli(ServerClock.now()).atZone(zone).toLocalDate()
-        val day = when (at.toLocalDate()) {
-            today -> ""
-            today.plusDays(1) -> "내일 "
-            else -> "${at.monthValue}월 ${at.dayOfMonth}일 "
-        }
-        val half = if (at.hour < 12) "오전" else "오후"
         val hour = (at.hour % 12).let { if (it == 0) 12 else it }
-        return "%s%s %d:%02d".format(day, half, hour, at.minute)
+        val time = Text.get(if (at.hour < 12) R.string.core_clock_am else R.string.core_clock_pm, hour, at.minute)
+        return when (at.toLocalDate()) {
+            today -> time
+            today.plusDays(1) -> Text.get(R.string.core_clock_tomorrow, time)
+            else -> Text.get(R.string.core_clock_date, at.monthValue, at.dayOfMonth, time, shortMonth(at.monthValue))
+        }
     }
+
+    /** '10월 18일'(영어 'Oct 18'). */
+    fun monthDay(d: java.time.LocalDate): String = Text.get(R.string.core_date_month_day, d.monthValue, d.dayOfMonth, shortMonth(d.monthValue))
+
+    /** 영어 문구에 쓰는 짧은 달 이름(Oct). 한국어 문구는 쓰지 않는다. */
+    internal fun shortMonth(month: Int): String =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
 
     /** 저장된 실시간 메모를 지금 시각 기준의 카드 문장으로. 레진·파견은 받은 뒤 흐른 시간만큼 앞당겨 보여 준다. */
     fun ui(n: DailyNote, now: Long = ServerClock.now()): NotesUi {
@@ -151,31 +157,32 @@ object Notes {
         return NotesUi(
             resin = resin,
             maxResin = n.maxResin,
-            fullLabel = if (resin >= n.maxResin) "" else "${duration(n.resinFullAt - now)} 뒤 가득",
-            fullTime = if (resin >= n.maxResin) "가득 찼어요" else clock(n.resinFullAt),
+            fullLabel = if (resin >= n.maxResin) "" else Text.get(R.string.core_notes_full_in, duration(n.resinFullAt - now)),
+            fullTime = if (resin >= n.maxResin) Text.get(R.string.core_notes_full) else clock(n.resinFullAt),
+            fullAt = n.resinFullAt,
             expeditions = when {
-                n.expeditionsTotal == 0 -> "없음"
-                allBack -> "${n.expeditionsTotal}/${n.expeditionsTotal} 완료"
-                else -> "${n.expeditionsDone}/${n.expeditionsTotal} 완료"
+                n.expeditionsTotal == 0 -> Text.get(R.string.core_notes_none)
+                allBack -> Text.get(R.string.core_notes_done, n.expeditionsTotal, n.expeditionsTotal)
+                else -> Text.get(R.string.core_notes_done, n.expeditionsDone, n.expeditionsTotal)
             },
             expeditionsSub = when {
-                n.expeditionsTotal == 0 -> "보낸 파견이 없어요"
-                allBack -> "보상을 받아 주세요"
-                else -> "${duration(n.expeditionsDoneAt - now)} 뒤 모두 끝나요"
+                n.expeditionsTotal == 0 -> Text.get(R.string.core_notes_no_expeditions)
+                allBack -> Text.get(R.string.core_notes_claim)
+                else -> Text.get(R.string.core_notes_expeditions_in, duration(n.expeditionsDoneAt - now))
             },
-            coin = if (n.maxHomeCoin == 0) "없음" else "%,d".format(if (coinFull) n.maxHomeCoin else n.homeCoin),
+            coin = if (n.maxHomeCoin == 0) Text.get(R.string.core_notes_none) else "%,d".format(if (coinFull) n.maxHomeCoin else n.homeCoin),
             coinSub = when {
-                n.maxHomeCoin == 0 -> "주전자가 없어요"
-                coinFull -> "가득 찼어요"
+                n.maxHomeCoin == 0 -> Text.get(R.string.core_notes_no_teapot)
+                coinFull -> Text.get(R.string.core_notes_full)
                 else -> "/ %,d".format(n.maxHomeCoin)
             },
             commissions = "${n.commissionsDone}/${n.commissionsTotal}",
             commissionsSub = when {
-                !commissionsDone -> "${n.commissionsTotal - n.commissionsDone}개 남았어요"
-                n.commissionRewardClaimed -> "보상 받음"
-                else -> "보상을 받아 주세요"
+                !commissionsDone -> Text.get(R.string.core_notes_commissions_left, n.commissionsTotal - n.commissionsDone)
+                n.commissionRewardClaimed -> Text.get(R.string.core_notes_claimed)
+                else -> Text.get(R.string.core_notes_claim)
             },
-            updated = "${clock(n.at)} 기준",
+            updated = Text.get(R.string.core_notes_updated, clock(n.at)),
         )
     }
 
@@ -190,11 +197,12 @@ object Notes {
         repeat(6) { append(letters[ThreadLocalRandom.current().nextInt(letters.length)]) }
     }
 
-    internal fun headers() = mapOf(
+    /** 전적 API 머리글. [lang]은 응답 언어(기본은 앱 언어). 내 캐릭터 목록처럼 이름을 열쇠로 쓰는 곳은 한국어로 받는다. */
+    internal fun headers(lang: String = DataLang.code()) = mapOf(
         "DS" to ds(),
         "x-rpc-app_version" to "1.5.0",
         "x-rpc-client_type" to "5",
-        "x-rpc-language" to CheckInClient.LANG,
+        "x-rpc-language" to lang,
     )
 
     internal fun parse(json: JSONObject, at: Long): DailyNote? {
@@ -265,10 +273,10 @@ object Notes {
         val json = client.get("$NOTE_URL?server=${role.region}&role_id=${role.uid}", headers())
         val code = json.optInt("retcode", Int.MIN_VALUE)
         return when {
-            code == 0 -> parse(json, ServerClock.now())?.let { NoteResult.Ok(it) } ?: NoteResult.Failed("받은 내용을 읽지 못했어요")
+            code == 0 -> parse(json, ServerClock.now())?.let { NoteResult.Ok(it) } ?: NoteResult.Failed(Text.get(R.string.core_notes_unreadable))
             code in LOGIN || code in CheckInClient.NOT_LOGGED_IN -> NoteResult.LoginExpired
             code == NOT_PUBLIC -> NoteResult.NotesOff
-            code in CAPTCHA -> NoteResult.Failed("호요랩이 확인을 요구해요. 잠시 뒤 다시 시도할게요")
+            code in CAPTCHA -> NoteResult.Failed(Text.get(R.string.core_notes_captcha))
             else -> NoteResult.Failed("${json.optString("message")} (retcode $code)")
         }
     }
@@ -290,8 +298,8 @@ object Notes {
                 store.noteFlags = flags
                 if (alerts.any) Notifier.notifyNote(context, store, result.note, alerts)
             }
-            NoteResult.NoCharacter -> store.noteProblem = "원신 캐릭터를 찾지 못했어요"
-            NoteResult.LoginExpired -> store.noteProblem = "로그인이 풀렸어요. 다시 로그인해 주세요"
+            NoteResult.NoCharacter -> store.noteProblem = Text.get(R.string.core_notes_no_character)
+            NoteResult.LoginExpired -> store.noteProblem = Text.get(R.string.core_notes_login)
             NoteResult.NotesOff -> store.noteProblem = NOTES_OFF
             is NoteResult.Failed -> store.noteProblem = result.message
         }
@@ -301,7 +309,7 @@ object Notes {
     fun enabled(settings: AppSettings) = settings.noteAlerts.any
 
     /** 카드에 보일 '실시간 메모가 꺼져 있음' 안내. 이 문구면 카드를 눌렀을 때 켤지 묻는다. */
-    const val NOTES_OFF = "호요랩 전적의 실시간 메모가 꺼져 있어요"
+    val NOTES_OFF: String get() = Text.get(R.string.core_notes_off)
 
     /**
      * 사용자가 동의했을 때만 호요랩 전적의 실시간 메모를 켠다(호요랩 전적 설정의 그 스위치와 같다). 켜졌으면 true.

@@ -67,6 +67,11 @@ object CheckIn {
             store.lastProblem = null
         } else {
             store.lastProblem = describe(outcome)
+            store.lastProblemKind = when (outcome) {
+                is Outcome.LoginExpired -> "login"
+                is Outcome.CaptchaRequired -> "captcha"
+                else -> null
+            }
             store.lastProblemDay = today
         }
         store.lastRunAt = ServerClock.now()
@@ -101,23 +106,25 @@ object CheckIn {
 
     /** 접힌 알림 한 줄용 짧은 설명. 자세한 내용은 펼치면 [describe]로 보인다. */
     fun brief(outcome: Outcome): String = when (outcome) {
-        is Outcome.Signed -> "${outcome.day}일째" + (outcome.reward?.let { " · $it" } ?: "")
-        is Outcome.AlreadySigned -> "이미 출첵함 · ${outcome.day}일째"
-        Outcome.LoginExpired -> "누르면 다시 로그인해요"
-        Outcome.CaptchaRequired -> "출첵 페이지에서 직접 눌러 주세요"
-        Outcome.NotConfirmed -> "출첵 페이지에서 확인해 주세요"
-        is Outcome.RateLimited -> "잠시 뒤 다시 시도해요"
+        is Outcome.Signed -> outcome.reward?.let { Text.get(R.string.core_checkin_brief_signed_reward, outcome.day, it) }
+            ?: Text.get(R.string.core_checkin_brief_signed, outcome.day)
+        is Outcome.AlreadySigned -> Text.get(R.string.core_checkin_brief_already, outcome.day)
+        Outcome.LoginExpired -> Text.get(R.string.core_checkin_brief_login)
+        Outcome.CaptchaRequired -> Text.get(R.string.core_checkin_brief_captcha)
+        Outcome.NotConfirmed -> Text.get(R.string.core_checkin_brief_not_confirmed)
+        is Outcome.RateLimited -> Text.get(R.string.core_checkin_brief_rate_limited)
         is Outcome.Failed -> outcome.message
     }
 
     fun describe(outcome: Outcome): String = when (outcome) {
-        is Outcome.Signed -> "출첵 완료! (${outcome.day}일째)" + (outcome.reward?.let { "\n보상: $it" } ?: "")
-        is Outcome.AlreadySigned -> "오늘은 이미 출첵했어요. (${outcome.day}일째)"
-        Outcome.LoginExpired -> "로그인이 풀려서 출석과 리딤 코드 입력이 모두 멈췄어요. 다시 로그인하면 바로 출석해요."
-        Outcome.CaptchaRequired -> "호요랩이 캡차를 요구해요. 출첵 페이지에서 직접 눌러 주세요."
-        Outcome.NotConfirmed -> "출석 응답은 성공이었지만 확인해 보니 반영되지 않았어요. 출첵 페이지에서 직접 확인해 주세요."
-        is Outcome.RateLimited -> "호요랩이 요청이 너무 잦다고 해요(${outcome.step} 단계). 잠시 뒤 자동으로 다시 시도해요."
-        is Outcome.Failed -> "출첵 실패: ${outcome.message}"
+        is Outcome.Signed -> outcome.reward?.let { Text.get(R.string.core_checkin_signed_reward, outcome.day, it) }
+            ?: Text.get(R.string.core_checkin_signed, outcome.day)
+        is Outcome.AlreadySigned -> Text.get(R.string.core_checkin_already, outcome.day)
+        Outcome.LoginExpired -> Text.get(R.string.core_checkin_login_expired)
+        Outcome.CaptchaRequired -> Text.get(R.string.core_checkin_captcha)
+        Outcome.NotConfirmed -> Text.get(R.string.core_checkin_not_confirmed)
+        is Outcome.RateLimited -> Text.get(R.string.core_checkin_rate_limited, outcome.step)
+        is Outcome.Failed -> Text.get(R.string.core_checkin_failed, outcome.message)
     }
 
     /**

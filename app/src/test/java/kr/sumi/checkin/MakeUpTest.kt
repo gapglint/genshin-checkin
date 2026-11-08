@@ -8,6 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MakeUpTest {
+    init { TestText.install() }
+
     private fun info(json: String) = MakeUp.parseInfo(JSONObject(json))!!
 
     @Test fun parsesResignInfo() {

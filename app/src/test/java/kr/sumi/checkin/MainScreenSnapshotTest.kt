@@ -8,9 +8,11 @@ import org.junit.Test
 
 /** 메인 화면을 상태별·테마별로 그려 본다. ./gradlew recordPaparazziDebug 로 PNG를 만든다. */
 class MainScreenSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6,
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"),
         theme = "Theme.HoyoCheckin",
     )
 
@@ -27,7 +29,7 @@ class MainScreenSnapshotTest {
         loggedIn = true, accounts = listOf(AccountChip("100000000", "여행자", true), AccountChip("100000001", "부계정", false)),
         currentId = "100000000", uid = "100000000", nickname = "여행자", server = "아시아 서버", signedToday = true, totalDays = 17, month = 10,
         reward = "원석 x20", lastChecked = "10월 18일 21:04", nextRun = "내일 01:03", makeUpMissed = 2,
-        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력", redeemWhen = "10월 18일 01:04", historyUnseen = 3,
+        redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000", redeemSummary = "10월 18일 01:04 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력", redeemWhen = "10월 18일 01:04", historyUnseen = 3, redeemNew = 1, monthPrimos = 110,
         calendar = sampleCalendar, calendarReachable = 30, calendarMissed = 1,
         notes = NotesUi(
             resin = 142, maxResin = 200, fullLabel = "7시간 44분 뒤 가득", fullTime = "오후 3:20",
@@ -45,7 +47,7 @@ class MainScreenSnapshotTest {
 
     private fun snap(state: MainUiState, night: Boolean) {
         paparazzi.unsafeUpdateConfig(
-            DeviceConfig.PIXEL_6.copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT, screenHeight = 4200)
+            DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT, screenHeight = 4200)
         )
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         MainScreen(view).render(state)
@@ -61,7 +63,7 @@ class MainScreenSnapshotTest {
     @Test fun notesCompactWithGame() = snap(signed.copy(gameInstalled = true), night = false)
     /** 맨 아래 복각표 카드(지금 픽업). */
     @Test fun rerunCard() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6)
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko"))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         MainScreen(view).render(signed.copy(makeUpMissed = null, showCalendar = false, showTiles = false, eventsUnseen = 2))
         paparazzi.snapshot(view)
@@ -83,17 +85,37 @@ class MainScreenSnapshotTest {
     @Test fun waitingLight() = snap(waiting, night = false)
     @Test fun loggedOutDark() = snap(loggedOut, night = true)
 
-    @Test fun settingsLight() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 4200))
+    private fun settings(state: MainUiState, night: Boolean = false, page: (MainScreen.() -> Unit)? = null) {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
-        MainScreen(view).apply { render(waiting.copy(redeemRole = signed.redeemRole, redeemSummary = signed.redeemSummary, loginExpiry = "2027년 10월 18일")) }
-            .settingsPanel.visibility = android.view.View.VISIBLE
+        MainScreen(view).apply {
+            render(state)
+            page?.invoke(this)
+            settingsPanel.visibility = android.view.View.VISIBLE
+        }
         paparazzi.snapshot(view)
+    }
+
+    private val settingsState = signed.copy(loginExpiry = "2027년 10월 18일", needsBatteryExemption = true, needsHibernationExemption = true,
+        notifyOn = 5, quietNight = true, homeStyleLabel = "로비형 · 치치", language = "한국어", cardCount = 7, appVersion = "0.17.0")
+
+    /** 설정: 제때 출석하려면 할 일이 남았을 때(링 1/3, 남은 칩), 계정 카드, 타일. */
+    @Test fun settingsLight() = settings(settingsState)
+    /** 다 허용했으면 초록 카드 한 장. */
+    @Test fun settingsReady() = settings(settingsState.copy(needsBatteryExemption = false, needsHibernationExemption = false), night = true)
+    /** 설정 안의 알림 쪽: 묶음별 스위치. */
+    @Test fun settingsNotifications() = settings(settingsState) {
+        settingsOnNotifications = true
+        settingsView.showNotifications(listOf(
+            "출석·코드" to listOf(NotifyToggle("a", R.drawable.ic_check_badge, "매일 출석했을 때", true), NotifyToggle("b", R.drawable.ic_calendar, "보충 출석을 할 수 있을 때", true), NotifyToggle("c", R.drawable.ic_item_gift, "리딤 코드를 받았을 때", true)),
+            "게임" to listOf(NotifyToggle("d", R.drawable.ic_item_resin, "레진이 기준만큼 찼을 때", true), NotifyToggle("e", R.drawable.ic_note_expedition, "탐사 파견이 모두 끝났을 때", false), NotifyToggle("f", R.drawable.ic_note_teapot, "주전자 동전이 가득 찼을 때", false)),
+            "밤" to listOf(NotifyToggle("g", R.drawable.ic_moon, "밤(오후 10시~오전 8시)에는 소리·진동 없이", true)),
+        ), "로그인이 풀리거나 캡차가 필요할 때는 항상 알려 드려요.") { _, _ -> }
     }
 
     /** 그 자리에서 편집: 카드에 점선·−·≡, 달력은 서랍에. */
     @Test fun editing() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 3000))
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 3000))
         val view = paparazzi.inflate<android.view.View>(R.layout.activity_main)
         val screen = MainScreen(view)
         screen.render(signed.copy(editing = true, showCalendar = false))
@@ -109,15 +131,15 @@ class MainScreenSnapshotTest {
         paparazzi.snapshot(view)
     }
 
-    @Test fun deviceSmallPhone() = device(DeviceConfig.NEXUS_5)
-    @Test fun deviceBigPhone() = device(DeviceConfig.PIXEL_6_PRO)
-    @Test fun deviceFontLarge() = device(DeviceConfig.PIXEL_6.copy(fontScale = 1.3f))
-    @Test fun deviceFontHuge() = device(DeviceConfig.PIXEL_6.copy(fontScale = 2.0f))
-    @Test fun deviceSplitScreen() = device(DeviceConfig.PIXEL_6.copy(screenHeight = 1100))
-    @Test fun deviceFoldableOpen() = device(DeviceConfig.PIXEL_6.copy(screenWidth = 2208, screenHeight = 1840,
+    @Test fun deviceSmallPhone() = device(DeviceConfig.NEXUS_5.copy(locale = "ko"))
+    @Test fun deviceBigPhone() = device(DeviceConfig.PIXEL_6_PRO.copy(locale = "ko"))
+    @Test fun deviceFontLarge() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(fontScale = 1.3f))
+    @Test fun deviceFontHuge() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(fontScale = 2.0f))
+    @Test fun deviceSplitScreen() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenHeight = 1100))
+    @Test fun deviceFoldableOpen() = device(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(screenWidth = 2208, screenHeight = 1840,
         orientation = com.android.resources.ScreenOrientation.LANDSCAPE))
-    @Test fun deviceTabletLandscape() = device(DeviceConfig.PIXEL_C)
-    @Test fun deviceSetupNeeded() = device(DeviceConfig.PIXEL_6, waiting)
+    @Test fun deviceTabletLandscape() = device(DeviceConfig.PIXEL_C.copy(locale = "ko"))
+    @Test fun deviceSetupNeeded() = device(DeviceConfig.PIXEL_6.copy(locale = "ko"), waiting)
 
     /** 런처 아이콘(적응형 아이콘 원본 108dp)을 크게 그려 본다. */
     @Test fun launcherIcon() {

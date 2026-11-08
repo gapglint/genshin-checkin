@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ロビー型ホーム・ホームの着せ替え・復刻表・イベント・ログイン画面の文言(日本語)。 -->
+<resources>
+    <!-- Lobby: まだ持っていないお気に入りの一行 -->
+    <string name="lobby_waiting_unmet">まだ出会っていません</string>
+    <string name="lobby_waiting_now">まだ出会っていません · ピックアップ中！</string>
+    <string name="lobby_waiting_soon">まだ出会っていません · まもなくピックアップ</string>
+    <string name="lobby_waiting_this_version">まだ出会っていません · 今バージョンの前半にピックアップ済み</string>
+    <plurals name="lobby_waiting_since">
+        <item quantity="other">まだ出会っていません · 最後のピックアップは%1$dバージョン前</item>
+    </plurals>
+
+    <!-- LobbyView -->
+    <string name="lobby_resin_desc">樹脂%1$d、詳細</string>
+    <plurals name="lobby_days_unit">
+        <item quantity="other">日目</item>
+    </plurals>
+    <plurals name="lobby_checkin_desc">
+        <item quantity="other">今月%1$d日チェックイン、カレンダーを見る</item>
+    </plurals>
+    <string name="lobby_account_desc">現在のアカウント %1$s、切り替え</string>
+    <string name="lobby_settings">設定</string>
+    <string name="lobby_bubble_desc_more">%1$s、タップで別のセリフ</string>
+    <string name="lobby_quote_less">閉じる ▴</string>
+    <string name="lobby_quote_more">全文 ▾</string>
+    <string name="lobby_quote_less_desc">セリフを閉じる</string>
+    <string name="lobby_quote_more_desc">セリフを全部見る</string>
+    <string name="lobby_quote_replay_desc">セリフをもう一度聞く</string>
+    <string name="lobby_menu_rewards">報酬</string>
+    <string name="lobby_menu_pickup">祈願</string>
+    <string name="lobby_menu_events">イベント</string>
+    <string name="lobby_menu_cards">カード</string>
+    <string name="lobby_menu_checkin">チェックイン</string>
+    <string name="lobby_menu_decorate">着せ替え</string>
+    <string name="lobby_fav_badge">★ お気に入り</string>
+    <string name="lobby_credit_art">イラスト</string>
+    <string name="lobby_credit_lines">セリフ</string>
+    <string name="lobby_credit_voice">ボイス</string>
+    <string name="lobby_credit_fan">非公式ファンツール</string>
+    <string name="lobby_credit_full">%1$s © HoYoverse · HoYoLAB Wiki · 非公式ファンツール</string>
+    <string name="lobby_bubble_close_desc">吹き出しを閉じる。キャラをタップするとまた表示されます</string>
+    <string name="lobby_back_desc">ロビーへ</string>
+    <string name="lobby_back">ロビー</string>
+    <string name="lobby_menu_with">%1$sと一緒に</string>
+    <string name="lobby_cell_desc">%1$d日目のチェックイン、%2$s %3$d個</string>
+    <string name="lobby_cell_desc_done">%1$d日目のチェックイン、%2$s %3$d個、受取済み</string>
+
+    <!-- LobbyStyleActivity: ホームの着せ替え -->
+    <string name="lobby_style_title">ホームの着せ替え</string>
+    <string name="lobby_style_intro">ロビー型は、お気に入りキャラがホームの主役になる画面です。いつでもカード型に戻せます。</string>
+    <string name="lobby_chars_load_failed">キャラを読み込めませんでした</string>
+    <string name="lobby_photo_failed">写真を読み込めませんでした</string>
+    <string name="lobby_section_style">ホームのスタイル</string>
+    <string name="lobby_style_card">カード型</string>
+    <string name="lobby_style_card_sub">チェックイン・樹脂・カレンダーをカードで一目で(標準)</string>
+    <string name="lobby_style_lobby">ロビー型</string>
+    <string name="lobby_style_lobby_pick">先に下からお気に入りキャラを選んでください</string>
+    <string name="lobby_style_lobby_sub">%1$sがホームの主役になります</string>
+    <string name="lobby_need_login">ログインすると使えます</string>
+    <string name="lobby_pick_fav_first">先にお気に入りキャラを選んでください</string>
+    <string name="lobby_section_fav">お気に入りキャラ</string>
+    <string name="lobby_login_to_pick">ログインすると自分のキャラから選べます。</string>
+    <string name="lobby_chars_loading">キャラを読み込んでいます...</string>
+    <string name="lobby_chars_none">HoYoLABの戦績でキャラが見つかりませんでした。</string>
+    <string name="lobby_section_voice">キャラボイス</string>
+    <string name="lobby_voice_unavailable">現在キャラボイスは使えません。セリフの文字はそのまま表示されます。</string>
+    <string name="lobby_voice_note">ボイス・セリフ © HoYoverse(HoYoLAB Wiki)。初期設定はオフです。セリフの文字は韓国語で表示されます。ボイスは吹き出しやキャラをタップしたときにそのセリフの分だけダウンロードし、端末に保存して再利用します。お気に入りや言語を変えると、以前のボイスは削除されます。</string>
+    <string name="lobby_voice_clear">保存したボイスを削除</string>
+    <string name="lobby_voice_clear_sub">現在%1$sMB · 再生すると再びダウンロードします</string>
+    <string name="lobby_section_bg">ロビーの背景</string>
+    <string name="lobby_bg_official">公式イラスト</string>
+    <string name="lobby_bg_official_sub">HoYoLAB Wikiのキャライラストをダウンロードし、この端末にだけ保存します</string>
+    <string name="lobby_bg_photo">自分の写真</string>
+    <string name="lobby_bg_photo_set">選んだ写真を使用中 · タップで変更</string>
+    <string name="lobby_bg_photo_pick">ギャラリーから写真を選ぶ</string>
+    <string name="lobby_bg_pattern">元素の模様</string>
+    <string name="lobby_bg_pattern_sub">お気に入りの元素の色と模様だけ</string>
+    <string name="lobby_bg_note_official">公式イラストの著作権はHoYoverseにあります。アプリには含めず、HoYoLAB Wikiからダウンロードしてこの端末でだけ表示します。\n選んだ写真は縮小してアプリ内にだけ保存し、どこにも送信しません。</string>
+    <string name="lobby_bg_note_off">現在公式イラストは使えません。自分の写真か元素の模様を使ってください。\n選んだ写真は縮小してアプリ内にだけ保存し、どこにも送信しません。</string>
+    <string name="lobby_waiting_choice">まだ持っていないキャラから</string>
+    <string name="lobby_waiting_choice_fav">%1$sを待っています · ピックアップが始まったらお知らせします</string>
+    <string name="lobby_waiting_choice_sub">待っているキャラをお気に入りに · ピックアップが始まったらお知らせします</string>
+    <string name="lobby_wiki_loading">キャラ一覧を読み込んでいます...</string>
+    <string name="lobby_wiki_failed">キャラ一覧を読み込めませんでした。</string>
+    <string name="lobby_cell_fav_desc">%1$s、お気に入り</string>
+    <string name="lobby_voice_ko">韓国語</string>
+    <string name="lobby_voice_ja">日本語</string>
+    <string name="lobby_voice_zh">中国語</string>
+    <string name="lobby_voice_en">英語</string>
+    <string name="lobby_voice_off">オフ</string>
+    <string name="lobby_voice_chip_desc">ボイス %1$s</string>
+    <string name="lobby_voice_chip_desc_selected">ボイス %1$s、選択中</string>
+
+    <!-- 復刻表 -->
+    <string name="rerun_title">復刻表</string>
+    <string name="rerun_network_error">ネットワークエラー</string>
+    <string name="rerun_load_failed">読み込めませんでした: %1$s</string>
+    <string name="rerun_loading">読み込み中...</string>
+    <string name="rerun_status">長く待っているキャラほど、復刻が近いかもしれません。</string>
+    <string name="rerun_watch_on">%1$sのピックアップが始まったらお知らせします</string>
+    <string name="rerun_watch_off">%1$sのピックアップ通知をオフにしました</string>
+    <string name="rerun_read_failed">復刻表のデータを読み取れませんでした</string>
+    <string name="rerun_element_anemo">風</string>
+    <string name="rerun_element_geo">岩</string>
+    <string name="rerun_element_electro">雷</string>
+    <string name="rerun_element_dendro">草</string>
+    <string name="rerun_element_hydro">水</string>
+    <string name="rerun_element_pyro">炎</string>
+    <string name="rerun_element_cryo">氷</string>
+    <string name="rerun_live">ピックアップ中</string>
+    <string name="rerun_next">次のピックアップ</string>
+    <string name="rerun_limited">限定キャラ</string>
+    <string name="rerun_standard">恒常キャラ</string>
+    <string name="rerun_standard_note">恒常祈願でも出ます</string>
+    <string name="rerun_fours">★4キャラ</string>
+    <string name="rerun_fours_note">★5ピックアップと一緒に登場 · タップで★4もピックアップ通知</string>
+    <string name="rerun_source">データ: Genshin Impact Wikiの祈願履歴(CC BY-SA)を1日1回まとめています。非公式情報のため、実際の復刻日程とは異なる場合があります。</string>
+    <string name="rerun_source_art">データ: Genshin Impact Wikiの祈願履歴(CC BY-SA)を1日1回まとめています。非公式情報のため、実際の復刻日程とは異なる場合があります。\nキャライラスト © HoYoverse · HoYoLAB Wiki · 非公式ファンツール</string>
+    <string name="rerun_fours_toggle">★4キャラも表示</string>
+    <string name="rerun_fours_toggle_on_desc">★4キャラも表示、オン</string>
+    <string name="rerun_fours_toggle_off_desc">★4キャラも表示、オフ</string>
+    <string name="rerun_day">%1$d月%2$d日</string>
+    <string name="rerun_period_range">%1$s〜%2$s</string>
+    <plurals name="rerun_period_until">
+        <item quantity="other">%1$sまで · 残り%2$d日</item>
+    </plurals>
+    <string name="rerun_from">%1$sから</string>
+    <plurals name="rerun_oldest">
+        <item quantity="other">一番長く待っているキャラ · %1$s %2$dバージョン目</item>
+    </plurals>
+    <string name="rerun_card_live">ピックアップ中</string>
+    <string name="rerun_now_version">現在 %1$s</string>
+    <string name="rerun_legend">最後のピックアップから経過したバージョン数</string>
+    <string name="rerun_tag_new">新規</string>
+    <string name="rerun_tag_chronicled">集録</string>
+    <string name="rerun_tag_no_rerun">復刻なし</string>
+    <string name="rerun_tag_four">★4</string>
+    <string name="rerun_legend_tags">のマークが付きます</string>
+    <string name="rerun_tap_hint">キャラをタップすると、そのキャラのピックアップが始まったときにお知らせします 🔔</string>
+    <string name="rerun_badge_first_half">前半</string>
+    <string name="rerun_badge_second_half">後半</string>
+    <string name="rerun_badge_later">以降</string>
+    <string name="rerun_tile_desc">%1$s、%2$s、%3$s、最後 %4$s</string>
+    <string name="rerun_tile_desc_watched">ピックアップ通知オン、%1$s</string>
+    <string name="rerun_tile_desc_chronicled">%1$s、集録</string>
+    <plurals name="rerun_versions_ago">
+        <item quantity="other">%1$dバージョン前</item>
+    </plurals>
+
+    <!-- イベント -->
+    <string name="events_title">イベント</string>
+    <string name="events_network_error">ネットワークエラー</string>
+    <string name="events_status">HoYoLABの原神イベントです。タップするとログインした状態で開きます。報酬の受け取りはご自身でタップしてください。</string>
+    <string name="events_load_failed">読み込めませんでした: %1$s</string>
+    <string name="events_loading">読み込み中...</string>
+    <string name="events_none">現在開催中のイベントはありません。</string>
+    <string name="events_ends_today">今日終了</string>
+    <plurals name="events_days_left">
+        <item quantity="other">残り%1$d日</item>
+    </plurals>
+    <string name="events_tag_web">Webイベント</string>
+    <string name="events_tag_primogem">原石</string>
+    <string name="events_permanent">常設イベント</string>
+    <string name="events_until">%1$d月%2$d日まで</string>
+    <string name="events_list_failed">イベント一覧を取得できませんでした</string>
+    <string name="events_read_failed">イベント一覧を読み取れませんでした</string>
+
+    <!-- ログイン・HoYoLABページ -->
+    <string name="login_title_login">HoYoLABログイン</string>
+    <string name="login_title_event">イベント</string>
+    <string name="login_title_checkin">原神チェックイン · %1$s</string>
+    <string name="login_hint_head">HoYoverseアカウントのメールアドレスとパスワードでログインしてください</string>
+    <string name="login_hint_tail">\nGoogleログインはGoogleにブロックされて使えないことがあります。ログインすると自動で閉じ、1年間維持されます。</string>
+    <string name="login_page_status">%1$sのアカウントでログインして開きました。ページで報酬の受け取りまでタップしてください。</string>
+    <string name="login_checkin_status">今日の枠をタップして、ご自身でチェックインしてください。認証が出たら解けばOKです。</string>
+    <string name="login_engine_gone">ログイン画面が停止しました。\n戻ってからもう一度お試しください。</string>
+    <string name="login_google_blocked">Googleログインがブロックされました</string>
+    <string name="login_not_finished">ログインが完了していません</string>
+    <string name="login_google_message">Googleは、他のアプリ内でのGoogleログインをブロックすることがあります。このログイン画面で、Googleのメールアドレスと HoYoverseのパスワードでログインしてください。\n\nパスワードがない場合は、ログイン画面の「問題が発生しました」から新しく作成できます。同じアカウントなので、ゲームデータはそのままです。</string>
+    <string name="login_email_button">メールアドレスでログイン</string>
+    <string name="login_relogged">%1$sのアカウントに再ログインしました。</string>
+    <string name="login_added">アカウントを追加しました。これから自動でチェックインします。</string>
+    <!-- お気に入りを初めて選んだあとに一度だけ聞くボイスの案内 -->
+    <string name="lobby_voice_ask_title">キャラクターのボイスも聞きますか？</string>
+    <string name="lobby_voice_ask_body">吹き出しやキャラクターをタップすると、そのセリフのボイスが流れます。再生したセリフだけをその時にダウンロードして保存します（1つあたり約0.1〜0.4MB）。言語は下のボイス欄でいつでも変えられます。</string>
+    <string name="lobby_voice_ask_no">今は聞かない</string>
+    <string name="lobby_quote_follows_voice">セリフも%1$sで表示</string>
+    <string name="lobby_quote_follows_voice_sub">吹き出しの文字をボイスと同じ言語で表示します。オフにするとアプリの言語で表示します。</string>
+    <!-- 着せ替え: プレビュー・タブ -->
+    <string name="lobby_tab_character">キャラ</string>
+    <string name="lobby_tab_bg">背景</string>
+    <string name="lobby_tab_voice">ボイス</string>
+    <string name="lobby_owned_tab">所持キャラ %1$d</string>
+    <string name="lobby_waiting_tab">待っているキャラ</string>
+    <string name="lobby_preview_pick">下からお気に入りキャラを選んでください</string>
+    <string name="lobby_preview_card">今はカード型ホームです</string>
+    <string name="lobby_listen">試聴</string>
+    <string name="lobby_listen_loading">セリフを読み込み中…</string>
+    <string name="lobby_voice_fine">ボイス・セリフ © HoYoverse（HoYoLAB Wiki）・再生したものだけ保存します</string>
+    <string name="lobby_voice_stored">保存済みボイス %1$sMB</string>
+</resources>

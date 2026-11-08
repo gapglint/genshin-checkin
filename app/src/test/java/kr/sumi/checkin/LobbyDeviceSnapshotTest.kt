@@ -9,7 +9,9 @@ import org.junit.Test
 
 /** 작은 화면(오른쪽 메뉴를 줄인다)과 다크 모드 메뉴 화면. */
 class LobbyDeviceSnapshotTest {
-    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.NEXUS_5.copy(nightMode = NightMode.NIGHT), theme = "Theme.HoyoCheckin")
+    init { TestText.install() }
+
+    @get:Rule val paparazzi = Paparazzi(deviceConfig = DeviceConfig.NEXUS_5.copy(locale = "ko").copy(nightMode = NightMode.NIGHT), theme = "Theme.HoyoCheckin")
 
     private val actions = object : LobbyView.Actions {
         override fun onResin() {}

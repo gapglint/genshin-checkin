@@ -58,24 +58,27 @@ class TodayWidget : AppWidgetProvider() {
         internal fun state(context: Context): TodayWidgetUi {
             val settings = AppSettings(context)
             val store = settings.current()
-                ?: return TodayWidgetUi("매일 출석", "로그인", false, 0, "앱에서 로그인해 주세요", "리딤 코드")
+                ?: return TodayWidgetUi(
+                    context.getString(R.string.home_widget_daily), context.getString(R.string.home_widget_login), false, 0,
+                    context.getString(R.string.home_widget_login_hint), context.getString(R.string.home_widget_redeem),
+                )
             val today = Store.checkInDay().toString()
             val look = Lobby.favoriteLook(context)
             val sameMonth = store.signedDay?.startsWith(today.take(7)) == true
             val problem = store.lastProblem != null && store.lastProblemDay == today && !store.signedToday
             return TodayWidgetUi(
-                who = store.accountRole?.nickname ?: "매일 출석",
-                status = when {
-                    store.signedToday -> "완료"
-                    problem -> "확인 필요"
-                    else -> "출석 전"
-                },
+                who = store.accountRole?.nickname ?: context.getString(R.string.home_widget_daily),
+                status = context.getString(when {
+                    store.signedToday -> R.string.home_widget_done
+                    problem -> R.string.home_widget_check
+                    else -> R.string.home_widget_not_yet
+                }),
                 done = store.signedToday,
                 days = if (sameMonth) store.signedTotal else 0,
-                resin = store.note?.let { Notes.ui(it) }?.let { "${it.resin} / ${it.maxResin}" } ?: "레진 · 앱을 열면 불러와요",
+                resin = store.note?.let { Notes.ui(it) }?.let { "${it.resin} / ${it.maxResin}" } ?: context.getString(R.string.home_widget_resin_loading),
                 redeem = when {
-                    !settings.redeemEnabled -> "리딤 자동 입력 꺼짐"
-                    else -> store.lastRedeemSummary?.substringBefore(":")?.trim() ?: "리딤 코드 기다리는 중"
+                    !settings.redeemEnabled -> context.getString(R.string.home_widget_redeem_off)
+                    else -> store.lastRedeemSummary?.substringBefore(":")?.trim() ?: context.getString(R.string.home_widget_redeem_waiting)
                 },
                 tint = look?.first,
                 face = look?.second,
@@ -133,8 +136,8 @@ class PickupWidget : AppWidgetProvider() {
         }
 
         internal fun views(context: Context, card: RerunCardUi?) = RemoteViews(context.packageName, R.layout.widget_pickup).apply {
-            setTextViewText(R.id.pickTitle, card?.title ?: "복각표")
-            setTextViewText(R.id.pickPeriod, if (card == null) "앱을 열면 불러와요" else card.period)
+            setTextViewText(R.id.pickTitle, card?.title ?: context.getString(R.string.home_widget_rerun))
+            setTextViewText(R.id.pickPeriod, if (card == null) context.getString(R.string.home_widget_open_to_load) else card.period)
             val chars = card?.chars.orEmpty()
             for ((i, ids) in TOKENS.withIndex()) {
                 val (token, circle, icon, name) = ids.toList()
@@ -144,7 +147,7 @@ class PickupWidget : AppWidgetProvider() {
                 val color = context.getColor(RerunActivity.elementColor(c.second))
                 setInt(circle, "setColorFilter", color)
                 RerunActivity.elementIcon(c.second)?.let { setImageViewResource(icon, it) }
-                setTextViewText(name, c.first)
+                setTextViewText(name, card!!.label(c.first))
                 setTextColor(name, RerunActivity.light(color))
             }
             setTextViewText(R.id.pickOldest, card?.oldest ?: "")

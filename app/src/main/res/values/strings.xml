@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">원신 출첵</string>
-    <string name="widget_label">레진</string>
-    <string name="widget_description">레진과 가득 차는 시각. 넓게 늘리면 탐사 파견·주전자·일일 의뢰도 보여요.</string>
-    <string name="widget_today_label">오늘</string>
-    <string name="widget_today_description">오늘 출석과 이번 달 누적 일수, 레진, 마지막 리딤 코드 결과.</string>
-    <string name="widget_pickup_label">지금 픽업</string>
-    <string name="widget_pickup_description">지금 픽업 중인 캐릭터와 남은 날, 가장 오래 기다린 캐릭터.</string>
+    <string name="app_name">Genshin Check-in</string>
+    <string name="widget_label">Resin</string>
+    <string name="widget_description">Resin and when it\'s full. Stretch it wider to also see Expeditions, Realm Currency and Daily Commissions.</string>
+    <string name="widget_today_label">Today</string>
+    <string name="widget_today_description">Today\'s check-in, days this month, Resin and the last redeem code result.</string>
+    <string name="widget_pickup_label">Banner now</string>
+    <string name="widget_pickup_description">Characters on the banner now, days left, and the character waiting longest.</string>
 </resources>

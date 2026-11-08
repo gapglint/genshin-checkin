@@ -5,6 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ItemNamesTest {
+    init { TestText.install() }
+
     @Test fun koreanNameFromItemPage() {
         assertEquals("「자애」의 가르침", ItemNames.koName("{{Item Infobox}}\n|ko      = 「자애」의 가르침\n|ko_rm   = x"))
         assertEquals("절운고추 치킨", ItemNames.koName("|ko      = {{tt|절운|絕雲}}고추 치킨\n|ko_rm   = Jeorun"))

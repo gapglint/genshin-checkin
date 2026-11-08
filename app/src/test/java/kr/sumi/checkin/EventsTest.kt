@@ -7,6 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EventsTest {
+    init { TestText.install() }
+
     private val events = Events.parse(JSONObject(javaClass.getResource("/events.json")!!.readText()))
 
     @Test fun parsesEventList() {

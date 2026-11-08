@@ -7,6 +7,8 @@ import org.junit.Test
 import java.time.LocalDateTime
 
 class RedeemAlarmTest {
+    init { TestText.install() }
+
     private fun at(text: String) = LocalDateTime.parse(text).atZone(ServerClock.ZONE).toInstant().toEpochMilli()
 
     @Test fun nextFridaySlot() {

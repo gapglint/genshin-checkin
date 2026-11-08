@@ -111,11 +111,11 @@ class MainEditor(
     }
 
     private fun title(card: String) = when (card) {
-        CARD_CHECK_IN -> "출석"
-        CARD_NOTES -> "레진"
-        CARD_TILES -> "리딤 코드"
-        CARD_RERUNS -> "복각표"
-        else -> "출석 달력"
+        CARD_CHECK_IN -> context.getString(R.string.main_card_check_in)
+        CARD_NOTES -> context.getString(R.string.main_card_notes)
+        CARD_TILES -> context.getString(R.string.main_card_tiles)
+        CARD_RERUNS -> context.getString(R.string.main_card_reruns)
+        else -> context.getString(R.string.main_card_calendar)
     }
 
     private fun icon(card: String) = when (card) {
@@ -135,9 +135,9 @@ class MainEditor(
         val scale = if (hover) 1.03f else 1f
         if (drawer.isLaidOut) drawer.animate().scaleX(scale).scaleY(scale).setDuration(120).start()
         drawerHint.text = when {
-            hover -> "놓으면 서랍에 넣어요"
-            hidden.isEmpty() -> "카드를 꾹 눌러 여기로 가져오면 숨겨요"
-            else -> "꾹 눌러 들고 나가거나, 톡 누르면 꺼내요"
+            hover -> context.getString(R.string.main_drawer_drop)
+            hidden.isEmpty() -> context.getString(R.string.main_drawer_empty)
+            else -> context.getString(R.string.main_drawer_hint)
         }
         drawerHint.setTextColor(context.getColor(if (hover) R.color.accent else R.color.ink_muted))
     }
@@ -162,12 +162,12 @@ class MainEditor(
                     cornerRadius = dp(radius).toFloat()
                     setStroke(dp(2), context.getColor(R.color.accent), dp(7).toFloat(), dp(5).toFloat())
                 }
-                contentDescription = if (card == CARD_CHECK_IN) "${title(card)} 옵션" else "${title(card)}: 눌러서 옵션, 꾹 눌러서 옮기기"
+                contentDescription = context.getString(if (card == CARD_CHECK_IN) R.string.main_card_options_desc else R.string.main_card_edit_desc, title(card))
                 setOnClickListener { onOptions(card, screen.slot(card)) }
                 if (card != CARD_CHECK_IN) setOnTouchListener(CardDrag(card))
             }, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT).apply { topMargin = top })
             if (card != CARD_CALENDAR && card != CARD_RERUNS) addView(TextView(context).apply {
-                text = "⚙ 옵션"
+                text = context.getString(R.string.main_card_options)
                 textSize = 13f
                 gravity = Gravity.CENTER
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -189,7 +189,7 @@ class MainEditor(
                 gravity = Gravity.CENTER
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 setTextColor(0xFFFFFFFF.toInt())
-                contentDescription = "${title(card)} 서랍에 넣기"
+                contentDescription = context.getString(R.string.main_card_hide_desc, title(card))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(context.getColor(R.color.warn))
@@ -212,7 +212,7 @@ class MainEditor(
         }
         elevation = dp(2).toFloat()
         setPadding(dp(8), dp(12), dp(8), dp(10))
-        contentDescription = "${title(card)}: 눌러서 꺼내기"
+        contentDescription = context.getString(R.string.main_card_show_desc, title(card))
         setOnClickListener { onShow(card, null) }
         setOnTouchListener(TileDrag(card))
         addView(ImageView(context).apply {

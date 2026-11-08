@@ -4,7 +4,8 @@ import org.json.JSONObject
 import java.io.IOException
 
 /** 보상 한 건. date는 서버 기준 'yyyy-MM-dd'. key는 '어디까지 확인했는지' 표시에 쓰는 고유값. */
-data class RewardEntry(val key: String, val name: String, val count: Int, val date: String)
+/** 출석·보충 보상 한 줄. [icon]은 호요랩이 주는 아이템 그림 주소(없으면 빈 문자열). */
+data class RewardEntry(val key: String, val name: String, val count: Int, val date: String, val icon: String = "")
 
 /**
  * 보상 내역과 '확인' 상태.
@@ -22,7 +23,7 @@ object RewardHistory {
             val name = it.optString("name")
             val count = it.optInt("cnt")
             val created = it.optString("created_at")
-            RewardEntry(it.optString("id").ifEmpty { "$created|$name|$count" }, name, count, dateOf(created))
+            RewardEntry(it.optString("id").ifEmpty { "$created|$name|$count" }, name, count, dateOf(created), it.optString("img"))
         }
     }
 
@@ -39,15 +40,15 @@ object RewardHistory {
     fun totals(items: List<Pair<String, Int>>): List<Pair<String, Int>> {
         val sums = linkedMapOf<String, Int>()
         for ((name, count) in items) sums[name] = (sums[name] ?: 0) + count
-        val order = listOf("원석", "모라")
-        return sums.entries.sortedBy { order.indexOf(it.key).let { i -> if (i < 0) order.size else i } }.map { it.key to it.value }
+        fun rank(name: String) = when { ItemIcons.isPrimogem(name) -> 0; ItemIcons.isMora(name) -> 1; else -> 2 }
+        return sums.entries.sortedBy { rank(it.key) }.map { it.key to it.value }
     }
 
     /** '원석 ×140 · 모라 ×20,000 외 3종'. 비어 있으면 null. */
     fun formatTotals(totals: List<Pair<String, Int>>, max: Int = 3): String? {
         if (totals.isEmpty()) return null
         val shown = totals.take(max).joinToString(" · ") { (name, count) -> "$name ×${"%,d".format(count)}" }
-        return if (totals.size > max) "$shown 외 ${totals.size - max}종" else shown
+        return if (totals.size > max) Text.get(R.string.home_history_more_kinds, shown, totals.size - max) else shown
     }
 
     /**
@@ -85,11 +86,15 @@ object RewardHistory {
 
     fun monthLabel(yearMonth: String): String {
         val parts = yearMonth.split("-")
-        return if (parts.size == 2) "${parts[0]}년 ${parts[1].toInt()}월" else yearMonth
+        return if (parts.size == 2) Text.get(R.string.home_history_month, parts[0], parts[1].toInt(), fullMonth(parts[1].toInt())) else yearMonth
     }
 
     fun dayLabel(date: String): String {
         val parts = date.split("-")
-        return if (parts.size == 3) "${parts[1].toInt()}월 ${parts[2].toInt()}일" else date
+        return if (parts.size == 3) Text.get(R.string.core_date_month_day, parts[1].toInt(), parts[2].toInt(), Notes.shortMonth(parts[1].toInt())) else date
     }
+
+    /** 영어 문구에 쓰는 달 이름(October). 한국어 문구는 쓰지 않는다. */
+    internal fun fullMonth(month: Int): String =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
 }

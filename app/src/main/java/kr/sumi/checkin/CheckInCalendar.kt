@@ -19,7 +19,7 @@ object CheckInCalendar {
     }
 
     /** 오늘 이미 받아 왔으면 다시 받지 않는다. */
-    fun isFresh(store: Store) = store.calendarDay == ServerClock.today().toString() && store.calendarAwards.let { a ->
+    fun isFresh(store: Store) = store.calendarDay == ServerClock.today().toString() && store.calendarLang == DataLang.code() && store.calendarAwards.let { a ->
         // 아이템 그림 주소를 저장하기 전에 받아 둔 목록이면 다시 받는다.
         a.isNotEmpty() && a.any { it.icon.isNotEmpty() }
     }
@@ -36,12 +36,15 @@ object CheckInCalendar {
         store.calendarMissed = info.optInt("sign_cnt_missed")
         store.signedTotal = info.optInt("total_sign_day", store.signedTotal)
         store.calendarDay = ServerClock.today().toString()
+        store.calendarLang = DataLang.code()
     }
 
     /** 칸에 들어갈 짧은 개수: 20, 5천, 1만, 1.5만. */
     fun compact(count: Int): String = when {
-        count >= 10_000 -> (count / 1000 / 10.0).let { if (it % 1.0 == 0.0) "${it.toInt()}만" else "${it}만" }
-        count >= 1_000 -> "${count / 1000}천"
+        // 한국어는 만 단위(1.5만), 영어는 천 단위(15K)라 두 값을 다 넘기고 문구가 고른다.
+        count >= 10_000 -> (count / 1000 / 10.0).let { if (it % 1.0 == 0.0) "${it.toInt()}" else "$it" }
+            .let { Text.get(R.string.core_compact_ten_thousand, it, count / 1000) }
+        count >= 1_000 -> Text.get(R.string.core_compact_thousand, count / 1000)
         else -> "$count"
     }
 

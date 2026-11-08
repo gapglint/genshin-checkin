@@ -13,8 +13,10 @@ import org.junit.Test
 
 /** 최애 그림 알림의 본문(접힌·펼친 모습). 공식 그림 대신 얼굴 자리에 동그라미를 그린 가짜 세로 그림을 쓴다. */
 class NotificationArtSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6.copy(nightMode = com.android.resources.NightMode.NIGHT), theme = "Theme.HoyoCheckin",
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = com.android.resources.NightMode.NIGHT), theme = "Theme.HoyoCheckin",
         renderingMode = SessionParams.RenderingMode.SHRINK, useDeviceResolution = true,
     )
 

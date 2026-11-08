@@ -33,6 +33,16 @@ class Store(private val context: Context, val accountId: String) {
         get() = prefs.getString("last_problem", null)
         set(value) = prefs.edit { putString("last_problem", value) }
 
+    /** 마지막 문제의 종류("login", "captcha", 그 밖은 null). 화면이 문구 대신 이것으로 안내를 고른다(언어와 관계없이). */
+    var lastProblemKind: String?
+        get() = prefs.getString("last_problem_kind", null)
+        set(value) = prefs.edit { putString("last_problem_kind", value) }
+
+    /** 마지막 리딤에서 새로 받은 코드 수. 로비가 '오늘 새 코드 받음'을 문구 대신 이것으로 안다. -1이면 모름(이 값을 저장하기 전). */
+    var lastRedeemNew: Int
+        get() = prefs.getInt("last_redeem_new", -1)
+        set(value) = prefs.edit { putInt("last_redeem_new", value) }
+
     var lastProblemDay: String?
         get() = prefs.getString("last_problem_day", null)
         set(value) = prefs.edit { putString("last_problem_day", value) }
@@ -72,6 +82,10 @@ class Store(private val context: Context, val accountId: String) {
     var calendarDay: String?
         get() = prefs.getString("calendar_day", null)
         set(value) = prefs.edit { putString("calendar_day", value) }
+    /** 달력 보상 이름의 언어(앱 언어가 바뀌면 다시 받는다). 예전 버전에서 받은 것은 한국어. */
+    var calendarLang: String
+        get() = prefs.getString("calendar_lang", null) ?: DataLang.KO
+        set(value) = prefs.edit { putString("calendar_lang", value) }
 
     var makeUpMissed: Int
         get() = prefs.getInt("make_up_missed", 0)
@@ -412,6 +426,14 @@ class AppSettings(private val context: Context) {
     var voiceLanguage: String
         get() = prefs.getString("voice_language", "off") ?: "off"
         set(value) = prefs.edit { putString("voice_language", value) }
+    /** 말풍선 대사 글도 음성 언어로 볼지(기본은 앱 언어). 일본어 음성을 고른 사람이 대사도 일본어로 보고 싶을 때. */
+    var quoteFollowsVoice: Boolean
+        get() = prefs.getBoolean("quote_follows_voice", false)
+        set(value) = prefs.edit { putBoolean("quote_follows_voice", value) }
+    /** 최애를 처음 고른 뒤 음성을 켤지 한 번 물어봤는지(아래쪽 설정을 모르고 지나치지 않게). */
+    var voiceAsked: Boolean
+        get() = prefs.getBoolean("voice_asked", false)
+        set(value) = prefs.edit { putBoolean("voice_asked", value) }
     /** 복각표에 4성도 보일지(기본은 5성만). */
     var rerunFours: Boolean
         get() = prefs.getBoolean("rerun_fours", false)

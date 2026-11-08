@@ -23,10 +23,12 @@ import org.junit.Test
  * 아이콘 512×512, 대표 이미지 1024×500, 스크린샷 1080×1920(플레이는 9:16만 받는다).
  */
 class StoreAssetsTest {
+    init { TestText.install() }
+
     @get:Rule
     val paparazzi = Paparazzi(theme = "Theme.HoyoCheckin", useDeviceResolution = true)
 
-    private fun device(width: Int, height: Int, night: Boolean = false) = DeviceConfig.PIXEL_6.copy(
+    private fun device(width: Int, height: Int, night: Boolean = false) = DeviceConfig.PIXEL_6.copy(locale = "ko").copy(
         screenWidth = width, screenHeight = height, density = Density.MEDIUM, xdpi = 160, ydpi = 160,
         nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
         orientation = if (width > height) ScreenOrientation.LANDSCAPE else ScreenOrientation.PORTRAIT,
@@ -81,12 +83,12 @@ class StoreAssetsTest {
 
     private val sampleCalendar = List(31) { i ->
         when {
-            i % 7 == 6 -> CalendarSlot("원석", 20)
-            i % 7 == 2 -> CalendarSlot("모라", 5000)
-            i % 7 == 4 -> CalendarSlot("영웅의 경험", 3)
-            i % 7 == 0 -> CalendarSlot("정제용 양질 광석", 3)
-            else -> CalendarSlot("모라", 1000 * (i % 3 + 1))
-        }
+            i % 7 == 6 -> "원석" to 20
+            i % 7 == 2 -> "모라" to 5000
+            i % 7 == 4 -> "영웅의 경험" to 3
+            i % 7 == 0 -> "정제용 양질 광석" to 3
+            else -> "모라" to 1000 * (i % 3 + 1)
+        }.let { (name, count) -> CalendarSlot(name, count, StoreItemArt.url(name)) } // 받아 둔 게임 아이템 그림이 있으면 그것으로
     }
     private val signed = MainUiState(
         loggedIn = true, accounts = listOf(AccountChip("100000000", "여행자", true), AccountChip("100000001", "부계정", false)),
@@ -94,7 +96,7 @@ class StoreAssetsTest {
         totalDays = 17, month = 10, reward = "원석 x20", lastChecked = "10월 18일 01:03", nextRun = "내일 01:02",
         makeUpMissed = 2, redeemRole = "아시아 서버 · 여행자 (Lv.60) · UID 800000000",
         redeemSummary = "10월 18일 01:05 · 새 코드 1개 입력: VesnaOnPatrol", redeemShort = "새 코드 1개 입력",
-        redeemWhen = "10월 18일 01:05", historyUnseen = 3,
+        redeemWhen = "10월 18일 01:05", historyUnseen = 3, redeemNew = 1, monthPrimos = 250,
         calendar = sampleCalendar, calendarReachable = 31,
         notes = NotesUi(
             resin = 142, maxResin = 200, fullLabel = "7시간 44분 뒤 가득", fullTime = "오후 3:20",
@@ -127,16 +129,17 @@ class StoreAssetsTest {
         scrollTo: Int? = null, aboveDp: Int = 44, tablet: Boolean = false, history: HistoryUiState? = null,
         custom: ((android.content.Context) -> View)? = null, settings: Boolean = false,
     ) {
+        StoreItemArt.install(paparazzi.context)
         // 휴대폰: 앱 화면은 1080×2160(420dpi)으로 그리고, 스크린샷 틀은 1080×1920이다.
         val w = if (tablet) 1440 else 1080
         val h = if (tablet) 2560 else 1920
         // 태블릿은 보이는 높이만큼만 잡아야 내용이 넘쳐서 장면마다 다른 곳으로 스크롤할 수 있다.
         val appH = if (tablet) ((h - 540f * (w / 1080f)) / 0.84f).toInt() else w * 2
         val k = w / 1080f
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(
             screenWidth = w, screenHeight = h, nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT,
-            density = if (tablet) Density.create(400) else DeviceConfig.PIXEL_6.density,
-            xdpi = if (tablet) 400 else DeviceConfig.PIXEL_6.xdpi, ydpi = if (tablet) 400 else DeviceConfig.PIXEL_6.ydpi,
+            density = if (tablet) Density.create(400) else DeviceConfig.PIXEL_6.copy(locale = "ko").density,
+            xdpi = if (tablet) 400 else DeviceConfig.PIXEL_6.copy(locale = "ko").xdpi, ydpi = if (tablet) 400 else DeviceConfig.PIXEL_6.copy(locale = "ko").ydpi,
         ))
         // 문구 크기를 틀 폭에 맞춘다(휴대폰 420dpi 기준).
         val textScale = k * 2.625f / (if (tablet) 2.5f else 2.625f)
@@ -320,7 +323,7 @@ class StoreAssetsTest {
         val names = listOf("원석" to 20, "모라" to 5000, "영웅의 경험" to 3, "원석" to 20, "정제용 양질 광석" to 3, "모라" to 5000, "원석" to 20)
         val entries = (18 downTo 1).map { day ->
             val (name, count) = names[day % names.size]
-            RewardEntry("$day", name, count, "2026-10-%02d".format(day))
+            RewardEntry("$day", name, count, "2026-10-%02d".format(day), StoreItemArt.url(name))
         }
         return HistoryUiState(
             title = "보상 내역 · 여행자", status = "출석·보충 보상 총 412번 받았어요", month = "2026-10",

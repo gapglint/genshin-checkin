@@ -13,13 +13,15 @@ import org.junit.Test
 
 /** 홈 화면 레진 위젯(작게·넓게, 밝게·어둡게). 위젯은 RemoteViews라 같은 레이아웃을 직접 채워 그린다. */
 class WidgetSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin",
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"), theme = "Theme.HoyoCheckin",
         renderingMode = SessionParams.RenderingMode.SHRINK, useDeviceResolution = true,
     )
 
     private fun snap(widthDp: Int, wide: Boolean, night: Boolean) {
-        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(locale = "ko").copy(nightMode = if (night) NightMode.NIGHT else NightMode.NOTNIGHT))
         val widget = paparazzi.inflate<View>(R.layout.widget_resin)
         widget.findViewById<TextView>(R.id.widgetResin).text = "142 / 200"
         widget.findViewById<TextView>(R.id.widgetFull).text = "오후 3:20 가득"

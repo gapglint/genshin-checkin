@@ -55,7 +55,7 @@ object PublicCodes {
     fun refresh(context: Context) {
         val codes = runCatching { fromSite(fetch(SITE_URL)) }.getOrNull() ?: run {
             val (wiki, official) = Redeem.publishedCodes()
-            if (wiki == null) throw IOException("코드 목록을 받지 못했어요")
+            if (wiki == null) throw IOException(context.getString(R.string.core_codes_fetch_failed))
             from(wiki, official, ServerClock.today())
         }
         prefs(context).edit().putString(KEY, toJson(codes).toString()).putLong("checked_at", System.currentTimeMillis()).apply()
@@ -68,7 +68,7 @@ object PublicCodes {
             PublicCode(
                 code = it.getString("code"),
                 reward = it.optString("reward").takeIf { r -> r.isNotEmpty() && r != "null" },
-                server = it.optString("server").ifEmpty { "전 서버" },
+                server = it.optString("server").ifEmpty { ALL_SERVERS },
                 discovered = it.optString("discovered").takeIf { d -> d.length == 10 }?.let(LocalDate::parse),
                 expiry = it.optString("expiry").takeIf { d -> d.length == 10 }?.let(LocalDate::parse),
                 official = it.optBoolean("live"),
@@ -100,7 +100,7 @@ object PublicCodes {
             .filter { it.expiry == null || !it.expiry.isBefore(today) }
             .mapNotNull { e -> serverLabel(e.servers)?.let { e to it } }
         val known = entries.flatMap { it.first.codes }.toSet()
-        val fromOfficial = official.distinct().filter { it !in known }.map { PublicCode(it, null, "전 서버", official = true) }
+        val fromOfficial = official.distinct().filter { it !in known }.map { PublicCode(it, null, ALL_SERVERS, official = true) }
         val fromWiki = entries.map { (e, server) ->
             PublicCode(
                 code = e.codes.first(),
@@ -113,9 +113,22 @@ object PublicCodes {
         return (fromOfficial + fromWiki).distinctBy { it.code }
     }
 
+    /**
+     * 저장된 서버 표기('전 서버', '아시아·미국' 등, 사이트 자료와 같은 한국어 값)를 화면 언어로.
+     * server 값은 자료(사이트·저장값과 비교)라 한국어 그대로 두고, 보일 때만 바꾼다.
+     */
+    fun serverText(server: String): String =
+        if (server == ALL_SERVERS) Text.get(R.string.core_codes_server_all)
+        else SERVER_TEXT.entries.fold(server) { text, (ko, id) -> text.replace(ko, Text.get(id)) }
+
+    const val ALL_SERVERS = "전 서버"
+    private val SERVER_TEXT = mapOf(
+        "아시아" to R.string.core_codes_server_asia, "미국" to R.string.core_codes_server_usa, "유럽" to R.string.core_codes_server_euro,
+    )
+
     /** 위키 서버 표기를 화면 글자로. 중국 서버에서만 쓰는 코드는 null(보여 주지 않음). */
     internal fun serverLabel(servers: List<String>): String? {
-        if (servers.isEmpty() || "G" in servers || "A" in servers) return "전 서버"
+        if (servers.isEmpty() || "G" in servers || "A" in servers) return ALL_SERVERS
         val names = servers.mapNotNull { SERVER_NAMES[it] }
         return names.takeIf { it.isNotEmpty() }?.joinToString("·")
     }
@@ -171,7 +184,7 @@ object PublicCodes {
         PublicCode(
             code = it.getString("code"),
             reward = it.optString("reward").ifEmpty { null },
-            server = it.optString("server").ifEmpty { "전 서버" },
+            server = it.optString("server").ifEmpty { ALL_SERVERS },
             discovered = it.optString("discovered").ifEmpty { null }?.let(LocalDate::parse),
             expiry = it.optString("expiry").ifEmpty { null }?.let(LocalDate::parse),
             official = it.optBoolean("official"),

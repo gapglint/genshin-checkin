@@ -115,7 +115,8 @@ object Lobby {
         if (!force && System.currentTimeMillis() - p.getLong("${key}_at", 0) < DAY_MS) return cachedCharacters(context, store)
         val client = CheckInClient(store.cookie ?: return emptyList())
         val role = store.redeemRole ?: store.accountRole ?: return emptyList()
-        val json = client.get("$INDEX_URL?server=${role.region}&role_id=${role.uid}", Notes.headers())
+        // 캐릭터 이름을 최애·위키 문서·복각표의 열쇠로 쓰므로 앱 언어와 상관없이 한국어로 받는다(보일 때는 CharNames).
+        val json = client.get("$INDEX_URL?server=${role.region}&role_id=${role.uid}", Notes.headers(DataLang.KO))
         if (json.optInt("retcode", -1) != 0) throw IOException(json.optString("message"))
         // 캐릭터 목록에 쓰는 부분만 저장한다(전적 전체는 크다).
         val slim = JSONObject().put("data", JSONObject().put("avatars", json.optJSONObject("data")?.optJSONArray("avatars") ?: org.json.JSONArray()))
@@ -139,6 +140,20 @@ object Lobby {
         itemMemory.get(url)?.let { return it }
         val file = itemFile(context, url)
         return if (file.exists()) BitmapFactory.decodeFile(file.path)?.also { itemMemory.put(url, it) } else null
+    }
+
+    private val itemLoader = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "item-icons").apply { isDaemon = true } }
+    private val itemLoading = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /** 받아 두지 않은 아이템 그림을 배경에서 받아 [done]을 화면 스레드에서 부른다. 같은 그림은 한 번만 받는다. */
+    fun itemIconAsync(context: Context, url: String, done: (Bitmap) -> Unit) {
+        if (!url.startsWith("https://") || !officialArtAllowed(context) || !itemLoading.add(url)) return
+        val app = context.applicationContext ?: context
+        itemLoader.execute {
+            val bmp = itemIcon(app, url)
+            itemLoading.remove(url)
+            if (bmp != null) android.os.Handler(android.os.Looper.getMainLooper()).post { done(bmp) }
+        }
     }
 
     /** 호요랩 출석 보상 아이템 그림(작은 PNG)을 받아 임시 저장 공간에 둔다. 네트워크라 배경 스레드에서. */
@@ -353,9 +368,9 @@ object Lobby {
         }
     }
 
-    private fun wikiPortraitUrl(context: Context, name: String): String? = wikiPage(context, name)?.let { page ->
+    private fun wikiPortraitUrl(context: Context, name: String): String? = wikiPage(context, name)?.let { (id, page) ->
         // 같은 문서에 있는 대사도 이때 저장해 둔다(문서를 두 번 받지 않게).
-        saveVoices(context, name, voiceLines(page))
+        saveVoicesFrom(context, name, id, page)
         galleryPortrait(page)
     }
 
@@ -385,13 +400,7 @@ object Lobby {
         }
         if (cached != null && System.currentTimeMillis() - p.getLong("wiki_chars2_at", 0) < 7 * DAY_MS) return decode(cached)
         return try {
-            val list = mutableListOf<WikiCharacter>()
-            for (page in 1..8) {
-                val body = """{"filters":[],"menu_id":"2","page_num":$page,"page_size":50,"use_es":true}"""
-                val items = JSONObject(get(WIKI_LIST, body)).optJSONObject("data")?.optJSONArray("list") ?: break
-                list += parseWikiList(items)
-                if (items.length() < 50) break
-            }
+            val list = wikiListPages(DataLang.KO).flatMap { parseWikiList(it) }
             if (list.isEmpty()) throw IOException("위키 목록이 비어 있어요")
             p.edit().putString("wiki_chars2", org.json.JSONArray(list.map { JSONObject().put("n", it.name).put("i", it.id).put("e", it.element).put("c", it.icon).put("r", it.rarity) }).toString())
                 .putLong("wiki_chars2_at", System.currentTimeMillis()).apply()
@@ -400,6 +409,58 @@ object Lobby {
             cached?.let { decode(it) }.orEmpty()
         }
     }
+
+    /** 위키 캐릭터 목록의 쪽들(50명씩, 8쪽까지). [lang]은 목록 언어. */
+    private fun wikiListPages(lang: String): List<org.json.JSONArray> {
+        val pages = mutableListOf<org.json.JSONArray>()
+        for (page in 1..8) {
+            val body = """{"filters":[],"menu_id":"2","page_num":$page,"page_size":50,"use_es":true}"""
+            val items = JSONObject(get(WIKI_LIST, body, lang)).optJSONObject("data")?.optJSONArray("list") ?: break
+            pages += items
+            if (items.length() < 50) break
+        }
+        return pages
+    }
+
+    // ---------- 캐릭터 이름(앱 언어) ----------
+
+    /** 받아 둔 한국어 이름 → [lang] 이름. 없으면 빈 것. */
+    fun cachedLocalNames(context: Context, lang: String): Map<String, String> = CharNames.decode(prefs(context).getString("names_$lang", null))
+
+    /**
+     * 앱 언어가 한국어가 아니면 위키 캐릭터 목록을 그 언어로도 받아(일주일에 한 번) 한국어 이름 → 그 언어 이름을 저장한다([CharNames]가 쓴다).
+     * 두 목록은 문서 번호로 맞춘다. 실패하면 다음에 다시. 네트워크라 배경 스레드에서.
+     */
+    fun refreshLocalNames(context: Context) {
+        if (!localNamesStale(context)) return
+        val lang = DataLang.code()
+        val p = prefs(context)
+        try {
+            val ko = wikiCharacters(context).takeIf { it.isNotEmpty() } ?: return
+            val names = localNames(ko, wikiListPages(lang).flatMap { parseWikiNames(it).toList() }.toMap())
+            if (names.isEmpty()) return
+            p.edit().putString("names_$lang", JSONObject(names).toString()).putLong("names_${lang}_at", System.currentTimeMillis()).apply()
+            CharNames.set(lang, names)
+        } catch (e: Exception) {
+        }
+    }
+
+    /** 앱 언어 캐릭터 이름을 (다시) 받아야 하는지. 한국어면 늘 false. */
+    fun localNamesStale(context: Context): Boolean {
+        val lang = DataLang.code()
+        if (lang == DataLang.KO) return false
+        val p = prefs(context)
+        return !p.contains("names_$lang") || System.currentTimeMillis() - p.getLong("names_${lang}_at", 0) >= 7 * DAY_MS
+    }
+
+    /** 위키 목록 한 쪽의 문서 번호 → 이름(거르지 않는다). */
+    internal fun parseWikiNames(items: org.json.JSONArray): Map<String, String> = (0 until items.length()).map { items.getJSONObject(it) }
+        .mapNotNull { o -> o.optString("entry_page_id").takeIf { it.isNotEmpty() }?.let { it to o.optString("name").trim() } }
+        .filter { it.second.isNotEmpty() }.toMap()
+
+    /** 한국어 목록과 다른 언어 목록(문서 번호 → 이름)을 문서 번호로 맞춘 한국어 이름 → 그 언어 이름. */
+    internal fun localNames(ko: List<WikiCharacter>, local: Map<String, String>): Map<String, String> =
+        ko.mapNotNull { c -> local[c.id]?.let { c.name to it } }.toMap()
 
     /** 아직 없는 최애를 복각표의 '기다리는 캐릭터'(픽업 알림)에 넣는다(5성·4성). 복각표에 없는 캐릭터는 그대로. */
     fun watchRerun(context: Context, name: String) {
@@ -410,22 +471,23 @@ object Lobby {
     fun waitingLine(context: Context, name: String, today: java.time.LocalDate) = waitingLine(Reruns.cached(context), name, today)
 
     internal fun waitingLine(data: RerunData?, name: String, today: java.time.LocalDate): String {
-        if (data == null) return "아직 만나지 못했어요"
-        val c = data.byKo(name) ?: return "아직 만나지 못했어요"
+        val unmet = Text.get(R.string.lobby_waiting_unmet)
+        if (data == null) return unmet
+        val c = data.byKo(name) ?: return unmet
         when (data.phase(c, today)) {
-            RerunPhase.NOW -> return "아직 만나지 못했어요 · 지금 픽업 중!"
-            RerunPhase.SECOND_HALF, RerunPhase.LATER -> return "아직 만나지 못했어요 · 곧 픽업이 열려요"
+            RerunPhase.NOW -> return Text.get(R.string.lobby_waiting_now)
+            RerunPhase.SECOND_HALF, RerunPhase.LATER -> return Text.get(R.string.lobby_waiting_soon)
             else -> {}
         }
-        val since = data.since(c, today) ?: return "아직 만나지 못했어요"
-        if (since == 0) return "아직 만나지 못했어요 · 이번 버전 전반에 픽업했어요"
-        return "아직 만나지 못했어요 · 마지막 픽업 ${since}버전 전"
+        val since = data.since(c, today) ?: return unmet
+        if (since == 0) return Text.get(R.string.lobby_waiting_this_version)
+        return Text.plural(R.plurals.lobby_waiting_since, since, since)
     }
 
-    /** 호요랩 위키 캐릭터 문서(이름으로 찾는다). 못 찾으면 null. */
-    private fun wikiPage(context: Context, name: String): JSONObject? {
+    /** 호요랩 위키 캐릭터 문서 번호와 한국어 문서(이름으로 찾는다). 못 찾으면 null. */
+    private fun wikiPage(context: Context, name: String): Pair<String, JSONObject>? {
         val id = wikiCharacters(context).firstOrNull { it.name == name }?.id?.takeIf { it.isNotEmpty() } ?: return null
-        return JSONObject(get(WIKI_PAGE + id))
+        return id to JSONObject(get(WIKI_PAGE + id))
     }
 
     // ---------- 캐릭터 대사 ----------
@@ -475,8 +537,11 @@ object Lobby {
         return if (text.isEmpty()) null else VoiceLine(title, text, audio, fetter, story, GENDERED.containsMatchIn(desc), others)
     }
 
-    /** 위키 문서의 음성(voice) 목록. */
-    internal fun voiceLines(page: JSONObject): List<VoiceLine> {
+    /** 위키 문서의 음성 한 줄 그대로: 제목, 대사 칸(HTML), 음성 언어 이름(문서 언어로 적힘) → 주소. */
+    internal class WikiVoice(val title: String, val desc: String, val audios: Map<String, String>)
+
+    /** 위키 문서의 음성(voice) 목록 그대로(대사가 비어 있는 줄도 둔다. 다른 언어 문서와 줄을 맞출 때 쓴다). */
+    internal fun wikiVoices(page: JSONObject): List<WikiVoice> {
         val modules = page.optJSONObject("data")?.optJSONObject("page")?.optJSONArray("modules") ?: return emptyList()
         for (i in 0 until modules.length()) {
             val comps = modules.getJSONObject(i).optJSONArray("components") ?: continue
@@ -484,34 +549,114 @@ object Lobby {
                 val comp = comps.getJSONObject(j)
                 if (comp.optString("component_id") != "voice") continue
                 val list = try { JSONObject(comp.optString("data", "{}")).optJSONArray("list") } catch (e: Exception) { null } ?: return emptyList()
-                return (0 until list.length()).map { list.getJSONObject(it) }.mapNotNull { v ->
+                return (0 until list.length()).map { list.getJSONObject(it) }.map { v ->
                     val audios = v.optJSONArray("audios")
                     val byName = (0 until (audios?.length() ?: 0)).map { audios!!.getJSONObject(it) }
                         .associate { it.optString("name") to it.optString("url") }.filterValues { it.startsWith("https://") }
-                    val others = VOICE_LANGUAGES.filterKeys { it != "ko" }.mapNotNull { (code, name) -> byName[name]?.let { code to it } }.toMap()
-                    voiceLine(v.optString("title").trim(), v.optString("desc"), byName["한국어"], others)
+                    WikiVoice(v.optString("title").trim(), v.optString("desc"), byName)
                 }
             }
         }
         return emptyList()
     }
 
-    private fun voicesFile(context: Context, name: String) = File(dir(context), "voices_v4_${name.hashCode().toUInt()}.json")
+    /** 위키 문서의 음성(voice) 목록. */
+    internal fun voiceLines(page: JSONObject): List<VoiceLine> = voiceLines(wikiVoices(page))
 
-    private fun saveVoices(context: Context, name: String, lines: List<VoiceLine>) {
+    /**
+     * 한국어 문서의 음성 줄로 대사를 만든다(제목·개방 조건·성별 표시는 한국어로 읽는다).
+     * [foreign]이 있으면(앱 언어 문서) 같은 대사를 찾은 줄만 보일 글을 그 언어로 바꾼다([localTexts]).
+     */
+    internal fun voiceLines(list: List<WikiVoice>, foreign: List<WikiVoice>? = null): List<VoiceLine> {
+        val texts = foreign?.let { localTexts(list, it) }
+        return list.mapIndexedNotNull { i, v ->
+            val others = VOICE_LANGUAGES.filterKeys { it != "ko" }.mapNotNull { (code, name) -> v.audios[name]?.let { code to it } }.toMap()
+            voiceLine(v.title, v.desc, v.audios["한국어"], others)?.let { line -> texts?.getOrNull(i)?.let { line.copy(text = it) } ?: line }
+        }
+    }
+
+    /**
+     * 한국어 문서의 줄마다 같은 대사의 다른 언어 글(못 찾으면 null).
+     * 두 문서는 줄 수·순서가 다를 수 있어(한 언어 문서에만 있는 대사) 음성 파일로 맞춘다: 위키는 같은 음성을 언어 문서마다
+     * 다른 주소에 두기도 하지만 파일 이름 앞부분(내용 해시)은 같다. 음성으로 못 맞춘 줄은, 두 문서의 줄 수가 같고
+     * 맞춘 줄이 모두 같은 자리에 있을 때만(순서가 같다는 증거) 같은 자리의 글을 쓴다.
+     */
+    internal fun localTexts(ko: List<WikiVoice>, foreign: List<WikiVoice>): List<String?> {
+        // 음성 해시 → 다른 언어 줄 번호(두 줄에 같은 해시가 있으면 -1, 쓰지 않는다).
+        val owner = HashMap<String, Int>()
+        foreign.forEachIndexed { j, v -> for (k in audioKeys(v)) owner[k] = if (owner[k] == null || owner[k] == j) j else -1 }
+        val match = ko.map { v -> audioKeys(v).mapNotNull { owner[it] }.filter { it >= 0 }.distinct().singleOrNull() }
+        val sameOrder = ko.size == foreign.size && match.any { it != null } && match.withIndex().all { (i, j) -> j == null || j == i }
+        return match.mapIndexed { i, j -> (j ?: i.takeIf { sameOrder })?.let { foreignText(foreign[it].desc) } }
+    }
+
+    /** 음성 주소의 내용 해시(파일 이름의 '_' 앞, 예: 12579cafd5419f067e6910167a586b66). 모양이 다르면 null. */
+    internal fun audioKey(url: String) = url.substringAfterLast('/').substringBefore('_').takeIf { it.length >= 16 && it.all { c -> c.isLetterOrDigit() } }
+
+    private fun audioKeys(v: WikiVoice) = v.audios.values.mapNotNull { audioKey(it) }.toSet()
+
+    /** 다른 언어 위키의 개방 조건 문단: 일본어 "解放条件：好感度Lv.4", 영어 "Unlocks at Friendship Lv. 4"·'Complete "True Moon"', ※ 주의. */
+    private val FOREIGN_UNLOCK = Regex("^(解放条件|※|Unlocks? (at|after) |Complete \"[^\"]*\"\\.?$)")
+    private val FOREIGN_UNLOCK_TAIL = Regex("\\s*Unlocks? at (Friendship Lv\\.|Ascension Phase) ?\\d+$")
+
+    /** 다른 언어 대사 칸(HTML)의 대사 글만(개방 조건 문단은 뺀다). 남은 문단은 한 칸 띄워 잇는다. 비면 null. */
+    internal fun foreignText(desc: String): String? {
+        val text = desc.replace(Regex("<br\\s*/?>|</p>"), "\n").replace(Regex("<[^>]+>"), "")
+            .replace("&nbsp;", " ").replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">")
+            .replace(Regex("&#(\\d+);")) { it.groupValues[1].toInt().toChar().toString() }.replace("&amp;", "&")
+        return text.split("\n").map { it.trim().replace(FOREIGN_UNLOCK_TAIL, "").trim() }
+            .filter { it.isNotEmpty() && !FOREIGN_UNLOCK.containsMatchIn(it) }
+            .joinToString(" ").takeIf { it.isNotEmpty() }
+    }
+
+    /** 음성 언어(앱 설정 값) → 위키 언어. */
+    private val VOICE_WIKI_LANG = mapOf("ko" to DataLang.KO, "ja" to DataLang.JA, "zh" to "zh-cn", "en" to DataLang.EN)
+
+    /**
+     * 말풍선 대사 글의 언어. 기본은 앱 언어. '대사도 음성 언어로'를 켰고 음성을 쓰면 음성 언어(일본어 음성이면 일본어 대사).
+     * 중국어 위키 대사도 개방 조건 없이 대사만 있어서 그대로 쓴다.
+     */
+    fun lineLang(context: Context): String {
+        val settings = AppSettings(context)
+        if (settings.quoteFollowsVoice) VOICE_WIKI_LANG[settings.voiceLanguage]?.let { return it }
+        return DataLang.code()
+    }
+
+    /** 대사 파일. 한국어는 예전 이름 그대로, 다른 언어는 이름에 언어를 넣는다(언어마다 따로 둔다). */
+    private fun voicesFile(context: Context, name: String, lang: String = lineLang(context)) =
+        File(dir(context), if (lang == DataLang.KO) "voices_v4_${name.hashCode().toUInt()}.json" else "voices_v4_${lang}_${name.hashCode().toUInt()}.json")
+
+    /**
+     * 한국어 문서로 대사를 만들어 저장한다. 앱 언어가 한국어가 아니면 같은 문서를 그 언어로 한 번 더 받아 보일 글만 바꾼다.
+     * 그 문서를 못 받으면 한국어 대사만 저장해 두고(그동안 보인다) 다음에 다시 받는다.
+     */
+    private fun saveVoicesFrom(context: Context, name: String, id: String, page: JSONObject) {
+        val lang = lineLang(context)
+        val ko = wikiVoices(page)
+        if (lang == DataLang.KO || !voicesFile(context, name, DataLang.KO).exists()) saveVoices(context, name, voiceLines(ko), DataLang.KO)
+        if (lang == DataLang.KO || voicesFile(context, name, lang).exists()) return
+        val foreign = try { wikiVoices(JSONObject(get(WIKI_PAGE + id, lang = lang))) } catch (e: Exception) { return }
+        saveVoices(context, name, voiceLines(ko, foreign), lang)
+    }
+
+    private fun saveVoices(context: Context, name: String, lines: List<VoiceLine>, lang: String) {
         if (lines.isEmpty()) return
-        // 다른 캐릭터 대사는 지운다(최애 하나만 둔다).
-        dir(context).listFiles { f -> f.name.startsWith("voices_") }?.forEach { it.delete() }
-        voicesFile(context, name).writeText(org.json.JSONArray(lines.map {
+        // 다른 캐릭터 대사(와 예전 형식 파일)는 지운다(최애 하나만 둔다, 언어별 파일은 남긴다).
+        val tail = "_${name.hashCode().toUInt()}.json"
+        dir(context).listFiles { f -> f.name.startsWith("voices_") && !(f.name.startsWith("voices_v4_") && f.name.endsWith(tail)) }?.forEach { it.delete() }
+        voicesFile(context, name, lang).writeText(org.json.JSONArray(lines.map {
             JSONObject().put("t", it.title).put("x", it.text).put("a", it.audio ?: "").put("f", it.fetter).put("s", it.story).put("g", it.gendered)
                 .put("o", JSONObject(it.others))
         }).toString())
     }
 
-    /** 저장해 둔 최애 대사 전부(잠긴 것 포함). 공식 자료가 꺼져 있으면 비어 있다. 보여 줄 때는 [unlockedVoices]. */
+    /**
+     * 저장해 둔 최애 대사 전부(잠긴 것 포함). 공식 자료가 꺼져 있으면 비어 있다. 보여 줄 때는 [unlockedVoices].
+     * 앱 언어 대사를 아직 못 받았으면 한국어 대사.
+     */
     fun voices(context: Context, name: String): List<VoiceLine> {
         if (!officialArtAllowed(context)) return emptyList()
-        val file = voicesFile(context, name)
+        val file = voicesFile(context, name).takeIf { it.exists() } ?: voicesFile(context, name, DataLang.KO)
         if (!file.exists()) return emptyList()
         // 화면을 그릴 때마다 부르므로, 파일이 그대로면 읽어 둔 것을 쓴다.
         val stamp = "${file.path}|${file.lastModified()}|${file.length()}"
@@ -577,10 +722,13 @@ object Lobby {
 
     fun clearVoiceCache(context: Context) { File(context.cacheDir, "voices").deleteRecursively() }
 
+    /** 앱 언어 대사를 아직 받지 않았는지([loadVoices]를 부를지). */
+    fun needsVoices(context: Context, name: String) = officialArtAllowed(context) && !voicesFile(context, name).exists()
+
     /** 대사가 아직 없으면 받아 둔다(공식 그림을 안 써도 대사는 쓴다). */
     fun loadVoices(context: Context, name: String) {
-        if (!officialArtAllowed(context) || voicesFile(context, name).exists()) return
-        try { wikiPage(context, name)?.let { saveVoices(context, name, voiceLines(it)) } } catch (e: Exception) {}
+        if (!needsVoices(context, name)) return
+        try { wikiPage(context, name)?.let { (id, page) -> saveVoicesFrom(context, name, id, page) } } catch (e: Exception) {}
     }
 
     /** 상황에 맞는 대사 묶음(제목 앞부분으로 고른다). */
@@ -736,16 +884,17 @@ object Lobby {
         for (ch in url) if (ch.code < 128) append(ch) else append(URLEncoder.encode(ch.toString(), "UTF-8"))
     }
 
-    private fun open(url: String): HttpURLConnection = (URL(ascii(url)).openConnection() as HttpURLConnection).apply {
+    /** [lang]: 위키 응답 언어. 대사 분류·캐릭터 열쇠가 한국어 위키 이름이라 기본은 한국어. */
+    private fun open(url: String, lang: String = DataLang.KO): HttpURLConnection = (URL(ascii(url)).openConnection() as HttpURLConnection).apply {
         connectTimeout = 15_000
         readTimeout = 20_000
         setRequestProperty("User-Agent", "SumiLab-Checkin/1.0 (Android)")
-        setRequestProperty("x-rpc-language", CheckInClient.LANG)
+        setRequestProperty("x-rpc-language", lang)
         setRequestProperty("Referer", "https://wiki.hoyolab.com/")
     }
 
-    private fun get(url: String, postBody: String? = null): String {
-        val conn = open(url)
+    private fun get(url: String, postBody: String? = null, lang: String = DataLang.KO): String {
+        val conn = open(url, lang)
         try {
             if (postBody != null) {
                 conn.requestMethod = "POST"

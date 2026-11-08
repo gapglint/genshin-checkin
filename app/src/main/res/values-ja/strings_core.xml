@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- チェックイン・通知・交換コード・リアルタイムメモ・補充チェックイン(core_)、報酬履歴・ウィジェット(home_)の文言(日本語)。 -->
+<resources>
+    <!-- チェックイン結果 (CheckIn) -->
+    <string name="core_checkin_brief_signed">%1$d日目</string>
+    <string name="core_checkin_brief_signed_reward">%1$d日目 · %2$s</string>
+    <string name="core_checkin_brief_already">チェックイン済み · %1$d日目</string>
+    <string name="core_checkin_brief_login">タップして再ログイン</string>
+    <string name="core_checkin_brief_captcha">チェックインページで直接タップしてください</string>
+    <string name="core_checkin_brief_not_confirmed">チェックインページで確認してください</string>
+    <string name="core_checkin_brief_rate_limited">少し後で再試行します</string>
+    <string name="core_checkin_signed">チェックイン完了！(%1$d日目)</string>
+    <string name="core_checkin_signed_reward">チェックイン完了！(%1$d日目)\n報酬: %2$s</string>
+    <string name="core_checkin_already">今日はチェックイン済みです。(%1$d日目)</string>
+    <string name="core_checkin_login_expired">ログインが切れたため、チェックインと交換コードの入力が止まっています。再ログインするとすぐにチェックインします。</string>
+    <string name="core_checkin_captcha">HoYoLABが認証を求めています。チェックインページで直接タップしてください。</string>
+    <string name="core_checkin_not_confirmed">チェックインの応答は成功でしたが、確認すると反映されていませんでした。チェックインページで直接確認してください。</string>
+    <string name="core_checkin_rate_limited">HoYoLABからリクエストが多すぎると言われました(%1$sの段階)。少し後で自動的に再試行します。</string>
+    <string name="core_checkin_failed">チェックイン失敗: %1$s</string>
+    <string name="core_step_info">状況確認</string>
+    <string name="core_step_sign">チェックイン</string>
+    <string name="core_error_unreadable">HTTP %1$d: 応答を読み取れません</string>
+    <string name="core_signed_out">ログインが切れました。再ログインしてください。</string>
+
+    <!-- 原神アプリ (Game) -->
+    <string name="core_game_play_store">Playストア・公式サイト版の原神</string>
+    <string name="core_game_galaxy_store">Galaxy Store版の原神</string>
+
+    <!-- カレンダーの短い個数: 日本語は韓国語と同じく万単位(%1$s)を使う。 -->
+    <string name="core_compact_ten_thousand">%1$s万</string>
+    <string name="core_compact_thousand">%1$d千</string>
+
+    <!-- 日付・時刻 -->
+    <string name="core_date_month_day">%1$d月%2$d日</string>
+    <string name="core_date_month_day_pattern">M月d日</string>
+    <string name="core_clock_am">午前%1$d:%2$02d</string>
+    <string name="core_clock_pm">午後%1$d:%2$02d</string>
+    <string name="core_clock_tomorrow">明日%1$s</string>
+    <string name="core_clock_date">%1$d月%2$d日 %3$s</string>
+    <string name="core_duration_days_hours">%1$d日%2$d時間</string>
+    <string name="core_duration_hours_mins">%1$d時間%2$d分</string>
+    <string name="core_duration_hours">%1$d時間</string>
+    <string name="core_duration_mins">%1$d分</string>
+
+    <!-- 通知チャンネル -->
+    <string name="core_channel_checkin">チェックイン結果</string>
+    <string name="core_channel_make_up">補充チェックイン</string>
+    <string name="core_channel_redeem">交換コード</string>
+    <string name="core_channel_notes">樹脂・探索派遣</string>
+    <string name="core_channel_rerun">待っているキャラのピックアップ</string>
+    <string name="core_channel_quiet">夜間の通知(サイレント)</string>
+
+    <!-- 通知 (Notifier) -->
+    <string name="core_notif_signed">原神チェックイン完了</string>
+    <string name="core_notif_login">HoYoLABへのログインが必要です</string>
+    <string name="core_notif_captcha">チェックインに認証が必要です</string>
+    <string name="core_notif_not_confirmed">チェックインが反映されていません</string>
+    <string name="core_notif_failed">原神チェックイン失敗</string>
+    <string name="core_notif_makeup_title">補充チェックインができます</string>
+    <plurals name="core_notif_makeup_text">
+        <item quantity="other">今月チェックインし忘れた日が%1$d日あります。タップするとすぐに補充します。</item>
+    </plurals>
+    <plurals name="core_notif_makeup_brief">
+        <item quantity="other">忘れた日 %1$d日 · タップで補充</item>
+    </plurals>
+    <plurals name="core_notif_redeem_title">
+        <item quantity="other">交換コードを%1$d個受け取りました</item>
+    </plurals>
+    <plurals name="core_notif_redeem_title_roles">
+        <item quantity="other">交換コードを%1$d個受け取りました(キャラ%2$d人)</item>
+    </plurals>
+    <string name="core_notif_redeem_text">%1$s · ゲーム内メールで受け取ってください。</string>
+    <string name="core_notif_redeem_failed">交換コードを入力できませんでした</string>
+    <string name="core_notif_redeem_brief">%1$s · メール</string>
+    <string name="core_notif_redeem_brief_more">%1$sほか%2$d個 · メール</string>
+    <string name="core_notif_expiry_title">HoYoLABのログインがまもなく切れます</string>
+    <string name="core_notif_expiry_text">%1$sでログインから1年になるため、チェックインと交換コードの入力が止まります。タップすると今すぐ再ログインできます。</string>
+    <string name="core_notif_expiry_brief">%1$sに期限切れ · タップで再ログイン</string>
+    <string name="core_notif_play">原神を起動</string>
+    <string name="core_notif_resin_full_title">天然樹脂が満タンです</string>
+    <string name="core_notif_resin_full_text">樹脂 %1$d/%2$d · これ以上たまらないので使ってください。</string>
+    <string name="core_notif_resin_full_brief">樹脂 %1$d/%2$d · 満タン</string>
+    <string name="core_notif_resin_title">樹脂が%1$dまでたまりました</string>
+    <string name="core_notif_resin_text">%1$d/%2$d · %3$s後に満タン(%4$s)</string>
+    <string name="core_notif_resin_brief">%1$d/%2$d · %3$sに満タン</string>
+    <string name="core_notif_expeditions_title">探索派遣がすべて完了しました</string>
+    <string name="core_notif_expeditions_text">%1$d人全員が戻りました。報酬を受け取って、また派遣してください。</string>
+    <string name="core_notif_expeditions_brief">%1$d人帰還 · 報酬を受け取る</string>
+    <string name="core_notif_coin_title">洞天宝銭が満タンです</string>
+    <string name="core_notif_coin_text">洞天宝銭 %1$s/%2$s · これ以上たまらないので受け取ってください。</string>
+    <string name="core_notif_coin_brief">洞天宝銭 %1$s · 満タン</string>
+    <!-- %1$s 韓国語名、%2$s 英語名 -->
+    <string name="core_notif_rerun_soon_title">待っていた%1$sのピックアップが始まります</string>
+    <string name="core_notif_rerun_now_title">待っていた%1$sのピックアップ開催中です</string>
+    <string name="core_notif_rerun_soon_text">%1$sから%2$sまで</string>
+    <string name="core_notif_rerun_now_text">%1$sまで</string>
+    <string name="core_notif_rerun_chronicled">%1$s · 集録祈願</string>
+    <plurals name="core_notif_new_codes">
+        <item quantity="other">新しい交換コード%1$d個</item>
+    </plurals>
+    <plurals name="core_notif_new_codes_live">
+        <item quantity="other">新しい交換コード%1$d個(生放送)</item>
+    </plurals>
+    <string name="core_notif_new_codes_more">%1$sほか</string>
+    <string name="core_notif_new_codes_big">%1$s\nログインするとアプリが自動で入力します。</string>
+
+    <!-- リアルタイムメモ (Notes) -->
+    <string name="core_notes_full_in">%1$s後に満タン</string>
+    <string name="core_notes_full">満タンです</string>
+    <string name="core_notes_none">なし</string>
+    <string name="core_notes_done">%1$d/%2$d 完了</string>
+    <string name="core_notes_no_expeditions">派遣していません</string>
+    <string name="core_notes_claim">報酬を受け取ってください</string>
+    <string name="core_notes_expeditions_in">%1$s後にすべて完了</string>
+    <string name="core_notes_no_teapot">塵歌壺がありません</string>
+    <string name="core_notes_commissions_left">残り%1$d個</string>
+    <string name="core_notes_claimed">報酬受取済み</string>
+    <string name="core_notes_updated">%1$s時点</string>
+    <string name="core_notes_unreadable">受け取った内容を読み取れませんでした</string>
+    <string name="core_notes_captcha">HoYoLABが認証を求めています。少し後で再試行します</string>
+    <string name="core_notes_no_character">原神のキャラが見つかりませんでした</string>
+    <string name="core_notes_login">ログインが切れました。再ログインしてください</string>
+    <string name="core_notes_off">HoYoLAB戦績のリアルタイムメモがオフです</string>
+
+    <!-- 補充チェックイン (MakeUp) -->
+    <string name="core_makeup_sign_first">今日のチェックインを先に済ませると補充できます。</string>
+    <string name="core_makeup_no_info">補充チェックインの情報を取得できませんでした。</string>
+    <string name="core_makeup_earning">補充券を受け取り中...</string>
+    <string name="core_makeup_no_cards">補充券が足りません。今日受け取れるタスクはすべて完了しています。</string>
+    <string name="core_makeup_progress">補充チェックイン中...(%1$d回目)</string>
+    <string name="core_makeup_reward_placeholder">報酬</string>
+    <string name="core_makeup_no_more">補充できる日はもうありません。</string>
+    <string name="core_makeup_none_missed">今月チェックインし忘れた日はありません。</string>
+    <string name="core_makeup_monthly_used">今月の補充回数(%1$d回)を使い切りました。</string>
+    <string name="core_makeup_daily_used">今日の補充回数(%1$d回)を使い切りました。明日また補充できます。</string>
+    <plurals name="core_makeup_done">
+        <item quantity="other">%1$d日分を補充しました。\n報酬: %2$s</item>
+    </plurals>
+    <string name="core_makeup_rate_limited">リクエストが多すぎます。少し後でもう一度お試しください。</string>
+    <string name="core_makeup_failed">補充チェックイン失敗: %1$s</string>
+    <plurals name="core_makeup_summary_plain">
+        <item quantity="other">%1$d日分を補充</item>
+    </plurals>
+    <plurals name="core_makeup_summary">
+        <item quantity="other">%1$d日分を補充 · %2$s</item>
+    </plurals>
+
+    <!-- 交換コード (Redeem, PublicCodes) -->
+    <string name="core_server_asia">アジアサーバー</string>
+    <string name="core_server_usa">アメリカサーバー</string>
+    <string name="core_server_euro">ヨーロッパサーバー</string>
+    <string name="core_server_cht">TW·HK·MOサーバー</string>
+    <string name="core_codes_server_all">全サーバー</string>
+    <string name="core_codes_server_asia">アジア</string>
+    <string name="core_codes_server_usa">アメリカ</string>
+    <string name="core_codes_server_euro">ヨーロッパ</string>
+    <string name="core_codes_fetch_failed">コード一覧を取得できませんでした</string>
+    <string name="core_redeem_finding">交換コードを探しています...</string>
+    <string name="core_redeem_login_needed">ログインが必要です。</string>
+    <string name="core_redeem_choose_role">交換報酬を受け取るキャラを選んでください。</string>
+    <string name="core_redeem_trying">コードを入力中(%1$d/%2$d)</string>
+    <string name="core_redeem_stop_login">ログインが切れたため、交換コードを入力できませんでした。チェックインも止まっています。「ログイン状態を確認」からこのアカウントで再ログインしてください。</string>
+    <string name="core_redeem_finishing">仕上げ中...</string>
+    <string name="core_redeem_official">公式のコード一覧を確認中...</string>
+    <string name="core_redeem_posts">コミュニティの投稿を確認中(%1$d/%2$d)</string>
+    <string name="core_redeem_wiki">Wikiを確認中...</string>
+    <!-- 前半(':'の前)はタイル・ウィジェットに短く表示されるので':'で区切る。 -->
+    <plurals name="core_redeem_summary_new">
+        <item quantity="other">新コード%1$d個を入力: %2$s</item>
+    </plurals>
+    <plurals name="core_redeem_summary_new_roles">
+        <item quantity="other">新コード%1$d個を入力 · キャラ%2$d人: %3$s</item>
+    </plurals>
+    <string name="core_redeem_summary_none">新コードなし</string>
+    <plurals name="core_redeem_summary_tried">
+        <item quantity="other">受け取れる新コードなし: %1$d個を試行(%2$s)</item>
+    </plurals>
+    <string name="core_redeem_short_redeemed">受取済み</string>
+    <string name="core_redeem_short_used">使用済みか終了</string>
+    <string name="core_redeem_short_expired">期限切れ</string>
+    <string name="core_redeem_short_invalid">無効なコード</string>
+    <string name="core_redeem_short_login">要ログイン</string>
+    <string name="core_redeem_short_too_fast">速すぎ</string>
+    <string name="core_redeem_short_other">その他</string>
+    <string name="core_redeem_status_redeemed">受取済み</string>
+    <string name="core_redeem_status_used">使用済みか終了したコード</string>
+    <string name="core_redeem_status_expired">期限切れ</string>
+    <string name="core_redeem_status_invalid">無効なコード</string>
+    <string name="core_redeem_status_login">ログインが必要</string>
+    <string name="core_redeem_status_too_fast">速すぎるためスキップ</string>
+    <string name="core_redeem_status_other">受け取れませんでした</string>
+    <string name="core_redeem_details_none">新しいコードはありません。入力済みのコードは再入力しません。</string>
+    <string name="core_redeem_details_mail">報酬はゲーム内メールに届きます。</string>
+
+    <!-- 報酬履歴 (RewardHistory*) -->
+    <string name="home_history_more_kinds">%1$sほか%2$d種</string>
+    <string name="home_history_month">%1$s年%2$d月</string>
+    <string name="home_history_more">もっと見る</string>
+    <string name="home_history_codes">交換コード</string>
+    <string name="home_history_no_codes">このアプリで受け取ったコードはまだありません</string>
+    <string name="home_history_check_mail">報酬はゲーム内メールで確認してください</string>
+    <string name="home_history_month_rewards">%1$d月に受け取った報酬</string>
+    <string name="home_history_primogems">原石</string>
+    <string name="home_history_mora">モラ</string>
+    <string name="home_history_codes_label">コード</string>
+    <plurals name="home_history_fact_attendance">
+        <item quantity="other">チェックイン・補充 %1$d回</item>
+    </plurals>
+    <plurals name="home_history_fact_codes">
+        <item quantity="other">交換コード%1$d個</item>
+    </plurals>
+    <plurals name="home_history_fact_others">
+        <item quantity="other">その他のアイテム%1$d種</item>
+    </plurals>
+    <string name="home_history_redeem_totals">このアプリで受け取った交換報酬</string>
+    <plurals name="home_history_unknown">
+        <item quantity="other">報酬が不明なコード%1$d個は合計に含まれません</item>
+    </plurals>
+    <string name="home_history_new_reward">新しい報酬、%1$s</string>
+    <string name="home_history_loading">読み込み中...</string>
+    <plurals name="home_history_status">
+        <item quantity="other">チェックイン・補充の報酬を合計%1$s回受け取りました</item>
+    </plurals>
+    <string name="home_history_load_failed">履歴を読み込めませんでした。%1$s</string>
+    <string name="home_history_title">報酬履歴 · %1$s</string>
+    <string name="home_history_no_reward_info">Wikiに報酬情報がないコードです。ゲーム内メールで確認してください。</string>
+    <string name="home_history_code_date_pattern">M月d日 HH:mm</string>
+    <string name="home_history_received">%1$sに受取</string>
+    <string name="home_history_copy">コードをコピー</string>
+    <string name="home_history_clip_label">交換コード</string>
+    <string name="home_history_copied">コードをコピーしました</string>
+    <string name="home_history_ok">OK</string>
+
+    <!-- ホーム画面ウィジェット -->
+    <string name="home_widget_daily">デイリーチェックイン</string>
+    <string name="home_widget_login">ログイン</string>
+    <string name="home_widget_login_hint">アプリでログインしてください</string>
+    <string name="home_widget_redeem">交換コード</string>
+    <string name="home_widget_done">完了</string>
+    <string name="home_widget_check">要確認</string>
+    <string name="home_widget_not_yet">未完了</string>
+    <string name="home_widget_resin_loading">樹脂 · アプリを開くと読み込みます</string>
+    <string name="home_widget_redeem_off">交換コードの自動入力オフ</string>
+    <string name="home_widget_redeem_waiting">交換コード待ち</string>
+    <string name="home_widget_rerun">復刻表</string>
+    <string name="home_widget_open_to_load">アプリを開くと読み込みます</string>
+    <string name="home_widget_resin">樹脂</string>
+    <string name="home_widget_full_at">%1$sに満タン</string>
+    <string name="home_widget_days_suffix">日目</string>
+    <string name="home_widget_pickup_now">ピックアップ中</string>
+    <string name="home_widget_expeditions">派遣</string>
+    <string name="home_widget_teapot">宝銭</string>
+    <string name="home_widget_commissions">任務</string>
+    <!-- ウィジェット選択画面のプレビュー文字 -->
+    <string name="home_widget_preview_redeem">新コード3個を入力</string>
+    <string name="home_widget_preview_period">11月3日まで · 残り10日</string>
+    <string name="home_widget_preview_furina">フリーナ</string>
+    <string name="home_widget_preview_hutao">胡桃</string>
+    <string name="home_widget_preview_longest">一番長く待っているキャラ · 胡桃</string>
+    <string name="home_history_month_chip">%1$d月</string>
+    <string name="home_history_art_credit">アイテム画像 © HoYoverse（HoYoLAB）</string>
+</resources>

@@ -6,6 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RedeemTest {
+    init { TestText.install() }
+
     @Test fun parsesRoles() {
         val roles = Redeem.parseRoles(JSONObject("""{"retcode":0,"data":{"list":[
             {"game_biz":"hk4e_global","region":"os_asia","game_uid":"800000000","nickname":"여행자","level":60,"region_name":"Asia Server"},

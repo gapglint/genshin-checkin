@@ -5,13 +5,23 @@ import android.widget.TextView
 import android.widget.Button
 import android.widget.LinearLayout
 
-/** 보상 이름(한국어)에 맞는 직접 그린 아이템 아이콘. */
+/** 보상 이름에 맞는 직접 그린 아이템 아이콘. 보상 이름은 앱 언어(한국어·일본어·영어)로 오고, 언어를 바꾸기 전에 받은 이름도 섞여 있다. */
 object ItemIcons {
+    /** 원석·모라의 정확한 이름(합계를 낼 때). */
+    private val PRIMOGEM = setOf("원석", "Primogem", "原石")
+    private val MORA = setOf("모라", "Mora", "モラ")
+    /** 이름에 들어 있으면 그 아이콘(경험치 책: 영웅의 경험·大英雄の経験·Hero's Wit, 광석: 정제용 마법 광석·精鍛用魔鉱). */
+    private val BOOK = listOf("경험", "Experience", "経験", "Hero's Wit", "Wanderer's Advice")
+    private val ORE = listOf("광석", "Ore", "鉱")
+
+    fun isPrimogem(name: String) = name in PRIMOGEM
+    fun isMora(name: String) = name in MORA
+
     fun of(reward: String?) = when {
-        reward == null || reward.contains("원석") -> R.drawable.ic_item_primogem
-        reward.contains("모라") -> R.drawable.ic_item_mora
-        reward.contains("경험") -> R.drawable.ic_item_book
-        reward.contains("광석") -> R.drawable.ic_item_ore
+        reward == null || PRIMOGEM.any { reward.contains(it) } -> R.drawable.ic_item_primogem
+        MORA.any { reward.contains(it) } -> R.drawable.ic_item_mora
+        BOOK.any { reward.contains(it) } -> R.drawable.ic_item_book
+        ORE.any { reward.contains(it) } -> R.drawable.ic_item_ore
         else -> R.drawable.ic_item_gift
     }
 }
@@ -34,6 +44,8 @@ data class NotesUi(
     val commissionsSub: String,
     /** 펼쳤을 때 맨 아래, 예: "오후 3:02 기준". */
     val updated: String,
+    /** 레진이 가득 차는 시각(서버 기준 밀리초, 모르면 0). 로비가 시각만 크게 쓸 때 쓴다. */
+    val fullAt: Long = 0,
 )
 
 /** 메인 화면에 그릴 내용. 저장소에서 만들고, 화면은 이것만 보고 그린다. 계정에 관한 값은 지금 고른 계정 것이다. */
@@ -71,7 +83,7 @@ data class MainUiState(
     /** 보충할 수 있는 놓친 날 수. 보충할 수 없으면 null. */
     val makeUpMissed: Int? = null,
     /** 알림 설정 요약, 예: "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이". */
-    val notificationsSummary: String = "출석 완료 · 보충 출석 · 리딤 코드 · 밤에는 소리 없이",
+    val notificationsSummary: String = Text.get(R.string.main_notify_summary_default),
     val redeemEnabled: Boolean = true,
     /** 리딤 보상을 받을 캐릭터 설명. 아직 안 골랐으면 null. */
     val redeemRole: String? = null,
@@ -122,6 +134,18 @@ data class MainUiState(
     val editing: Boolean = false,
     /** 로비형 소개 카드를 보일 때(로그인하고 며칠 뒤 한 번만, 다른 안내가 없을 때). */
     val lobbyIntro: Boolean = false,
+    /** 설정 타일에 보일 것: 켜 둔 알림 수, 밤 무음, 홈 스타일 한 줄, 앱 언어, 버전. */
+    val notifyOn: Int = 0,
+    val quietNight: Boolean = false,
+    val homeStyleLabel: String = "",
+    val language: String? = null,
+    val appVersion: String = "",
+    /** 메인 화면에 보이는 카드 수. */
+    val cardCount: Int = 0,
+    /** 마지막 리딤에서 새로 넣은 코드 수(타일에 크게). 모르면 0. */
+    val redeemNew: Int = 0,
+    /** 이번 달 받은 원석(출석 보상 달력의 받은 칸 + 이 앱이 받은 리딤 코드). 모르면 null. */
+    val monthPrimos: Int? = null,
 )
 
 /** activity_main 레이아웃을 MainUiState대로 채운다. 클릭 처리는 액티비티가 붙인다. */
@@ -148,7 +172,11 @@ data class RerunCardUi(
     val oldest: String?,
     /** [chars] 중 4성(보라 테두리). */
     val fours: Set<String> = emptySet(),
-)
+    /** [chars]의 한국어 이름 → 보일 이름(앱 언어). 없으면 한국어 이름 그대로. */
+    val names: Map<String, String> = emptyMap(),
+) {
+    fun label(ko: String) = names[ko] ?: ko
+}
 
 class MainScreen(val root: View) {
     private companion object {
@@ -180,19 +208,32 @@ class MainScreen(val root: View) {
     private val heroRewardIcon: android.widget.ImageView = root.findViewById(R.id.heroRewardIcon)
     private val heroNote: TextView = root.findViewById(R.id.heroNote)
     private val heroNext: TextView = root.findViewById(R.id.heroNext)
-    private val timingSection: View = root.findViewById(R.id.timingSection)
-    val rowExactAlarm: View = root.findViewById(R.id.rowExactAlarm)
-    val rowBattery: View = root.findViewById(R.id.rowBattery)
-    val rowHibernation: View = root.findViewById(R.id.rowHibernation)
     val primaryButton: Button = root.findViewById(R.id.primaryButton)
     val busyBar: View = root.findViewById(R.id.busyBar)
     val makeUpCard: View = root.findViewById(R.id.makeUpCard)
     private val makeUpText: TextView = root.findViewById(R.id.makeUpText)
     val makeUpButton: Button = root.findViewById(R.id.makeUpButton)
-    val rowNotifications: View = root.findViewById(R.id.rowNotifications)
-    private val notificationsSub: TextView = root.findViewById(R.id.notificationsSub)
     val settingsButton: View = root.findViewById(R.id.settingsButton)
     val settingsPanel: View = root.findViewById(R.id.settingsPanel)
+    /** 설정 내용(상태 카드·계정·타일·링크). 알림 쪽도 같은 자리에 그린다. */
+    val settingsView = SettingsView(context).also { root.findViewById<android.view.ViewGroup>(R.id.settingsContent).addView(it) }
+    var settingsActions: SettingsView.Actions = object : SettingsView.Actions {
+        override fun onExactAlarm() {}
+        override fun onBattery() {}
+        override fun onHibernation() {}
+        override fun onAccount() {}
+        override fun onLogin() {}
+        override fun onNotifications() {}
+        override fun onDecorate() {}
+        override fun onMainDisplay() {}
+        override fun onLanguage() {}
+        override fun onGameApp() {}
+        override fun onAbout() {}
+        override fun onPrivacy() {}
+        override fun onSource() {}
+    }
+    /** 설정의 알림 쪽을 보는 중이면 true(그동안은 설정 첫 쪽을 다시 그리지 않는다). */
+    var settingsOnNotifications = false
     val settingsBack: View = settingsPanel.findViewById(R.id.headerBack)
     val setupBanner: View = root.findViewById(R.id.setupBanner)
     private val setupText: TextView = root.findViewById(R.id.setupText)
@@ -225,7 +266,6 @@ class MainScreen(val root: View) {
     private val notesUpdated: TextView = root.findViewById(R.id.notesUpdated)
     private val notesFooter: View = root.findViewById(R.id.notesFooter)
     val notesPlay: View = root.findViewById(R.id.notesPlay)
-    val rowMainDisplay: View = root.findViewById(R.id.rowMainDisplay)
     val editButton: View = root.findViewById(R.id.editButton)
     val eventsButton: View = root.findViewById(R.id.eventsButton)
     val decorateButton: View = root.findViewById(R.id.decorateButton)
@@ -246,17 +286,9 @@ class MainScreen(val root: View) {
         CARD_RERUNS -> listOf(rerunCard)
         else -> listOf(root.findViewById(R.id.heroCard))
     }
-    val rowGameApp: View = root.findViewById(R.id.rowGameApp)
-    private val gameAppSub: TextView = root.findViewById(R.id.gameAppSub)
-    val rowAccount: View = root.findViewById(R.id.rowAccount)
-    private val accountTitle: TextView = root.findViewById(R.id.accountTitle)
-    private val accountSub: TextView = root.findViewById(R.id.accountSub)
-    val rowLogout: View = root.findViewById(R.id.rowLogout)
-    val privacyLink: TextView = root.findViewById(R.id.privacyLink)
-    val sourceLink: TextView = root.findViewById(R.id.sourceLink)
 
     init {
-        // 화면을 다시 만들 때(다크 모드를 바꿔 창을 그대로 두고 다시 열 때) 창이 이미 붙어 있어 카드 목록의
+        // 화면을 다시 만들 때(언어·다크 모드를 바꿔 창을 그대로 두고 다시 열 때) 창이 이미 붙어 있어 카드 목록의
         // 움직임 효과가 바로 돌고, 빼낸 카드가 효과가 끝날 때까지 목록에 남아 다시 넣을 수 없다. 옮기는 동안은 효과를 끈다.
         val transition = cards.layoutTransition
         cards.layoutTransition = null
@@ -268,16 +300,13 @@ class MainScreen(val root: View) {
         cards.layoutTransition = transition
         // 둥근 모서리 밖으로 장식·눌림 효과가 삐져나오지 않게 자른다.
         root.findViewById<View>(R.id.heroCard).clipToOutline = true
-        root.findViewById<View>(R.id.settingsGroup).clipToOutline = true
-        root.findViewById<View>(R.id.timingGroup).clipToOutline = true
         notesCard.clipToOutline = true
-        root.findViewById<View>(R.id.notesGroup).clipToOutline = true
         tileRedeem.clipToOutline = true
         tileHistory.clipToOutline = true
         rerunCard.clipToOutline = true
         setupBanner.clipToOutline = true
         makeUpCard.clipToOutline = true
-        settingsPanel.findViewById<TextView>(R.id.headerTitle).text = "설정"
+        settingsPanel.findViewById<TextView>(R.id.headerTitle).text = context.getString(R.string.main_settings)
         settingsPanel.findViewById<View>(R.id.headerStatus).visibility = View.GONE
         // Material 3 버튼 모양: 큰 버튼은 모서리 16dp로 채우고, 보충하기는 글자 버튼.
         primaryButton.background = buttonBackground(context, context.getColor(R.color.action), 16f)
@@ -295,13 +324,13 @@ class MainScreen(val root: View) {
         heroDayRow.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         heroStats.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
         heroDay.text = s.totalDays.toString()
-        heroMonth.text = if (s.loggedIn) "${s.month}월 누적 출석" else "로그인하면 매일\n대신 출석해요"
+        heroMonth.text = if (s.loggedIn) context.getString(R.string.main_hero_month, s.month, monthName(s.month)) else context.getString(R.string.main_hero_logged_out)
         heroMonth.textSize = if (s.loggedIn) 14f else 24f
         heroMonth.setTextColor(context.getColor(if (s.loggedIn) R.color.hero_muted else R.color.hero_ink))
         heroReward.text = when {
             s.reward != null -> s.reward
-            s.signedToday -> "출석 완료"
-            else -> "출석하면 표시돼요"
+            s.signedToday -> context.getString(R.string.main_signed_done)
+            else -> context.getString(R.string.main_reward_pending)
         }
         heroRewardIcon.setImageResource(itemIcon(s.reward))
         // 보충한 날에는 같은 줄에 보충 결과를 띄운다(카드 높이는 그대로). '보충 N일'만 금색으로.
@@ -311,16 +340,12 @@ class MainScreen(val root: View) {
                 val head = text.substringBefore(" · ").length
                 setSpan(android.text.style.ForegroundColorSpan(context.getColor(R.color.gold)), 0, head, 0)
             }
-        } ?: "다음 자동 출석 · ${s.nextRun}"
+        } ?: context.getString(R.string.main_next_run, s.nextRun)
 
-        rowExactAlarm.visibility = if (s.loggedIn && s.needsExactAlarm) View.VISIBLE else View.GONE
-        rowBattery.visibility = if (s.loggedIn && s.needsBatteryExemption) View.VISIBLE else View.GONE
-        rowHibernation.visibility = if (s.loggedIn && s.needsHibernationExemption) View.VISIBLE else View.GONE
         val setupNeeded = if (!s.loggedIn) 0 else listOf(s.needsExactAlarm, s.needsBatteryExemption, s.needsHibernationExemption).count { it }
-        timingSection.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
         // 메인에는 한 줄 안내만 두고, 자세한 항목은 설정 안에서 보여 준다.
         setupBanner.visibility = if (setupNeeded > 0) View.VISIBLE else View.GONE
-        setupText.text = "제때 출석하려면 설정 ${setupNeeded}개가 필요해요"
+        setupText.text = context.resources.getQuantityString(R.plurals.main_setup_needed, setupNeeded, setupNeeded)
         // 안내는 한 번에 하나만: 설정·보충·출석 문제 안내가 있으면 로비 소개는 미룬다.
         lobbyIntro.visibility = if (s.lobbyIntro && setupNeeded == 0 && s.note == null && s.makeUpMissed == null && !s.editing) View.VISIBLE else View.GONE
         heroNote.text = s.note
@@ -337,24 +362,16 @@ class MainScreen(val root: View) {
         }
         primaryButton.text = when {
             s.busy != null -> s.busy
-            !s.loggedIn -> "호요랩 로그인"
-            else -> "지금 출석하기"
+            !s.loggedIn -> context.getString(R.string.main_login)
+            else -> context.getString(R.string.main_check_in_now)
         }
 
         makeUpCard.visibility = if (s.loggedIn && s.makeUpMissed != null) View.VISIBLE else View.GONE
-        makeUpText.text = "놓친 날 ${s.makeUpMissed ?: 0}일 · 보충권은 앱이 대신 받아 와요 ⓘ"
+        makeUpText.text = (s.makeUpMissed ?: 0).let { context.resources.getQuantityString(R.plurals.main_make_up_missed, it, it) }
         makeUpButton.isEnabled = s.busy == null
 
-        notificationsSub.text = s.notificationsSummary
 
-        heroEyebrow.text = if (s.loggedIn && s.nickname != null) "${s.nickname} 님의 매일 출석" else "HoYoLAB 매일 출석체크"
-        // 닉네임이 있으면 크게, HoYoLAB UID는 작게. 닉네임을 아직 못 불러왔으면 UID로.
-        accountTitle.text = if (s.nickname != null) listOfNotNull(s.nickname, s.server).joinToString(" · ") else "로그인 상태 확인"
-        accountSub.text = "HoYoLAB UID ${s.uid ?: "확인 불가"} · 마지막 확인 ${s.lastChecked ?: "아직 없음"}" +
-            (s.loginExpiry?.let { "\n로그인 만료 예정 $it" } ?: "")
-        // 로그인 전에는 위의 큰 버튼이 로그인을 맡는다.
-        rowAccount.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
-        rowLogout.visibility = if (s.loggedIn) View.VISIBLE else View.GONE
+        heroEyebrow.text = if (s.loggedIn && s.nickname != null) context.getString(R.string.main_hero_eyebrow_named, s.nickname) else context.getString(R.string.main_hero_eyebrow)
         applyOrder(s.cardOrder)
         renderTiles(s)
         renderCalendar(s)
@@ -370,6 +387,13 @@ class MainScreen(val root: View) {
             setupBanner.visibility = View.GONE
         }
         for (card in CARDS) slot(card).visibility = slot(card).getChildAt(0).visibility
+        if (!settingsOnNotifications) settingsView.bind(SettingsUi(
+            loggedIn = s.loggedIn, nickname = s.nickname, server = s.server, uid = s.uid, loginExpiry = s.loginExpiry,
+            needsExactAlarm = s.needsExactAlarm, needsBattery = s.needsBatteryExemption, needsHibernation = s.needsHibernationExemption,
+            nextRun = s.nextRun, notifyOn = s.notifyOn, notifyTotal = 6, quietNight = s.quietNight, homeStyle = s.homeStyleLabel,
+            cardCount = s.cardCount, language = s.language, gameApp = s.gameApp, gameAppCount = s.gameAppCount,
+            version = s.appVersion,
+        ), settingsActions)
     }
 
     private fun wrap(card: String, view: View) {
@@ -403,9 +427,6 @@ class MainScreen(val root: View) {
     private fun renderNotes(s: MainUiState) {
         val n = s.notes
         notesCard.visibility = if (s.loggedIn && s.showNotes && (n != null || s.notesProblem != null || s.notesLoading || s.editing)) View.VISIBLE else View.GONE
-        // 원신이 둘 이상 깔렸을 때만 어느 걸 켤지 고르게 한다.
-        rowGameApp.visibility = if (s.gameApp != null && s.gameAppCount > 1) View.VISIBLE else View.GONE
-        gameAppSub.text = s.gameApp
 
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
@@ -418,16 +439,16 @@ class MainScreen(val root: View) {
             notesFooter.visibility = View.GONE
             notesResin.textSize = 16f
             notesResin.text = when {
-                s.notesLoading -> "불러오는 중..."
-                s.notesProblem == null -> "레진"
-                s.notesProblem == Notes.NOTES_OFF -> "실시간 메모가 꺼져 있어요"
-                else -> "불러오지 못했어요"
+                s.notesLoading -> context.getString(R.string.main_loading)
+                s.notesProblem == null -> context.getString(R.string.main_card_notes)
+                s.notesProblem == Notes.NOTES_OFF -> context.getString(R.string.main_notes_off)
+                else -> context.getString(R.string.main_notes_failed)
             }
             notesFullLabel.text = ""
             notesFullTime.text = when {
                 s.notesLoading -> ""
-                s.notesProblem == Notes.NOTES_OFF -> "켜기"
-                else -> "다시 시도"
+                s.notesProblem == Notes.NOTES_OFF -> context.getString(R.string.main_turn_on)
+                else -> context.getString(R.string.main_retry)
             }
             notesFullTime.setTextColor(context.getColor(R.color.accent))
             notesCard.contentDescription = s.notesProblem
@@ -459,20 +480,20 @@ class MainScreen(val root: View) {
             }
         }, LinearLayout.LayoutParams(0, MATCH, filled.toFloat()))
         if (n.maxResin - filled > 0) notesBar.addView(View(context), LinearLayout.LayoutParams(0, MATCH, (n.maxResin - filled).toFloat()))
-        notesBar.contentDescription = "레진 ${n.resin}개, 최대 ${n.maxResin}개"
+        notesBar.contentDescription = context.getString(R.string.main_resin_desc, n.resin, n.maxResin)
         // 원신 켜기는 접혀 있어도 보인다. 기준 시각은 펼쳤거나 문제가 있을 때만(접힌 카드는 짧게).
         val expanded = s.notesExpanded && expandable
         notesPlay.visibility = if (s.gameInstalled) View.VISIBLE else View.GONE
-        notesUpdated.text = s.notesProblem?.let { if (it == Notes.NOTES_OFF) "$it · 눌러서 켜기" else "$it · 눌러서 다시 시도" }
+        notesUpdated.text = s.notesProblem?.let { context.getString(if (it == Notes.NOTES_OFF) R.string.main_notes_problem_on else R.string.main_notes_problem_retry, it) }
             ?: n.updated.takeIf { expanded }
         notesFooter.visibility = if (s.gameInstalled || !notesUpdated.text.isNullOrEmpty()) View.VISIBLE else View.GONE
         if (!expanded) return
 
         notesStats.removeAllViews()
         mapOf(
-            NOTE_EXPEDITIONS to Triple(R.drawable.ic_note_expedition, "탐사 파견", n.expeditions to n.expeditionsSub),
-            NOTE_COIN to Triple(R.drawable.ic_note_teapot, "주전자 동전", n.coin to n.coinSub),
-            NOTE_COMMISSIONS to Triple(R.drawable.ic_note_commission, "일일 의뢰", n.commissions to n.commissionsSub),
+            NOTE_EXPEDITIONS to Triple(R.drawable.ic_note_expedition, context.getString(R.string.main_expeditions), n.expeditions to n.expeditionsSub),
+            NOTE_COIN to Triple(R.drawable.ic_note_teapot, context.getString(R.string.main_coin), n.coin to n.coinSub),
+            NOTE_COMMISSIONS to Triple(R.drawable.ic_note_commission, context.getString(R.string.main_commissions), n.commissions to n.commissionsSub),
         ).filterKeys { it in s.noteStats }.values.forEach { (icon, label, values) ->
             notesStats.addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -519,10 +540,10 @@ class MainScreen(val root: View) {
         renderCodes(s)
         eventsButton.visibility = if (s.editing) View.GONE else View.VISIBLE
         eventsDot.visibility = if (s.eventsUnseen > 0) View.VISIBLE else View.GONE
-        eventsButton.contentDescription = if (s.eventsUnseen > 0) "이벤트, 새 이벤트 ${s.eventsUnseen}개" else "이벤트"
+        eventsButton.contentDescription = if (s.eventsUnseen > 0) context.getString(R.string.main_events_new, s.eventsUnseen) else context.getString(R.string.main_events)
         if (s.calendar.isEmpty()) {
             // 편집 중에 아직 못 받았으면 제목만.
-            calendarTitle.text = "${s.month}월 출석 보상"
+            calendarTitle.text = context.getString(R.string.main_calendar_title, s.month, monthName(s.month))
             calendarCount.text = ""
             calendarGrid.removeAllViews()
             calendarNote.visibility = View.GONE
@@ -530,7 +551,7 @@ class MainScreen(val root: View) {
         }
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
-        calendarTitle.text = "${s.month}월 출석 보상"
+        calendarTitle.text = context.getString(R.string.main_calendar_title, s.month, monthName(s.month))
         calendarCount.text = "${s.totalDays} / ${s.calendar.size}"
         calendarGrid.removeAllViews()
         val next = s.totalDays + 1
@@ -553,12 +574,18 @@ class MainScreen(val root: View) {
                         number > s.calendarReachable -> 0.35f
                         else -> 1f
                     }
-                    cell.contentDescription = "${number}번째 출석, ${slot.name} ${slot.count}개" + if (done) ", 받음" else ""
+                    cell.contentDescription = context.getString(if (done) R.string.main_calendar_cell_done else R.string.main_calendar_cell, number, slot.name, slot.count)
                     cell.addView(LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = android.view.Gravity.CENTER
-                        addView(android.widget.ImageView(context).apply { setImageResource(itemIcon(slot.name)) },
-                            LinearLayout.LayoutParams(dp(22), dp(22)))
+                        // 공식 그림을 쓸 수 있으면 호요랩이 주는 게임 아이템 그림(받아 둔 것, 없으면 받아서 바꾼다), 아니면 앱 아이콘.
+                        addView(android.widget.ImageView(context).apply {
+                            val art = Lobby.cachedItemIcon(context, slot.icon)
+                            if (art != null) setImageBitmap(art) else {
+                                setImageResource(itemIcon(slot.name))
+                                Lobby.itemIconAsync(context, slot.icon) { setImageBitmap(it) }
+                            }
+                        }, LinearLayout.LayoutParams(dp(26), dp(26)))
                         addView(TextView(context).apply {
                             text = CheckInCalendar.compact(slot.count)
                             textSize = 11f
@@ -583,13 +610,13 @@ class MainScreen(val root: View) {
             calendarGrid.addView(row)
         }
         // 다음 원석이 언제인지, 놓친 날이 있으면 보충 안내.
-        val nextPrimo = (next..s.calendar.size).firstOrNull { s.calendar[it - 1].name.contains("원석") && it <= s.calendarReachable }
+        val nextPrimo = (next..s.calendar.size).firstOrNull { ItemIcons.of(s.calendar[it - 1].name) == R.drawable.ic_item_primogem && it <= s.calendarReachable }
         val primoText = nextPrimo?.let {
             val days = it - next + (if (s.signedToday) 1 else 0)
-            val whenText = if (days == 0) "오늘" else "${days}일 뒤"
-            "다음 원석: $whenText ×${s.calendar[it - 1].count}"
+            val whenText = if (days == 0) context.getString(R.string.main_when_today) else context.resources.getQuantityString(R.plurals.main_days_later, days, days)
+            context.getString(R.string.main_next_primo, whenText, s.calendar[it - 1].count)
         }
-        val missedText = if (s.calendarMissed > 0) "놓친 날 ${s.calendarMissed}일 · '보충하기'를 누르면 흐린 칸도 받을 수 있어요" else null
+        val missedText = if (s.calendarMissed > 0) context.resources.getQuantityString(R.plurals.main_calendar_missed, s.calendarMissed, s.calendarMissed) else null
         val note = listOfNotNull(primoText, missedText).joinToString("\n")
         calendarNote.text = note
         calendarNote.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
@@ -602,22 +629,51 @@ class MainScreen(val root: View) {
     private fun renderTiles(s: MainUiState) {
         tiles.visibility = if (s.loggedIn && s.showTiles) View.VISIBLE else View.GONE
         tileRedeemValue.text = when {
-            !s.redeemEnabled -> "자동 입력 꺼짐"
-            s.redeemRole == null -> "캐릭터를 골라 주세요"
-            else -> s.redeemShort ?: "자동 입력 켜짐"
+            !s.redeemEnabled -> context.getString(R.string.main_redeem_off)
+            s.redeemRole == null -> context.getString(R.string.main_redeem_pick_role)
+            // 새로 넣은 코드가 있으면 수를 크게: "1 새 코드 입력"
+            s.redeemNew > 0 -> bigNumber(s.redeemNew, context.resources.getQuantityString(R.plurals.main_tile_new_codes, s.redeemNew), R.color.accent)
+            else -> s.redeemShort ?: context.getString(R.string.main_redeem_on)
         }
         tileRedeemValue.setTextColor(context.getColor(if (s.redeemEnabled && s.redeemRole == null) R.color.accent else R.color.ink))
         tileRedeemSub.text = when {
-            !s.redeemEnabled || s.redeemRole == null -> "눌러서 설정"
+            !s.redeemEnabled || s.redeemRole == null -> context.getString(R.string.main_tap_to_set)
             s.redeemWhen != null -> s.redeemWhen
-            else -> "눌러서 지금 확인"
+            else -> context.getString(R.string.main_tap_to_check)
         }
         tileRedeem.isEnabled = s.busy == null
-        val unseen = if (s.historyUnseen >= RewardHistory.PAGE_SIZE) "${RewardHistory.PAGE_SIZE}개 이상" else "${s.historyUnseen}개"
-        tileHistoryValue.text = if (s.historyUnseen > 0) "새 보상 $unseen" else "받은 보상 보기"
-        tileHistoryValue.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink))
-        tileHistorySub.text = "이번 달 원석·모라 합계"
+        val unseen = when {
+            s.historyUnseen >= RewardHistory.PAGE_SIZE -> context.getString(R.string.main_new_rewards_many, RewardHistory.PAGE_SIZE)
+            s.historyUnseen > 0 -> context.resources.getQuantityString(R.plurals.main_new_rewards, s.historyUnseen, s.historyUnseen)
+            else -> null
+        }
+        // 이번 달 원석을 크게("원석 110"), 그 아래 새 보상 수. 원석을 모르면 예전처럼 새 보상 수.
+        if (s.monthPrimos != null) {
+            tileHistoryValue.text = bigNumber(s.monthPrimos, context.getString(R.string.main_tile_primos), R.color.ink)
+            tileHistorySub.text = unseen ?: context.getString(R.string.main_history_sub)
+            tileHistorySub.setTextColor(context.getColor(if (unseen != null) R.color.accent else R.color.ink_muted))
+        } else {
+            tileHistoryValue.text = unseen ?: context.getString(R.string.main_view_rewards)
+            tileHistoryValue.setTextColor(context.getColor(if (s.historyUnseen > 0) R.color.accent else R.color.ink))
+            tileHistorySub.text = context.getString(R.string.main_history_sub)
+            tileHistorySub.setTextColor(context.getColor(R.color.ink_muted))
+        }
         tileHistoryDot.visibility = if (s.historyUnseen > 0) View.VISIBLE else View.GONE
+    }
+
+    /** 숫자는 크게, 뒤 글은 작게: "110 원석", "1 새 코드". */
+    private fun bigNumber(n: Int, label: String, colorRes: Int): CharSequence {
+        val number = "%,d".format(n)
+        return android.text.SpannableStringBuilder(number).apply {
+            setSpan(android.text.style.AbsoluteSizeSpan(26, true), 0, length, 0)
+            setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(context.getColor(colorRes)), 0, length, 0)
+            append("  ")
+            val start = length
+            append(label)
+            setSpan(android.text.style.AbsoluteSizeSpan(13, true), start, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(context.getColor(R.color.ink_muted)), start, length, 0)
+        }
     }
 
     private fun renderAccounts(s: MainUiState) {
@@ -630,19 +686,19 @@ class MainScreen(val root: View) {
                 setOnClickListener { onAccountChip(account.id) }
             })
         }
-        accountChips.addView(makeChip(context, "+ 계정 추가", checked = false, checkable = false).apply {
+        accountChips.addView(makeChip(context, context.getString(R.string.main_add_account), checked = false, checkable = false).apply {
             setOnClickListener { onAccountChip(null) }
         })
     }
 
     private fun renderChip(s: MainUiState) {
         val (text, background, textColor) = when {
-            s.busy != null -> Triple("확인 중", R.drawable.bg_chip_wait, R.color.hero_ink)
-            !s.loggedIn -> Triple("로그인 필요", R.drawable.bg_chip_warn, R.color.on_gold)
-            s.signedToday -> Triple("오늘 출석 완료", R.drawable.bg_chip_done, R.color.on_gold)
-            else -> Triple("출석 전", R.drawable.bg_chip_wait, R.color.hero_ink)
+            s.busy != null -> Triple(R.string.main_chip_checking, R.drawable.bg_chip_wait, R.color.hero_ink)
+            !s.loggedIn -> Triple(R.string.main_chip_login, R.drawable.bg_chip_warn, R.color.on_gold)
+            s.signedToday -> Triple(R.string.main_chip_done, R.drawable.bg_chip_done, R.color.on_gold)
+            else -> Triple(R.string.main_chip_pending, R.drawable.bg_chip_wait, R.color.hero_ink)
         }
-        statusChip.text = text
+        statusChip.text = context.getString(text)
         statusChip.setBackgroundResource(background)
         // 배경을 바꾸면 안쪽 여백이 사라지므로 레이아웃의 값(가로 12dp, 세로 5dp)을 다시 준다.
         val density = context.resources.displayMetrics.density
@@ -673,7 +729,7 @@ class MainScreen(val root: View) {
                 setPadding(dp(18), dp(8), dp(18), dp(8))
                 foreground = ripple.getDrawable(0)
                 alpha = if (opened) 0.55f else 1f
-                contentDescription = "$code${reward?.let { ", $it" } ?: ""}. 누르면 입력 페이지"
+                contentDescription = context.getString(R.string.main_code_desc, code, reward?.let { ", $it" } ?: "")
                 setOnClickListener { onCodeOpen(code) }
                 setOnLongClickListener { onCodeCopy(code); true }
                 addView(LinearLayout(context).apply {
@@ -698,10 +754,11 @@ class MainScreen(val root: View) {
                             setPadding(dp(6), dp(3), dp(6), dp(3))
                             background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(context.getColor(bg)) }
                         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
-                        if (row.live) pill("방송", R.color.rerun_recent, R.color.on_action)
+                        if (row.live) pill(context.getString(R.string.main_code_live), R.color.rerun_recent, R.color.on_action)
                         else if (row.isNew) pill("NEW", R.color.gold, R.color.on_gold)
-                        if (row.server == "전 서버") pill(row.server, R.color.item_tile, R.color.ink_muted)
-                        else pill(row.server, R.color.element_hydro, R.color.on_action)
+                        // row.server는 사이트 자료 그대로(한국어). 보일 때는 지금 언어로.
+                        if (row.server == PublicCodes.ALL_SERVERS) pill(PublicCodes.serverText(row.server), R.color.item_tile, R.color.ink_muted)
+                        else pill(PublicCodes.serverText(row.server), R.color.element_hydro, R.color.on_action)
                     })
                     // 만료일은 보상 앞에 적는다(곧 끝나면 붉게). 표시가 한 줄에 넘치지 않게 둘째 줄로.
                     val detail = listOfNotNull(row.until, reward).joinToString(" · ")
@@ -718,7 +775,7 @@ class MainScreen(val root: View) {
                     })
                 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
                 addView(TextView(context).apply {
-                    text = if (opened) "열어 봄" else "입력 ›"
+                    text = context.getString(if (opened) R.string.main_code_opened else R.string.main_code_enter)
                     textSize = 13f
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                     setTextColor(context.getColor(if (opened) R.color.ink_muted else R.color.accent))
@@ -727,7 +784,7 @@ class MainScreen(val root: View) {
         }
         val hidden = s.publicCodes.size - shown.size
         if (hidden > 0) codesList.addView(TextView(context).apply {
-            text = "코드 ${hidden}개 더 보기"
+            text = context.resources.getQuantityString(R.plurals.main_codes_more, hidden, hidden)
             textSize = 13f
             gravity = android.view.Gravity.CENTER
             minHeight = dp(44)
@@ -748,9 +805,9 @@ class MainScreen(val root: View) {
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         rerunChars.removeAllViews()
-        rerunTitle.text = r?.title ?: "복각표"
+        rerunTitle.text = r?.title ?: context.getString(R.string.main_card_reruns)
         rerunPeriod.text = r?.period ?: ""
-        rerunOldest.text = r?.oldest ?: "캐릭터마다 마지막 픽업 뒤 몇 버전 지났는지 봐요"
+        rerunOldest.text = r?.oldest ?: context.getString(R.string.main_rerun_empty)
         rerunChars.visibility = if (r?.chars.isNullOrEmpty()) View.GONE else View.VISIBLE
         // 4성까지 보이면 한 줄에 다섯까지(조금 작게) 나눠 놓는다.
         val shown = r?.chars.orEmpty().take(if (r?.fours.isNullOrEmpty()) 4 else 5)
@@ -781,7 +838,7 @@ class MainScreen(val root: View) {
                     }
                 }, LinearLayout.LayoutParams(dp(if (many) 48 else 52), dp(if (many) 48 else 52)))
                 addView(TextView(context).apply {
-                    text = name.trim().split(" ").last()
+                    text = r!!.label(name).trim().split(" ").last()
                     textSize = 13f
                     gravity = android.view.Gravity.CENTER
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -792,6 +849,10 @@ class MainScreen(val root: View) {
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }, if (many) LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) else LinearLayout.LayoutParams(dp(76), LinearLayout.LayoutParams.WRAP_CONTENT))
         }
-        rerunCard.contentDescription = listOfNotNull(r?.title, r?.chars?.joinToString { it.first }, r?.period, r?.oldest, "눌러서 복각표").joinToString(", ")
+        rerunCard.contentDescription = listOfNotNull(r?.title, r?.let { u -> u.chars.joinToString { u.label(it.first) } }, r?.period, r?.oldest, context.getString(R.string.main_rerun_open_desc)).joinToString(", ")
     }
+
+    /** 영어 문구용 달 이름(Oct 등). 한국어 문구는 숫자를 쓴다. */
+    private fun monthName(month: Int) =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
 }

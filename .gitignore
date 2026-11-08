@@ -7,3 +7,6 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# 스토어 스크린샷용 게임 아이템 그림(HoYoverse 저작물, 올리지 않음)
+store/item-art/

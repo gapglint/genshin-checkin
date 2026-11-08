@@ -13,8 +13,10 @@ import java.time.LocalDate
 
 /** 홈 화면 '오늘'·'지금 픽업' 위젯. 위젯과 같은 RemoteViews를 만들어 그대로 그린다. */
 class HomeWidgetSnapshotTest {
+    init { TestText.install() }
+
     @get:Rule val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_6, theme = "Theme.HoyoCheckin",
+        deviceConfig = DeviceConfig.PIXEL_6.copy(locale = "ko"), theme = "Theme.HoyoCheckin",
         renderingMode = SessionParams.RenderingMode.SHRINK, useDeviceResolution = true,
     )
 
