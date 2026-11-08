@@ -4,6 +4,7 @@ Google Play 개발자 API로 출시를 다룬다. GitHub Actions(play.yml)에서
 서비스 계정 키는 GitHub Secrets의 PLAY_SERVICE_ACCOUNT_JSON(환경 변수)로만 받고, 어디에도 출력하지 않는다.
 
   python3 tools/play.py check                      # 권한 확인: 트랙 목록만 읽고 아무것도 바꾸지 않는다
+  python3 tools/play.py listing                    # 스토어 등록정보(언어별 제목·설명)와 이미지 주소를 읽기만 한다
   python3 tools/play.py upload AAB TRACK STATUS    # AAB를 트랙에 올린다. STATUS: draft(콘솔에서 직접 출시) | completed
 출시 노트는 store/whatsnew/<언어>.txt(ko-KR, en-US, ja-JP …)에서 읽는다(Play 한도 500자).
 """
@@ -62,6 +63,24 @@ def check():
         edits.delete(packageName=PACKAGE, editId=edit["id"]).execute()  # 확인만 하고 버린다
 
 
+def listing():
+    edits = service()
+    edit = edits.insert(packageName=PACKAGE, body={}).execute()
+    try:
+        for l in edits.listings().list(packageName=PACKAGE, editId=edit["id"]).execute().get("listings", []):
+            lang = l["language"]
+            print(f"===== {lang}")
+            print(f"[title] {l.get('title', '')}")
+            print(f"[short] {l.get('shortDescription', '')}")
+            print(f"[full]\n{l.get('fullDescription', '')}")
+            for kind in ("icon", "featureGraphic", "phoneScreenshots", "sevenInchScreenshots", "tenInchScreenshots"):
+                images = edits.images().list(packageName=PACKAGE, editId=edit["id"], language=lang, imageType=kind).execute().get("images", [])
+                for i, img in enumerate(images):
+                    print(f"[image] {kind} {i + 1} {img.get('url', '')}")
+    finally:
+        edits.delete(packageName=PACKAGE, editId=edit["id"]).execute()
+
+
 def upload(aab, track, status):
     if status not in ("draft", "completed"):
         sys.exit("STATUS는 draft 또는 completed")
@@ -79,6 +98,8 @@ def upload(aab, track, status):
 if __name__ == "__main__":
     if len(sys.argv) >= 2 and sys.argv[1] == "check":
         check()
+    elif len(sys.argv) >= 2 and sys.argv[1] == "listing":
+        listing()
     elif len(sys.argv) == 5 and sys.argv[1] == "upload":
         upload(sys.argv[2], sys.argv[3], sys.argv[4])
     else:

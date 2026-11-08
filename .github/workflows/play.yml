@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "check(연결 확인만) 또는 upload"
+        description: "check(연결 확인만) · listing(스토어 등록정보 읽기) · upload"
         required: true
         default: "check"
       release:
@@ -43,6 +43,12 @@ jobs:
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: python3 tools/play.py check
+
+      - name: Read store listing
+        if: inputs.action == 'listing'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 tools/play.py listing
 
       - name: Download AAB from the release
         if: inputs.action == 'upload'
