@@ -6,6 +6,7 @@ Google Play 개발자 API로 출시를 다룬다. GitHub Actions(play.yml)에서
   python3 tools/play.py check                      # 권한 확인: 트랙 목록만 읽고 아무것도 바꾸지 않는다
   python3 tools/play.py listing                    # 스토어 등록정보(언어별 제목·설명)와 이미지 주소를 읽기만 한다
   python3 tools/play.py upload AAB TRACK STATUS    # AAB를 트랙에 올린다. STATUS: draft(콘솔에서 직접 출시) | completed
+  python3 tools/play.py halt TRACK                 # 그 트랙의 진행 중인 출시를 멈춘다(콘솔에서 다시 재개할 수 있다)
 출시 노트는 store/whatsnew/<언어>.txt(ko-KR, en-US, ja-JP …)에서 읽는다(Play 한도 500자).
 """
 import json
@@ -97,11 +98,23 @@ def upload(aab, track, status):
     print(f"{track} 트랙에 {code}를 올렸어요({'초안: 콘솔에서 출시를 눌러 주세요' if status == 'draft' else '출시'}).")
 
 
+def halt(track):
+    edits = service()
+    edit = edits.insert(packageName=PACKAGE, body={}).execute()
+    current = edits.tracks().get(packageName=PACKAGE, editId=edit["id"], track=track).execute()
+    releases = [dict(r, status="halted") if r.get("status") in ("completed", "inProgress") else r for r in current.get("releases", [])]
+    edits.tracks().update(packageName=PACKAGE, editId=edit["id"], track=track, body={"track": track, "releases": releases}).execute()
+    edits.commit(packageName=PACKAGE, editId=edit["id"]).execute()
+    print(f"{track} 트랙 출시를 멈췄어요: " + ", ".join(f"{r.get('name', '')} {r.get('versionCodes', [])} {r.get('status')}" for r in releases))
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 2 and sys.argv[1] == "check":
         check()
     elif len(sys.argv) >= 2 and sys.argv[1] == "listing":
         listing()
+    elif len(sys.argv) == 3 and sys.argv[1] == "halt":
+        halt(sys.argv[2])
     elif len(sys.argv) == 5 and sys.argv[1] == "upload":
         upload(sys.argv[2], sys.argv[3], sys.argv[4])
     else:

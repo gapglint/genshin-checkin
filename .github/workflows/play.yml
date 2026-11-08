@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "check(연결 확인만) · listing(스토어 등록정보 읽기) · upload"
+        description: "check(연결 확인만) · listing(스토어 등록정보 읽기) · upload · halt(트랙 출시 멈춤)"
         required: true
         default: "check"
       release:
@@ -14,7 +14,7 @@ on:
         required: false
         default: ""
       track:
-        description: "트랙: alpha(비공개 테스트) · internal · production"
+        description: "트랙: alpha(비공개 테스트) · beta(공개 테스트) · internal · production"
         required: false
         default: "alpha"
       status:
@@ -49,6 +49,12 @@ jobs:
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: python3 tools/play.py listing
+
+      - name: Halt the track's release
+        if: inputs.action == 'halt'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 tools/play.py halt "${{ inputs.track }}"
 
       - name: Download AAB from the release
         if: inputs.action == 'upload'
