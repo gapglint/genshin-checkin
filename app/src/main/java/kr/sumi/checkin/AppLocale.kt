@@ -29,6 +29,7 @@ object AppLocale {
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("lang", lang).apply()
         apply(context)
+        Notifier.createChannel(context.applicationContext)
     }
 
     private fun systemChoice(context: Context): String {
