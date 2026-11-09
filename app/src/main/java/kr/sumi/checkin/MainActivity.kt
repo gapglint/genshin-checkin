@@ -1757,7 +1757,7 @@ class MainActivity : Activity() {
         private const val EXTRA_MAKE_UP = "make_up"
         private const val EXTRA_ACCOUNT = "account"
         private const val PRIVACY_URL = "https://apps.sumi.kr/checkin/privacy/"
-        private const val SOURCE_URL = "https://github.com/lesumein/genshin-checkin"
+        private const val SOURCE_URL = "https://github.com/gapglint/genshin-checkin"
 
         /** 그 계정을 띄워 앱을 연다(알림용). */
         fun accountIntent(context: Context, accountId: String) = Intent(context, MainActivity::class.java)

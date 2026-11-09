@@ -70,7 +70,7 @@ HoYoLAB의 날짜는 한국 시간 새벽 1시에 바뀌어요. 앱은 폰 시�
 광고, 분석 도구가 없어요. 로그인 정보는 폰 안에만 저장하고 HoYoLAB에만 보내요. 아이디와 비밀번호는 저장하지 않아요.
 앱 크기 1MB 미만. 앱을 열지 않아도 알아서 돌고, 하루에 몇 번 호요랩과 짧게 통신할 뿐이라 배터리·데이터 부담이 거의 없어요.
 앱의 소스 코드를 모두 공개해 두었어요. 어디로 무엇을 보내는지 직접 확인할 수 있어요.
-https://github.com/lesumein/genshin-checkin
+https://github.com/gapglint/genshin-checkin
 
 ■ 알아 두세요
 호요랩 앱이나 브라우저에서 따로 로그인해도 이 앱 로그인은 그대로예요. 로그인은 1년 동안 유지되고, 만료 2주 전에 알림으로 알려 드려요. 다시 로그인하면 바로 출석해요.
@@ -118,7 +118,7 @@ sumi.kr은 도메인만 있고 홈페이지가 없으므로, [site/](site/) 폴�
 2. `site/` 폴더의 내용을 그 저장소의 루트에 올린다(`CNAME` 파일 포함).
 3. 저장소 Settings → Pages → Source: "Deploy from a branch", Branch: `main` / `(root)`. Custom domain에 `apps.sumi.kr`이 들어가 있는지 확인하고 "Enforce HTTPS"를 켠다.
 4. sumi.kr을 산 곳(도메인 업체)의 DNS 설정에 레코드를 하나 추가한다.
-   - 유형 `CNAME`, 이름(호스트) `apps`, 값 `lesumein.github.io`
+   - 유형 `CNAME`, 이름(호스트) `apps`, 값 `gapglint.github.io`
 5. 몇 분~몇 시간 뒤 `https://apps.sumi.kr/checkin/privacy/`가 열리면 끝.
 
-참고: GitHub Pages는 저장소 주인(lesumein)이 드러난다. 숨기고 싶으면 같은 폴더를 Cloudflare Pages에 올려도 된다.
+참고: GitHub Pages는 저장소 주인(gapglint)이 드러난다. 숨기고 싶으면 같은 폴더를 Cloudflare Pages에 올려도 된다.
