@@ -1288,7 +1288,8 @@ class MainActivity : Activity() {
         view.visibility = View.VISIBLE
         // 이름·대사·메뉴 제목용 글꼴(구글 글꼴 제공자에서 한 번 받는다. 받으면 다시 그린다).
         LobbyFont.load(this) { refresh() }
-        val width = resources.displayMetrics.widthPixels
+        // 세로 화면 폭 기준으로 읽는다(가로 화면은 그림을 높이에 맞춰 더 작게 그린다). 가로 폭으로 읽으면 세로 그림이 몇 배로 커진다.
+        val width = minOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
         // 배경 그림: 방식·최애·스위치·사진이 바뀌었을 때만 다시 읽는다. 공식 그림이 아직 없으면 받아 온다.
         val key = listOf(settings.lobbyBackground, fav.name, Lobby.officialArtAllowed(this), Lobby.photoFile(this).lastModified()).joinToString("|")
         if (key != lobbyArtKey) {

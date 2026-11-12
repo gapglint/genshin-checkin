@@ -159,7 +159,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
      */
     private fun bubbleTop(bubble: View, face: android.graphics.RectF?, art: Bitmap?, w: Int, h: Int): Int {
         val top = insetTop + dp(68)
-        if (face == null || art == null || w <= 0) return top
+        // 가로 화면은 말풍선이 그림 옆에 있어 얼굴과 겹치지 않는다.
+        if (face == null || art == null || w <= 0 || w > h) return top
         val imgH = w * art.height / art.width
         bubble.measure(MeasureSpec.makeMeasureSpec(w - dp(16 + 86), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
         val bw = bubble.measuredWidth
@@ -191,13 +192,19 @@ class LobbyView(context: Context) : FrameLayout(context) {
         setBackgroundColor(t.dark)
         val w = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val h = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        // 가로 화면: 세로 그림을 화면 높이에 맞춰 가운데에 두고, 이름표·패널은 왼쪽, 말풍선은 그림 오른쪽, 메뉴는 끝에.
+        // (폭에 맞추면 그림이 화면의 몇 배로 길어져 얼굴이 아래 패널 밑에 깔린다.)
+        val land = w > h
+        val panelW = if (land) minOf((w * 0.42f).toInt(), dp(400)) else w
         // 오른쪽 메뉴는 남는 높이에 맞춰 크기·간격·이름표를 고른다(이름표·아래 패널과 겹치지 않게).
         val top = insetTop / resources.displayMetrics.density
         val hDp = (h - insetTop - insetBottom) / resources.displayMetrics.density
-        val menuTop = (if (hDp < 720) 112 else 136) + top.toInt()
-        val room = hDp - menuTop - 290 // 아래 이름표·패널·출처 몫
+        val menuTop = (if (land) 64 else if (hDp < 720) 112 else 136) + top.toInt()
+        val room = hDp - menuTop - if (land) 24 else 290 // 아래 이름표·패널·출처 몫(가로는 패널이 왼쪽이라 없다)
         // (아이콘 크기, 간격, 이름 보이기) 중 메뉴 5개가 들어가는 가장 큰 것
-        val (iconSize, gap, labels) = listOf(Triple(46, 10, true), Triple(40, 6, true), Triple(38, 4, false), Triple(32, 3, false))
+        // 가로 화면은 높이가 낮아 이름표를 지키려고 간격을 줄인 크기를 먼저 본다.
+        val (iconSize, gap, labels) = (if (land) listOf(Triple(40, 3, true)) else emptyList())
+            .plus(listOf(Triple(46, 10, true), Triple(40, 6, true), Triple(38, 4, false), Triple(32, 3, false)))
             .firstOrNull { (s, g, l) -> 5 * (s + 2 + g + if (l) 15 else 0) <= room } ?: Triple(30, 2, false)
 
         // 배경: 그림은 화면 폭에 맞춰 위에, 없으면 원소 무늬
@@ -205,18 +212,27 @@ class LobbyView(context: Context) : FrameLayout(context) {
         val hadArt = shownArt
         shownArt = art
         if (art != null) {
-            val imgH = w * art.height / art.width
+            // 세로 화면은 폭에 맞춘다. 가로 화면은 높이에 맞추고, 그래도 폭이 모자라면(가로 사진) 가운데를 잘라 채운다.
+            val imgW = if (land) h * art.width / art.height else w
+            val imgH = if (land) h else w * art.height / art.width
+            val imgLeft = (w - imgW) / 2
             // 캐릭터를 누르면 말풍선을 누른 것처럼 다른 대사(음성). 살짝 들썩여 반응한다. 화면 읽기는 말풍선으로 같은 일을 한다.
             val image = ImageView(context).apply {
                 setImageBitmap(art); scaleType = ImageView.ScaleType.FIT_XY; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
                 setOnClickListener { hop(this); bubbleHidden = false; actions.onBubble() }
             }
-            addView(image, LayoutParams(MATCH_PARENT, imgH))
-            artBottom = minOf(imgH, (h * 0.76f).toInt())
+            addView(image, LayoutParams(imgW, imgH).apply { leftMargin = maxOf(imgLeft, 0) })
+            if (imgLeft < 0) image.translationX = imgLeft.toFloat()
+            // 가로 화면에서 그림 좌우 끝을 배경색으로 잇는다.
+            if (land && imgLeft > 0) for (left in listOf(true, false)) addView(View(context).apply {
+                background = GradientDrawable(if (left) GradientDrawable.Orientation.RIGHT_LEFT else GradientDrawable.Orientation.LEFT_RIGHT,
+                    intArrayOf(LobbyTheme.alpha(t.dark, 0), t.dark))
+            }, LayoutParams(dp(56), MATCH_PARENT).apply { leftMargin = if (left) imgLeft else imgLeft + imgW - dp(56) })
+            artBottom = if (land) h else minOf(imgH, (h * 0.76f).toInt())
             // 새 그림이면 부드럽게 나타나고, 그림은 숨 쉬듯 아주 천천히 커졌다 작아진다.
             // 무늬로 그려 두었다가 그림이 도착했을 때만 서서히(처음부터 있던 그림은 바로).
             if (bound && hadArt == null) { image.alpha = 0f; image.animate().alpha(1f).setDuration(400).start() }
-            image.pivotX = w / 2f
+            image.pivotX = imgW / 2f
             image.pivotY = 0f
             breathing = android.animation.ValueAnimator.ofFloat(1f, 1.03f).apply {
                 duration = 7000
@@ -246,7 +262,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
         }, LayoutParams(MATCH_PARENT, dp(200)))
         addView(View(context).apply {
             background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(LobbyTheme.alpha(t.dark, 0), t.dark))
-        }, LayoutParams(MATCH_PARENT, dp(240)).apply { topMargin = artBottom - dp(240) })
+        }, LayoutParams(MATCH_PARENT, dp(if (land) 140 else 240)).apply { topMargin = artBottom - dp(if (land) 140 else 240) })
         addView(View(context).apply { setBackgroundColor(t.dark) }, LayoutParams(MATCH_PARENT, MATCH_PARENT).apply { topMargin = artBottom })
 
         // 위: 레진·출석 표시, 설정
@@ -271,6 +287,12 @@ class LobbyView(context: Context) : FrameLayout(context) {
         hud.addView(roundIcon(R.drawable.ic_settings, 40, context.getString(R.string.lobby_settings)) { actions.onSettings() })
         addView(hud, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { setMargins(dp(16), insetTop + dp(12), dp(16), 0) })
 
+        // 말풍선 자리: 세로는 왼쪽 16 ~ 메뉴 앞 86. 가로는 그림 오른쪽 끝부터 메뉴 앞까지(최소 220dp).
+        val bubbleLeft = if (land) {
+            val artRight = art?.let { (w + minOf(h * it.width / it.height, w)) / 2 } ?: (w / 2)
+            maxOf(panelW, minOf(artRight - dp(24), w - dp(86 + 220)))
+        } else dp(16)
+        val bubbleW = w - bubbleLeft - dp(86)
         // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사, 🔊는 지금 대사 다시 듣기, ✕는 닫기.
         if (!bubbleHidden) LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -292,7 +314,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                     setPadding(0, 0, 0, dp(4))
                 }
                 // 말풍선 글자 폭(화면 폭 - 좌우 여백 16·86 - 안쪽 14·14 - 음성 표시)으로 줄 수를 미리 센다.
-                val textWidth = w - dp(16 + 86 + 28 + 26) - if (ui.voice) dp(30) else 0
+                val textWidth = bubbleW - dp(28 + 26) - if (ui.voice) dp(30) else 0
                 val lines = if (long && textWidth > 0) android.text.StaticLayout.Builder
                     .obtain(quoteView.text, 0, quoteView.text.length, quoteView.paint, textWidth)
                     .setLineSpacing(dp(2).toFloat(), 1f).build().lineCount else 0
@@ -331,7 +353,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
                 })
             }
         }.let { bubble ->
-            addView(bubble, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(16), bubbleTop(bubble, ui.face, art, w, h), dp(86), 0) })
+            addView(bubble, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(bubbleLeft, bubbleTop(bubble, ui.face, art, w, h), dp(86), 0) })
         }
 
         // 오른쪽 메뉴
@@ -402,7 +424,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             setPadding(0, dp(8), 0, dp(12))
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         bottom.setPadding(0, 0, 0, insetBottom)
-        addView(bottom, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
+        addView(bottom, LayoutParams(if (land) panelW else MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.START))
         bound = true
     }
 
