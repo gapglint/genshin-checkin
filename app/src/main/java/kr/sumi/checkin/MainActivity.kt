@@ -393,6 +393,9 @@ class MainActivity : Activity() {
             runOnUiThread {
                 loadingCalendar = false
                 refresh()
+                // 열려 있는 출석 메뉴도 새 달력(받은 칸·아이템 그림)으로 다시 그린다.
+                val checkInTitle = getString(R.string.main_card_check_in)
+                lobbyMenus.filterIsInstance<LobbyMenu>().filter { it.title == checkInTitle }.forEach { it.rebuild?.invoke() }
             }
         }.start()
     }
@@ -1469,6 +1472,7 @@ class MainActivity : Activity() {
         val theme = LobbyTheme(getColor(Lobby.elementColorRes(fav.element)))
         val menu = LobbyMenu(this, title, theme, lobbyBust, fav.name, fav.element) { closeLobbyMenu() }
         menu.build()
+        menu.rebuild = { menu.body.removeAllViews(); menu.build() }
         val root = screen.root as android.widget.FrameLayout
         root.addView(menu, root.indexOfChild(screen.settingsPanel), android.widget.FrameLayout.LayoutParams(-1, -1))
         applySystemBarInsets(menu)
@@ -1606,7 +1610,10 @@ class MainActivity : Activity() {
         }
         card {
             head(getString(R.string.main_today_cap))
-            row(ItemIcons.of(store.lastReward), getString(if (signed) R.string.main_signed_done else R.string.main_dock_waiting), if (signed) store.lastReward else null)
+            // 오늘 받은 칸의 게임 아이템 그림(누적 출석 일수째 칸). 아직이면 다음에 받을 칸.
+            val todaySlot = slots.getOrNull(if (signed) total - 1 else total)
+            row(ItemIcons.of(store.lastReward), getString(if (signed) R.string.main_signed_done else R.string.main_dock_waiting), if (signed) store.lastReward else null,
+                art = todaySlot?.icon)
             settings.nextRunAt.takeIf { it > 0 }?.let { row(R.drawable.ic_calendar, getString(R.string.main_next_auto), describeNextRun(it)) }
             row(R.drawable.ic_check_badge, getString(R.string.main_open_check_in_page_link)) { startActivity(LoginActivity.checkInPageIntent(this@MainActivity, store.accountId)) }
         }
@@ -1704,11 +1711,11 @@ class MainActivity : Activity() {
             head(getString(R.string.main_card_tiles))
             val log = store.redeemLog
             if (log.isEmpty()) row(R.drawable.ic_item_gift, getString(R.string.main_no_codes))
-            for (r in log.take(10)) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
+            for (r in log.take(10)) codeLine(store, r).let { (icon, right, art) -> row(icon, r.code, right, art = art) }
         }
         if (thisMonth.isNotEmpty()) card {
             head(getString(R.string.main_month_history, RewardHistory.monthLabel(month)))
-            for (e in thisMonth) row(ItemIcons.of(e.name), "${e.name} ×${"%,d".format(e.count)}", RewardHistory.dayLabel(e.date))
+            for (e in thisMonth) row(ItemIcons.of(e.name), "${e.name} ×${"%,d".format(e.count)}", RewardHistory.dayLabel(e.date), art = e.icon)
         }
         card {
             row(R.drawable.ic_item_book, getString(R.string.main_older_history)) {
@@ -1717,12 +1724,25 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * 받은 리딤 코드 한 줄의 아이콘·오른쪽 글자·게임 그림: '대표 보상 외 N종 · 날짜'. 위키의 날것 보상 글(Mora*10000;...)은 아이템 이름으로 바꾼다.
+     * 그림은 대표 보상의 게임 아이템 그림(출석 달력에 같은 아이템이 있으면 그 주소), 없으면 앱 아이콘만.
+     */
+    private fun codeLine(store: Store, r: RedeemedCode): Triple<Int, String, String?> {
+        val items = RewardHistory.totals(r.reward?.let { Redeem.rewardItems(it) }.orEmpty())
+        val first = items.firstOrNull()?.first
+        val art = first?.let { name -> store.calendarAwards.firstOrNull { it.name == name }?.icon?.takeIf { it.isNotEmpty() } }
+        val right = listOfNotNull(RewardHistory.formatTotals(items, max = 1), DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · ")
+        return Triple(ItemIcons.of(first ?: r.reward), right, art)
+    }
+
     private fun LobbyMenu.redeemMenu() {
         val store = store ?: return
         card {
             head(getString(R.string.main_history))
             row(R.drawable.ic_item_primogem, getString(R.string.main_view_month_rewards),
-                store.historyUnseen.takeIf { it > 0 }?.let { resources.getQuantityString(R.plurals.main_new_rewards, it, it) }) {
+                store.historyUnseen.takeIf { it > 0 }?.let { resources.getQuantityString(R.plurals.main_new_rewards, it, it) },
+                art = store.calendarAwards.firstOrNull { ItemIcons.isPrimogem(it.name) }?.icon) {
                 openHistoryMenu()
             }
         }
@@ -1730,7 +1750,7 @@ class MainActivity : Activity() {
             head(getString(R.string.main_recent_codes))
             val log = store.redeemLog.take(5)
             if (log.isEmpty()) row(R.drawable.ic_item_gift, getString(R.string.main_no_codes))
-            for (r in log) row(ItemIcons.of(r.reward), r.code, listOfNotNull(r.reward, DateFormat.format("M/d", Date(r.at)).toString()).joinToString(" · "))
+            for (r in log) codeLine(store, r).let { (icon, right, art) -> row(icon, r.code, right, art = art) }
             store.lastRedeemSummary?.let {
                 line(getString(R.string.main_redeem_checked, DateFormat.format(getString(R.string.main_fmt_date_time), Date(store.lastRedeemAt)).toString(), it.substringBefore(":")))
             }

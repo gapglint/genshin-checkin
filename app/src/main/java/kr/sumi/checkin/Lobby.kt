@@ -143,16 +143,21 @@ object Lobby {
     }
 
     private val itemLoader = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "item-icons").apply { isDaemon = true } }
-    private val itemLoading = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    // 받는 중인 그림 주소 → 다 받으면 알려 줄 곳들. 받는 사이 화면을 다시 그려 같은 그림을 또 찾아도 새 화면에 그림이 들어간다.
+    private val itemWaiting = mutableMapOf<String, MutableList<(Bitmap) -> Unit>>()
 
     /** 받아 두지 않은 아이템 그림을 배경에서 받아 [done]을 화면 스레드에서 부른다. 같은 그림은 한 번만 받는다. */
     fun itemIconAsync(context: Context, url: String, done: (Bitmap) -> Unit) {
-        if (!url.startsWith("https://") || !officialArtAllowed(context) || !itemLoading.add(url)) return
+        if (!url.startsWith("https://") || !officialArtAllowed(context)) return
+        synchronized(itemWaiting) {
+            itemWaiting[url]?.let { it += done; return }
+            itemWaiting[url] = mutableListOf(done)
+        }
         val app = context.applicationContext ?: context
         itemLoader.execute {
             val bmp = itemIcon(app, url)
-            itemLoading.remove(url)
-            if (bmp != null) android.os.Handler(android.os.Looper.getMainLooper()).post { done(bmp) }
+            val waiting = synchronized(itemWaiting) { itemWaiting.remove(url) }.orEmpty()
+            if (bmp != null) android.os.Handler(android.os.Looper.getMainLooper()).post { waiting.forEach { it(bmp) } }
         }
     }
 

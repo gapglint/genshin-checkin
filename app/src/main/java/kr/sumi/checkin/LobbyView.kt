@@ -537,7 +537,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
  * 게임에서 로비 메뉴에 들어간 것처럼 오른쪽에서 들어오고, 뒤로 가기로 로비에 돌아간다.
  */
 class LobbyMenu(
-    context: Context, title: String, private val t: LobbyTheme, bust: Bitmap?, who: String, element: String, onBack: () -> Unit,
+    context: Context, val title: String, private val t: LobbyTheme, bust: Bitmap?, who: String, element: String, onBack: () -> Unit,
 ) : FrameLayout(context) {
     private val numerals: Typeface = context.resources.getFont(R.font.hoyo_numerals)
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -560,9 +560,6 @@ class LobbyMenu(
 
     companion object {
         const val HEADER_DP = 176
-
-        /** 아이템 그림을 받는 일꾼 하나(메뉴를 여러 번 열어도 같은 것을 쓴다). */
-        private val iconPool = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "item-icons").apply { isDaemon = true } }
 
         /** 로비 메뉴 바탕색(다크 모드면 어둡게). 로비에서 연 카드 화면도 같은 바탕을 쓴다. */
         fun pageColor(context: Context, t: LobbyTheme): Int {
@@ -654,25 +651,45 @@ class LobbyMenu(
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
     })
 
-    /** 아이콘 + 제목 + 오른쪽 작은 글자 한 줄(리딤 기록·오늘 보상 등). */
-    fun LinearLayout.row(icon: Int, title: String, right: String? = null, onClick: (() -> Unit)? = null) = addView(LinearLayout(context).apply {
+    /** 메뉴 내용을 처음부터 다시 그린다(늦게 도착한 자료로). 여는 쪽이 정한다. */
+    var rebuild: (() -> Unit)? = null
+
+    /**
+     * 아이콘 + 제목 + 오른쪽 작은 글자 한 줄(리딤 기록·오늘 보상 등).
+     * [art]는 게임 아이템 그림 주소(호요랩). 공식 그림을 쓰면 그 그림, 아니면 [icon].
+     */
+    fun LinearLayout.row(icon: Int, title: String, right: String? = null, art: String? = null, onClick: (() -> Unit)? = null) = addView(LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, dp(10), 0, 0)
         onClick?.let { action -> setOnClickListener { action() } }
-        addView(iconTile(icon, 36), LinearLayout.LayoutParams(dp(36), dp(36)))
+        addView(iconTile(icon, 36, art), LinearLayout.LayoutParams(dp(36), dp(36)))
         addView(text(title, 14f, if (onClick != null) accent else context.getColor(R.color.ink), bold = onClick != null).apply {
             setPadding(dp(12), 0, dp(8), 0)
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        right?.let { addView(text(it, 12f, context.getColor(R.color.ink_muted))) }
+        // 오른쪽 글자는 한 줄로, 길면 줄여서(제목을 밀어내지 않게).
+        right?.let { addView(text(it, 12f, context.getColor(R.color.ink_muted)).apply {
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            maxWidth = dp(180)
+        }) }
     })
 
     /** 원래 앱의 아이템 아이콘을 옅은 원소 색 동그라미에. */
-    private fun iconTile(icon: Int, size: Int) = FrameLayout(context).apply {
+    private fun iconTile(icon: Int, size: Int, art: String? = null) = FrameLayout(context).apply {
         background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(soft) }
-        addView(ImageView(context).apply { setImageResource(icon) }, LayoutParams(dp(size * 58 / 100), dp(size * 58 / 100), Gravity.CENTER))
+        // 게임 아이템 그림은 테두리까지 그려져 있어 앱 아이콘보다 조금 크게.
+        val official = art?.let { Lobby.cachedItemIcon(context, it) }
+        val small = dp(size * 58 / 100)
+        val big = dp(size * 76 / 100)
+        val image = ImageView(context).apply { if (official != null) setImageBitmap(official) else setImageResource(icon) }
+        addView(image, LayoutParams(if (official != null) big else small, if (official != null) big else small, Gravity.CENTER))
+        if (official == null && art != null) Lobby.itemIconAsync(context, art) {
+            image.setImageBitmap(it)
+            image.layoutParams = (image.layoutParams as LayoutParams).apply { width = big; height = big }
+        }
     }
 
     /** 큰 숫자 여러 개를 나란히, 예: (4/5, 탐사 파견). */
@@ -737,10 +754,7 @@ class LobbyMenu(
                             val cached = Lobby.cachedItemIcon(context, slot.icon)
                             if (cached != null) setImageBitmap(cached) else {
                                 setImageResource(ItemIcons.of(slot.name))
-                                if (slot.icon.isNotEmpty() && Lobby.officialArtAllowed(context)) iconPool.execute {
-                                    val bmp = Lobby.itemIcon(context, slot.icon)
-                                    if (bmp != null) post { setImageBitmap(bmp) }
-                                }
+                                Lobby.itemIconAsync(context, slot.icon) { setImageBitmap(it) }
                             }
                         }, LinearLayout.LayoutParams(dp(26), dp(26)))
                         addView(text(CheckInCalendar.compact(slot.count), 11f, context.getColor(R.color.ink)).apply { gravity = Gravity.CENTER; maxLines = 1 })
