@@ -97,6 +97,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
         const val MENU_CARDS = "cards"
         const val MENU_CHECKIN = "checkin"
         const val MENU_DECORATE = "decorate"
+        /** 음성이 끝나고 말풍선이 사라지기까지. */
+        private const val VOICE_TAIL_MS = 2500L
     }
 
     /** 눌렀을 때 살짝 위로 들썩였다 돌아온다(애니메이션을 끈 기기에서는 그대로). */
@@ -117,8 +119,44 @@ class LobbyView(context: Context) : FrameLayout(context) {
     private var lastBind: (() -> Unit)? = null
     /** '전체 보기'로 펼친 긴 대사. */
     private var expandedQuote: String? = null
-    /** ✕로 말풍선을 닫았는지. 캐릭터를 누르면 다시 연다. */
+    /** ✕로 닫았거나 저절로 사라졌는지. 캐릭터를 누르면 다시 연다(다른 대사로). */
     private var bubbleHidden = false
+
+    // 말풍선은 잠깐 보였다가 사라져 캐릭터를 온전히 보여 준다: 음성이 있으면 끝나고 조금 뒤, 없으면 글 길이만큼 읽을 시간 뒤.
+    // '전체 보기'로 펼쳐 읽는 중에는 사라지지 않는다.
+    private var bubbleView: View? = null
+    private var bubbleText = ""
+    private var voiceOn = false
+    private val autoHide = Runnable {
+        val v = bubbleView
+        if (bubbleHidden || voiceOn || expandedQuote != null || v == null) return@Runnable
+        v.animate().alpha(0f).setDuration(350).withEndAction { bubbleHidden = true; lastBind?.invoke() }.start()
+    }
+
+    private fun readTimeMs() = (3500L + 70L * bubbleText.length).coerceIn(5000L, 12000L)
+
+    private fun scheduleHide(delay: Long) {
+        removeCallbacks(autoHide)
+        postDelayed(autoHide, delay)
+    }
+
+    /** 새 대사(앱을 켰을 때의 인사, 눌러서 고른 대사)를 띄운다. 음성이 없으면 읽을 시간 뒤에 사라진다. */
+    fun showBubble() {
+        bubbleHidden = false
+        lastBind?.invoke()
+        if (!voiceOn) scheduleHide(readTimeMs())
+    }
+
+    /**
+     * 대사 음성 재생 시작·끝. 들리는 동안은 말풍선을 보이고, 끝나면([ended]) 조금 뒤 사라진다.
+     * 다른 음성으로 바꾸려고 멈춘 것이면(ended = false) 읽을 시간만큼 기다린다(새 음성을 받는 사이 사라지지 않게).
+     */
+    fun voicePlaying(on: Boolean, ended: Boolean = true) {
+        voiceOn = on
+        removeCallbacks(autoHide)
+        if (on) { if (bubbleHidden) { bubbleHidden = false; lastBind?.invoke() } }
+        else if (!bubbleHidden) scheduleHide(if (ended) VOICE_TAIL_MS else readTimeMs())
+    }
 
     init {
         isClickable = true
@@ -180,6 +218,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
     }
 
     override fun onDetachedFromWindow() {
+        removeCallbacks(autoHide)
         breathing?.cancel()
         super.onDetachedFromWindow()
     }
@@ -294,6 +333,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
         } else dp(16)
         val bubbleW = w - bubbleLeft - dp(86)
         // 말풍선: 최애의 대사(있으면) + 앱이 한 일 한 줄. 누르면 다른 대사, 🔊는 지금 대사 다시 듣기, ✕는 닫기.
+        bubbleText = ui.quote ?: ui.greeting
+        bubbleView = null
         if (!bubbleHidden) LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(10))
@@ -325,6 +366,8 @@ class LobbyView(context: Context) : FrameLayout(context) {
                     setOnClickListener {
                         expandedQuote = if (open) null else ui.quote
                         lastBind?.invoke()
+                        // 펼쳐 읽는 동안은 두고, 접으면 다시 조금 뒤에 사라진다.
+                        if (expandedQuote == null && !voiceOn) scheduleHide(readTimeMs())
                     }
                 }
                 addView(LinearLayout(context).apply {
@@ -354,6 +397,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
             }
         }.let { bubble ->
             addView(bubble, LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(bubbleLeft, bubbleTop(bubble, ui.face, art, w, h), dp(86), 0) })
+            bubbleView = bubble
         }
 
         // 오른쪽 메뉴
@@ -510,7 +554,7 @@ class LobbyView(context: Context) : FrameLayout(context) {
     private fun closeButton() = text("✕", 13f, 0xFF7A8296.toInt()).apply {
         setPadding(dp(8), 0, 0, dp(4))
         contentDescription = context.getString(R.string.lobby_bubble_close_desc)
-        setOnClickListener { bubbleHidden = true; lastBind?.invoke() }
+        setOnClickListener { bubbleHidden = true; removeCallbacks(autoHide); lastBind?.invoke() }
     }
 
     private fun roundIcon(icon: Int, size: Int, description: String?, onClick: (() -> Unit)? = null) = FrameLayout(context).apply {

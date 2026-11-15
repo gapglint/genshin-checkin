@@ -316,6 +316,7 @@ class MainActivity : Activity() {
         voiceRequest++ // 받는 중이던 음성은 앱을 떠난 뒤에 재생하지 않는다
         voicePlayer?.release()
         voicePlayer = null
+        lobby?.voicePlaying(false, ended = false)
         // 계정을 바꿨거나 메모를 새로 받았을 수 있으니 홈 화면 위젯도 맞춘다.
         AppWidgets.updateAll(this)
     }
@@ -1330,6 +1331,8 @@ class MainActivity : Activity() {
         // 로비가 앞에 보일 때만(메뉴·다른 화면 위에서는 아니고).
         greetingToPlay?.let { line ->
             greetingToPlay = null
+            // 새 인사는 말풍선을 다시 띄운다(잠깐 보였다가 사라진다).
+            view.showBubble()
             if (lobbyMenus.isEmpty() && Lobby.officialVoicesAllowed(this)) {
                 playVoice(line.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
             }
@@ -1440,6 +1443,7 @@ class MainActivity : Activity() {
             lobbyLine = line
             lobbyLineKey = "tap"
             refresh()
+            lobby?.showBubble()
             playVoice(line.audioFor(settings.voiceLanguage), "${fav.name}|${settings.voiceLanguage}")
         }
         override fun onAccount() {
@@ -1552,6 +1556,7 @@ class MainActivity : Activity() {
     private fun playVoice(url: String?, owner: String) {
         voicePlayer?.release()
         voicePlayer = null
+        lobby?.voicePlaying(false, ended = false)
         val request = ++voiceRequest
         if (url == null) return
         Thread {
@@ -1565,9 +1570,9 @@ class MainActivity : Activity() {
         voicePlayer = android.media.MediaPlayer().apply {
             setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                 .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
-            setOnPreparedListener { it.start() }
-            setOnCompletionListener { it.release(); if (voicePlayer === it) voicePlayer = null }
-            setOnErrorListener { mp, _, _ -> mp.release(); if (voicePlayer === mp) voicePlayer = null; true }
+            setOnPreparedListener { it.start(); lobby?.voicePlaying(true) }
+            setOnCompletionListener { it.release(); if (voicePlayer === it) { voicePlayer = null; lobby?.voicePlaying(false) } }
+            setOnErrorListener { mp, _, _ -> mp.release(); if (voicePlayer === mp) { voicePlayer = null; lobby?.voicePlaying(false) }; true }
             try { setDataSource(path); prepareAsync() } catch (e: Exception) { release(); voicePlayer = null }
         }
     }
